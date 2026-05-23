@@ -1,0 +1,2654 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="app-version" content="1779510371">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Success Academy — Grades</title>
+<script>
+// Auto cache management
+(function(){
+  const APP_VERSION='1779510371';
+  const STORED_VERSION=localStorage.getItem('sa_app_version');
+  // If version changed - clear all caches and reload once
+  if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
+    localStorage.setItem('sa_app_version',APP_VERSION);
+    // Unregister service workers
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.unregister()));
+    }
+    // Clear all browser caches
+    if('caches' in window){
+      caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).then(()=>{
+        window.location.reload(true);
+      });
+    } else {
+      window.location.reload(true);
+    }
+    return;
+  }
+  // First visit - just store version
+  if(!STORED_VERSION){
+    localStorage.setItem('sa_app_version',APP_VERSION);
+  }
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f6fb;color:#1a1a1a}
+.header{background:#16213e;color:white;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;cursor:pointer}
+.logo-badge{background:#0f3460;border:1.5px solid #e94560;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:800;color:#e94560;letter-spacing:1px}
+.hdr-right{display:flex;gap:8px;align-items:center}
+.saving-pill{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);padding:5px 12px;border-radius:20px;font-size:12px;color:rgba(255,255,255,.85)}
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:white;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.who-pill{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);padding:5px 14px;border-radius:20px;font-size:13px;font-weight:500}
+.who-av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
+.wa-admin{background:#e94560}
+.wa-teacher{background:#4361ee}
+.wa-supporter{background:#2b9348}
+.wa-teacher{background:#4361ee}
+.btn-hdr{padding:6px 14px;border-radius:8px;border:1.5px solid rgba(255,255,255,.25);background:transparent;color:white;font-size:13px;font-weight:500;cursor:pointer;transition:.15s}
+.btn-hdr:hover{background:rgba(255,255,255,.1)}
+.admin-bar{background:#0f3460;border-bottom:2px solid #e94560;padding:8px 24px;display:flex;align-items:center;gap:12px;font-size:13px;color:rgba(255,255,255,.9);flex-wrap:wrap}
+.abar-acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn-ab{padding:5px 14px;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:transparent;color:white;font-size:12px;font-weight:500;cursor:pointer;transition:.15s}
+.btn-ab:hover{background:rgba(255,255,255,.1)}
+.btn-ab.pri{background:#e94560;border-color:#e94560}
+.teacher-bar{background:#1a237e;border-bottom:2px solid #4361ee;padding:8px 24px;display:flex;align-items:center;gap:12px;font-size:13px;color:rgba(255,255,255,.9)}
+.layout{display:flex;height:calc(100vh - 56px)}
+.sidebar{width:264px;background:white;border-right:1px solid #e8eaf0;overflow-y:hidden;flex-shrink:0;display:flex;flex-direction:column}
+.sb-search{padding:12px;border-bottom:1px solid #f0f0f0;position:sticky;top:0;background:white;z-index:5}
+.sb-search input{width:100%;padding:8px 12px 8px 32px;border:1.5px solid #e8eaf0;border-radius:10px;font-size:13px;outline:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;transition:.15s}
+.sb-search input:focus{border-color:#4361ee;box-shadow:0 0 0 3px rgba(67,97,238,.1)}
+.sb-nav{display:flex;border-bottom:1px solid #f0f0f0;overflow-x:auto}
+.sb-nav-btn{flex:1;min-width:60px;padding:9px 6px;font-size:11.5px;font-weight:600;color:#888;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:.15s;white-space:nowrap}
+.sb-nav-btn.active{color:#4361ee;border-bottom-color:#4361ee}
+.sb-hdr{padding:10px 16px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.8px}
+.t-item{padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:.15s;border-left:3px solid transparent}
+.t-item:hover{background:#f8f9ff;border-left-color:#e0e4ff}
+.t-item.active{background:#eef2ff;border-left-color:#4361ee}
+.t-av{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#4361ee,#7209b7);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.t-av.arch{background:linear-gradient(135deg,#888,#555)}
+.t-av.stu{background:linear-gradient(135deg,#2b9348,#1b5e20)}
+.t-name{font-size:13.5px;font-weight:500}
+.t-sub{font-size:11px;color:#999}
+.sr-item{padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:.15s;border-left:3px solid transparent}
+.sr-item:hover{background:#f8f9ff;border-left-color:#4361ee}
+.sr-info{flex:1;min-width:0}
+.sr-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sr-sub{font-size:11px;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sr-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;flex-shrink:0}
+.sr-t{background:#eef2ff;color:#4361ee}
+.sr-s{background:#e8f5e9;color:#2e7d32}
+.main{flex:1;overflow-y:auto;padding:24px}
+.btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+.btn-pri{background:#4361ee;color:white}.btn-pri:hover{background:#3a56d4}
+.btn-sec{background:white;color:#1a1a1a;border:1px solid #e0e0e0}.btn-sec:hover{background:#f5f5f5}
+.btn-dan{background:#ef233c;color:white}.btn-dan:hover{background:#d90429}
+.btn-grn{background:#2b9348;color:white}.btn-grn:hover{background:#1e7535}
+.btn-ora{background:#e65100;color:white}.btn-ora:hover{background:#bf360c}
+.btn-sm{padding:5px 12px;font-size:12px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:white;border-radius:14px;border:1px solid #e8eaf0;padding:20px;text-align:center}
+.stat-val{font-size:36px;font-weight:800;color:#4361ee}
+.stat-lbl{font-size:12px;color:#888;margin-top:4px;font-weight:500}
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.pt{font-size:22px;font-weight:800;color:#16213e}
+.ps{font-size:13px;color:#888;margin-top:2px}
+.bc{display:flex;align-items:center;gap:6px;margin-bottom:20px;font-size:13px;flex-wrap:wrap}
+.bc-l{color:#4361ee;cursor:pointer;font-weight:500}.bc-l:hover{text-decoration:underline}
+.bc-s{color:#ccc}.bc-c{color:#1a1a1a;font-weight:600}
+.card{background:white;border-radius:14px;border:1px solid #e8eaf0;padding:20px;margin-bottom:20px}
+.card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.card-title{font-size:16px;font-weight:700;color:#16213e}
+.day-lbl{font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #e8eaf0}
+.gg{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.gc{background:white;border-radius:12px;border:1.5px solid #e8eaf0;padding:14px;cursor:pointer;transition:.2s}
+.gc:hover{border-color:#4361ee;box-shadow:0 4px 16px rgba(67,97,238,.12);transform:translateY(-2px)}
+.gc-name{font-size:14px;font-weight:700;color:#16213e;margin-bottom:6px}
+.lp{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.lv-beginner{background:#e8f5e9;color:#2e7d32}
+.lv-elementary{background:#e3f2fd;color:#1565c0}
+.lv-pre-intermediate{background:#fff3e0;color:#e65100}
+.lv-intermediate{background:#f3e5f5;color:#6a1b9a}
+.lv-upper-intermediate{background:#fce4ec;color:#880e4f}
+.gc-meta{display:flex;gap:16px;margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0}
+.gm-v{font-size:20px;font-weight:800;color:#4361ee}
+.gm-l{font-size:11px;color:#999;font-weight:500}
+.tw{overflow-x:auto;border-radius:12px;border:1px solid #e8eaf0;background:white;-webkit-overflow-scrolling:touch}
+.tw::-webkit-scrollbar{height:8px}.tw::-webkit-scrollbar-track{background:#f1f1f1;border-radius:4px}.tw::-webkit-scrollbar-thumb{background:#c5cae9;border-radius:4px}.tw::-webkit-scrollbar-thumb:hover{background:#9fa8da}
+table{width:100%;border-collapse:collapse;font-size:11.5px;min-width:1200px}
+thead th{background:#f8f9fb;padding:7px 4px;text-align:center;font-weight:700;font-size:11px;color:#555;border-bottom:2px solid #e8eaf0;white-space:nowrap;position:sticky;top:0;z-index:2}
+thead th.nc{text-align:left;min-width:32px;position:sticky;left:0;background:#f8f9fb;z-index:3}
+thead th.nmc{text-align:left;min-width:150px}
+tbody td{padding:5px 3px;text-align:center;border-bottom:1px solid #f2f4f8;transition:background .1s}
+tbody td.nc{text-align:center;font-weight:600;font-size:12px;color:#999;position:sticky;left:0;background:white;z-index:1;min-width:32px}
+tbody td.nmc{text-align:left;font-weight:600;font-size:13px;position:sticky;left:32px;background:white;z-index:1;min-width:150px}
+tbody tr:hover td{background:#eef2ff!important}
+tbody tr:hover td.nc,tbody tr:hover td.nmc{background:#eef2ff!important}
+tbody tr:hover .row-acts{opacity:1}
+tbody tr.empty-row td{background:#fafafa}
+.row-acts{opacity:0;transition:opacity .15s;display:flex;gap:3px;align-items:center;justify-content:flex-end}
+.ra{background:none;border:1px solid transparent;border-radius:5px;cursor:pointer;padding:3px 6px;font-size:13px;transition:.15s;line-height:1}
+.ra:hover{background:white;border-color:#e0e0e0;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.ra-del:hover{background:#ffebee;border-color:#ef9a9a;color:#c62828}
+.ra-arch:hover{background:#fff8e1;border-color:#ffe082;color:#e65100}
+.ra-move:hover{background:#e8f5e9;border-color:#a5d6a7;color:#1b5e20}
+.name-link{cursor:pointer;color:#1a1a1a;text-decoration:none;transition:.15s}
+.name-link:hover{color:#4361ee;text-decoration:underline}
+.gb{border-left:2px solid #e0e4ff}
+.gh{background:#eef2ff!important;color:#4361ee!important}
+.gi{width:42px;border:1.5px solid transparent;border-radius:5px;padding:3px 4px;text-align:center;font-size:12.5px;background:transparent;font-family:inherit;transition:.15s}
+.gi:hover{border-color:#c5cae9;background:#f8f9ff}
+.gi:focus{outline:none;border-color:#4361ee;background:white;box-shadow:0 0 0 3px rgba(67,97,238,.1)}
+.ni{width:100%;border:1.5px solid transparent;border-radius:5px;padding:3px 6px;font-size:13px;background:transparent;font-family:inherit;transition:.15s;font-weight:600}
+.ni:hover{border-color:#c5cae9;background:#f8f9ff}
+.ni:focus{outline:none;border-color:#4361ee;background:white;box-shadow:0 0 0 3px rgba(67,97,238,.1)}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;appearance:none;margin:0;display:none}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.ob{display:inline-block;padding:4px 10px;border-radius:8px;font-weight:800;font-size:12.5px;min-width:52px;text-align:center}
+.og{background:#e8f5e9;color:#1b5e20}
+.oy{background:#fff8e1;color:#e65100}
+.or{background:#ffebee;color:#b71c1c}
+.on{background:#f5f5f5;color:#bbb}
+/* Student profile */
+.stu-hist-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f0f0f0}
+.stu-hist-row:last-child{border-bottom:none}
+.status-pill{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700}
+.sp-active{background:#e8f5e9;color:#1b5e20}
+.sp-archived{background:#f5f5f5;color:#888}
+.sp-graduated{background:#e3f2fd;color:#1565c0}
+/* Accounts */
+.acc-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f0}
+.acc-row:last-child{border-bottom:none}
+.acc-info{flex:1}
+.acc-name{font-size:14px;font-weight:600}
+.acc-login{font-size:12px;color:#888}
+.role-badge{padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700}
+.rb-admin{background:#ffebee;color:#b71c1c}
+.rb-teacher{background:#eef2ff;color:#4361ee}
+/* Archives */
+.arch-card{background:white;border-radius:12px;border:1.5px solid #e8eaf0;padding:16px;transition:.2s;cursor:pointer}
+.arch-card:hover{border-color:#4361ee;box-shadow:0 4px 16px rgba(67,97,238,.1)}
+.arch-badge{display:inline-flex;align-items:center;gap:6px;background:#fff8e1;color:#e65100;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(22,33,62,.55);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px)}
+.modal{background:white;border-radius:18px;padding:32px;width:480px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+.modal-title{font-size:20px;font-weight:800;color:#16213e;margin-bottom:6px}
+.modal-desc{color:#777;font-size:14px;margin-bottom:24px;line-height:1.5}
+.fg{margin-bottom:16px}
+.fl{font-size:13px;font-weight:600;color:#444;margin-bottom:7px;display:block}
+.fi,.fs{width:100%;padding:10px 14px;border:1.5px solid #e0e4f0;border-radius:10px;font-size:14px;outline:none;font-family:inherit;transition:.15s;background:white;color:#1a1a1a}
+.fi:focus,.fs:focus{border-color:#4361ee;box-shadow:0 0 0 3px rgba(67,97,238,.1)}
+.fa{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;flex-wrap:wrap}
+.radio-group{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.radio-card{border:2px solid #e0e4f0;border-radius:10px;padding:12px;cursor:pointer;transition:.15s;text-align:center}
+.radio-card:hover,.radio-card.selected{border-color:#4361ee;background:#eef2ff}
+.rc-title{font-size:14px;font-weight:700;color:#16213e}
+.rc-sub{font-size:11px;color:#888;margin-top:3px}
+.time-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.time-btn{border:2px solid #e0e4f0;border-radius:8px;padding:8px;text-align:center;cursor:pointer;font-size:14px;font-weight:700;transition:.15s;background:white}
+.time-btn:hover,.time-btn.selected{border-color:#4361ee;background:#eef2ff;color:#4361ee}
+.paste-area{width:100%;min-height:140px;padding:12px;border:1.5px solid #e0e4f0;border-radius:10px;font-size:13px;font-family:inherit;resize:vertical;outline:none;line-height:1.8}
+.paste-area:focus{border-color:#4361ee;box-shadow:0 0 0 3px rgba(67,97,238,.1)}
+.paste-hint{font-size:12px;color:#999;margin-top:6px}
+.gc-choice{border:2px solid #e0e4f0;border-radius:10px;padding:12px;cursor:pointer;transition:.15s;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.gc-choice:hover{border-color:#4361ee;background:#f0f4ff}
+.stu-pick-row{padding:10px 12px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:.15s}
+.stu-pick-row:hover{background:#f0f4ff}
+.empty{text-align:center;padding:60px 20px;color:#aaa}
+.empty h3{font-size:17px;color:#666;margin-bottom:8px;font-weight:700}
+.empty p{font-size:13px;margin-bottom:20px;line-height:1.6}
+.toast{position:fixed;bottom:28px;right:28px;background:#16213e;color:white;padding:12px 22px;border-radius:12px;font-size:14px;font-weight:500;z-index:9999;animation:tin .3s ease;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast.success{background:#1b5e20}.toast.error{background:#b71c1c}
+@keyframes tin{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+/* Login screen */
+.login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#16213e 0%,#0f3460 50%,#16213e 100%);display:flex;align-items:center;justify-content:center;z-index:2000}
+.login-box{background:white;border-radius:24px;padding:40px;width:420px;max-width:95vw;box-shadow:0 24px 80px rgba(0,0,0,.4)}
+.login-logo{text-align:center;margin-bottom:32px}
+.login-logo .logo-badge{display:inline-block;font-size:14px;margin-bottom:8px}
+.login-title{font-size:13px;color:#888;font-weight:500}
+.tab-row{display:flex;gap:0;margin-bottom:24px;border:1.5px solid #e0e4f0;border-radius:10px;overflow:hidden}
+.tab-btn{flex:1;padding:10px;font-size:13px;font-weight:600;color:#888;border:none;background:transparent;cursor:pointer;transition:.15s}
+.tab-btn.active{background:#4361ee;color:white}
+@media(max-width:768px){.sidebar{position:fixed;left:-264px;top:56px;height:calc(100vh - 56px);z-index:50;transition:.3s;box-shadow:4px 0 16px rgba(0,0,0,.1)}.sidebar.open{left:0}.stats-row{grid-template-columns:repeat(2,1fr)}.main{padding:14px}}
+
+/* Dark theme */
+body.dark{background:#0f1117;color:#e8eaf0}
+body.dark .sidebar{background:#1a1d27;border-color:#2a2d3a}
+body.dark .sb-search input{background:#232635;border-color:#2a2d3a;color:#e8eaf0}
+body.dark .t-item:hover{background:#1e2133}
+body.dark .t-item.active{background:#1e2340}
+body.dark .main{background:#0f1117}
+body.dark .card{background:#1a1d27;border-color:#2a2d3a}
+body.dark .gc{background:#1a1d27;border-color:#2a2d3a}
+body.dark .gc:hover{border-color:#4361ee;background:#1e2340}
+body.dark .stat-card{background:#1a1d27;border-color:#2a2d3a}
+body.dark .tw{background:#1a1d27;border-color:#2a2d3a}
+body.dark table{background:#1a1d27}
+body.dark thead th{background:#141620;color:#9fa8c0}
+body.dark tbody td{border-color:#2a2d3a}
+body.dark tbody td.nc,body.dark tbody td.nmc{background:#1a1d27}
+body.dark tbody tr:hover td{background:#1e2340!important}
+body.dark tbody tr.empty-row td{background:#141620}
+body.dark .gi{color:#e8eaf0}
+body.dark .ni{color:#e8eaf0}
+body.dark .modal{background:#1a1d27;color:#e8eaf0}
+body.dark .fi,body.dark .fs{background:#141620;border-color:#2a2d3a;color:#e8eaf0}
+body.dark .btn-sec{background:#232635;color:#e8eaf0;border-color:#2a2d3a}
+body.dark .btn-sec:hover{background:#2a2d3a}
+body.dark .radio-card{border-color:#2a2d3a;background:#141620;color:#e8eaf0}
+body.dark .radio-card.selected{border-color:#4361ee;background:#1e2340}
+body.dark .time-btn{background:#141620;border-color:#2a2d3a;color:#e8eaf0}
+body.dark .time-btn.selected{background:#1e2340;border-color:#4361ee}
+body.dark .sb-hdr{color:#5a6080}
+body.dark .t-name{color:#e8eaf0}
+body.dark .pt{color:#e8eaf0}
+body.dark .card-title{color:#e8eaf0}
+body.dark .gc-name{color:#e8eaf0}
+body.dark .name-link{color:#c5cae9}
+body.dark .modal-bg{background:rgba(0,0,0,.7)}
+body.dark .sb-nav{border-color:#2a2d3a}
+body.dark .sb-nav-btn{color:#5a6080}
+body.dark .sb-nav-btn.active{color:#7986cb}
+body.dark .footer-bar{background:#1a1d27;border-color:#2a2d3a}
+body.dark #sidebar-footer{background:linear-gradient(135deg,#0d1117,#0a1628)!important}
+/* Footer */
+.footer-bar{padding:12px 16px;border-top:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:white}
+.footer-actions{display:flex;align-items:center;gap:6px}
+.theme-btn{width:32px;height:32px;border-radius:8px;border:1px solid #e0e0e0;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:.15s}
+.theme-btn:hover{background:#f0f0f0}
+body.dark .theme-btn:hover{background:#2a2d3a}
+.lang-btn{padding:4px 10px;border-radius:8px;border:1px solid #e0e0e0;background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:#666;transition:.15s}
+.lang-btn:hover,.lang-btn.active{background:#eef2ff;border-color:#4361ee;color:#4361ee}
+body.dark .lang-btn{border-color:#2a2d3a;color:#9fa8c0}
+body.dark .lang-btn:hover,body.dark .lang-btn.active{background:#1e2340;border-color:#4361ee;color:#7986cb}
+.tg-link{display:flex;align-items:center;gap:5px;color:#0088cc;font-size:12px;font-weight:500;text-decoration:none;padding:4px 10px;border-radius:8px;border:1px solid #b3e0f7;background:#e8f5fb;transition:.15s}
+.tg-link:hover{background:#cceeff}
+body.dark .tg-link{background:#0d2a3a;border-color:#0055aa;color:#64b5f6}
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-badge" id="login-logo-badge">SA</div>
+      <div style="font-size:22px;font-weight:800;color:#16213e;margin-top:8px" id="login-org-name">Success Academy</div>
+      <div class="login-title" id="login-title-text">Система управления оценками</div>
+      <div style="font-size:10px;color:#ccc;margin-top:4px">v2.0</div>
+    </div>
+    <div class="fg"><label class="fl" id="ll-login">Логин</label>
+      <input type="text" class="fi" id="li-login" placeholder="Введите логин" autocomplete="username" onkeydown="if(event.key==='Enter'&&this.value){document.getElementById('li-pass').focus();}">
+    </div>
+    <div class="fg"><label class="fl" id="ll-pass">Пароль</label>
+      <input type="password" class="fi" id="li-pass" placeholder="••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin();">
+    </div>
+    <button class="btn btn-pri" style="width:100%;justify-content:center;padding:13px;font-size:15px;margin-top:4px;border-radius:12px" onclick="doLogin()" id="li-btn">Войти</button>
+    <div id="login-loading" style="display:none;text-align:center;margin-top:12px;font-size:13px;color:#888">
+      <div style="display:inline-block;width:16px;height:16px;border:2px solid #e0e0e0;border-top-color:#4361ee;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px"></div>
+      Загрузка данных...
+    </div>
+    <div id="login-err" style="display:none;color:#c62828;font-size:13px;text-align:center;margin-top:12px;padding:10px 14px;background:#ffebee;border-radius:10px;font-weight:500"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+<div class="header">
+  <div class="logo" onclick="goHome()" id="app-logo"><img id="logo-img" src="" style="height:36px;border-radius:8px;display:none"><div id="logo-text" style="display:flex;align-items:center;gap:10px"><div class="logo-badge">SA</div>Success Academy</div></div>
+  <div class="hdr-right">
+    <div id="saving-pill" style="display:none" class="saving-pill"><div class="spin"></div> Сохранение...</div>
+    <div id="unsaved-pill" style="display:none;background:rgba(233,69,96,.2);border:1px solid #e94560;color:#e94560;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600">● Не сохранено</div>
+    <div class="who-pill" id="who-pill" onclick="showProfile()" style="cursor:pointer" title="Мой профиль"></div>
+    <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" title="Тема" style="border-color:rgba(255,255,255,.25);color:white">🌙</button>
+    <div style="position:relative" id="lang-wrap">
+      <button id="lang-cur-btn" onclick="toggleLangMenu()" style="padding:5px 12px;border-radius:8px;border:1.5px solid rgba(255,255,255,.25);background:transparent;color:white;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px">
+        <span id="lang-cur-flag">🌐</span><span id="lang-cur-text">RU</span><span style="font-size:9px;opacity:.7">▾</span>
+      </button>
+      <div id="lang-menu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:white;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;z-index:500;min-width:150px">
+        <div onclick="setLang('ru');toggleLangMenu()" style="padding:11px 16px;cursor:pointer;font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:10px" onmouseenter="this.style.background='#f0f4ff'" onmouseleave="this.style.background='white'">🇷🇺 Русский</div>
+        <div onclick="setLang('en');toggleLangMenu()" style="padding:11px 16px;cursor:pointer;font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:10px" onmouseenter="this.style.background='#f0f4ff'" onmouseleave="this.style.background='white'">🇬🇧 English</div>
+
+      </div>
+    </div>
+    <button class="btn-hdr" onclick="doLogout()" data-i18n="logout">Выйти</button>
+  </div>
+</div>
+
+<div class="admin-bar" id="adm-bar" style="display:none">
+  <span id="adm-mode-text" data-i18n="adminMode">✅ Режим администратора</span>
+  <div class="abar-acts">
+    <button class="btn-ab" onclick="showAddStaff()" data-i18n="addStaff">+ Сотрудник</button>
+    <button class="btn-ab" onclick="gotoPage('accounts')" data-i18n="accounts">Аккаунты</button>
+    <button class="btn-ab" onclick="gotoPage('students')" data-i18n="stuBase">База студентов</button>
+    <button class="btn-ab" onclick="showCreateArchive()"><span data-i18n="createArchive">🗃 Архив</span></button>
+    <button class="btn-ab" onclick="exportAll()" data-i18n="excel">Excel</button>
+    <button class="btn-ab" onclick="openGlobalSearch()" data-i18n="search">🔍 Поиск</button>
+    <button class="btn-ab" onclick="showSettings()" data-i18n="settings">⚙️</button>
+  </div>
+</div>
+
+<div class="teacher-bar" id="sup-bar" style="display:none;background:#1b5e20;border-bottom:2px solid #4caf50">
+  <span id="sup-bar-name">🤝 Supporter</span> — <span id='sup-bar-text'>только незакрытые тесты студентов</span>
+</div>
+<div class="teacher-bar" id="tch-bar" style="display:none">
+  <span id="tch-bar-name"></span> — <span id='tch-bar-text'>только ваши группы отображаются</span>
+</div>
+
+<div class="layout">
+  <div class="sidebar" id="sidebar">
+    <div class="sb-search"><input type="text" id="sb-q" placeholder="🔍 Поиск..." data-i18n-placeholder="searchPlaceholder" oninput="onSearch(this.value)"></div>
+    <div class="sb-nav" id="sb-nav">
+      <button class="sb-nav-btn active" onclick="sbTab('teachers',this)">👤</button>
+      <button class="sb-nav-btn" onclick="sbTab('archives',this)">🗃</button>
+    </div>
+    <div id="sb-teachers"><div class="sb-hdr"><span data-i18n="teachers">Преподаватели</span></div><div id="tlist"></div></div>
+    <div id="sb-archives" style="display:none"><div class="sb-hdr"><span data-i18n="archivesLbl">Архивы</span></div><div id="alist"></div></div>
+    <div id="sb-sr" style="display:none"></div>
+  </div>
+  
+  <div class="main" id="main"></div>
+</div>
+</div>
+
+<div class="modal-bg" id="mbg" style="display:none" onclick="closeModal(event)">
+  <div class="modal" id="mbox" onclick="event.stopPropagation()"></div>
+</div>
+
+<script>
+const SESSION_KEY='sa_session';
+const SESSION_DAYS=1; // remember for 24 hours
+
+function saveSession(user){
+  const exp=Date.now()+(SESSION_DAYS*24*60*60*1000);
+  localStorage.setItem(SESSION_KEY,JSON.stringify({user,exp}));
+}
+function loadSession(){
+  try{
+    const raw=localStorage.getItem(SESSION_KEY);
+    if(!raw) return null;
+    const {user,exp}=JSON.parse(raw);
+    if(Date.now()>exp){localStorage.removeItem(SESSION_KEY);return null;}
+    return user;
+  }catch(e){return null;}
+}
+function clearSession(){localStorage.removeItem(SESSION_KEY);}
+
+
+
+function setLang(l){
+  curLang=l;
+  localStorage.setItem('sa_lang',l);
+  document.documentElement.lang=l;
+  updateLangBtn(l);
+  applyI18n();
+  if(curUser) renderAll();
+  else{
+    const ltEl=document.getElementById('login-title-text');
+    if(ltEl) ltEl.textContent=tr('loginTitle');
+    const ll=document.getElementById('ll-login');
+    const lp=document.getElementById('ll-pass');
+    const lb=document.getElementById('li-btn');
+    if(ll) ll.textContent=tr('loginLbl');
+    if(lp) lp.textContent=tr('passLbl');
+    if(lb) lb.textContent=tr('loginBtn');
+  }
+}
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    if(el.children.length>0) return;
+    const key=el.getAttribute('data-i18n');
+    const txt=tr(key);
+    if(txt&&txt!==key) el.textContent=txt;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    const key=el.getAttribute('data-i18n-placeholder');
+    const txt=tr(key);
+    if(txt&&txt!==key) el.placeholder=txt;
+  });
+}
+
+function toggleLangMenu(){
+  const m=document.getElementById('lang-menu');
+  if(m) m.style.display=m.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',e=>{
+  const wrap=document.getElementById('lang-dropdown-wrap');
+  if(wrap&&!wrap.contains(e.target)){
+    const m=document.getElementById('lang-menu');
+    if(m) m.style.display='none';
+  }
+});
+function updateLangBtn(l){
+  const flags={ru:'🇷🇺',en:'🇬🇧'};
+  const labels={ru:'RU',en:'EN'};
+  const flag=document.getElementById('lang-cur-flag');
+  const txt=document.getElementById('lang-cur-text');
+  if(flag) flag.textContent=flags[l]||'🌐';
+  if(txt) txt.textContent=labels[l]||l.toUpperCase();
+}
+function toggleTheme(){
+  const isDark=document.body.classList.toggle('dark');
+  localStorage.setItem('sa_theme',isDark?'dark':'light');
+  document.getElementById('theme-btn').textContent=isDark?'☀️':'🌙';
+}
+
+function applyTheme(){
+  document.documentElement.lang=curLang;
+  const saved=localStorage.getItem('sa_theme');
+  if(saved==='dark'){document.body.classList.add('dark');const tb=document.getElementById('theme-btn');if(tb)tb.textContent='☀️';}
+  updateLangBtn(curLang);
+}
+
+// Apply i18n and theme immediately
+document.addEventListener('DOMContentLoaded',()=>{
+  applyTheme();
+  applyI18n();
+  updateLangBtn(curLang);
+});
+initApp();
+setTimeout(()=>{applyI18n();updateLangBtn(curLang);},200);
+
+// ── Render ────────────────────────────────────────────────────────────────
+function isAdmin(){return curUser?.role==='admin';}
+function canEdit(tid){return isAdmin();}
+
+function renderAll(){renderSidebar();renderMain();}
+
+function renderSidebar(){
+  const teachers=isAdmin()?D.teachers:D.teachers.filter(t=>t.id===curUser?.teacherId);
+  document.getElementById('tlist').innerHTML=teachers.length
+    ?teachers.map(t=>`<div class="t-item ${selT===t.id&&view==='teacher'?'active':''}" onclick="gotoT('${t.id}')">
+        <div class="t-av">${ini(t.name)}</div>
+        <div><div class="t-name">${t.name}</div><div class="t-sub">${(t.groups||[]).length} ${tr('grpCount')}</div></div>
+      </div>`).join('')
+    :'<div style="padding:16px;font-size:13px;color:#bbb">Нет преподавателей</div>';
+  document.getElementById('alist').innerHTML=(D.archives||[]).length
+    ?(D.archives||[]).slice().reverse().map(a=>`<div class="t-item ${selArch===a.id&&view==='archive'?'active':''}" onclick="gotoArch('${a.id}')">
+        <div class="t-av arch">📦</div>
+        <div><div class="t-name" style="font-size:13px">${a.label}</div><div class="t-sub">${a.date}</div></div>
+      </div>`).join('')
+    :'<div style="padding:16px;font-size:13px;color:#bbb">Архивов нет</div>';
+}
+
+function renderMain(){
+  const el=document.getElementById('main');
+  try{
+    if(curUser?.role==='supporter'){renderSupporter(el);return;}
+    if(curPage==='accounts') renderAccounts(el);
+    else if(curPage==='students') renderStudentsPage(el);
+    else if(view==='home') renderHome(el);
+    else if(view==='teacher') renderTeacher(el);
+    else if(view==='group') renderGroup(el);
+    else if(view==='archive') renderArchive(el);
+    else if(view==='student') renderStudentProfile(el);
+  }catch(e){
+    console.error('renderMain error:',e);
+    el.innerHTML=`<div style="padding:40px;text-align:center;color:#e94560">
+      <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Ошибка загрузки</div>
+      <div style="font-size:13px;color:#888;margin-bottom:20px">${e.message}</div>
+      <button onclick="location.reload()" style="padding:10px 24px;background:#4361ee;color:white;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600">Обновить страницу</button>
+    </div>`;
+  }
+}
+
+function renderHome(el){
+  const teachers=isAdmin()?D.teachers:D.teachers.filter(t=>t.id===curUser?.teacherId);
+  const tt=teachers.length;
+  const tg=teachers.reduce((s,t)=>s+(t.groups||[]).length,0);
+  const ts=teachers.reduce((s,t)=>s+(t.groups||[]).reduce((a,g)=>a+(g.students||[]).filter(s=>s.name).length,0),0);
+  let sum=0,cnt=0;
+  teachers.forEach(t=>(t.groups||[]).forEach(g=>(g.students||[]).forEach(s=>{const o=calcFinal(s,g.level);if(o!==null){sum+=o;cnt++;}})));
+  el.innerHTML=`
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val">${tt}</div><div class="stat-lbl">${tr('teachers')}</div></div>
+      <div class="stat-card"><div class="stat-val">${tg}</div><div class="stat-lbl">${tr('groups')}</div></div>
+      <div class="stat-card"><div class="stat-val">${ts}</div><div class="stat-lbl">${tr('students')}</div></div>
+      <div class="stat-card"><div class="stat-val">${cnt>0?(sum/cnt).toFixed(1):'—'}</div><div class="stat-lbl">${tr('avg')}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-top"><div class="card-title">${tr('teachers')}</div>
+        ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAddStaff()">${tr('add')}</button>`:''}
+      </div>
+      <div class="gg">${teachers.map(t=>{
+        const c2=(t.groups||[]).reduce((s,g)=>s+(g.students||[]).filter(x=>x.name).length,0);
+        return `<div class="gc" onclick="gotoT('${t.id}')" style="position:relative">
+          ${isAdmin()?`<button onclick="event.stopPropagation();confirmDelT('${t.id}')" style="position:absolute;top:8px;right:8px;background:#ffebee;border:none;border-radius:6px;cursor:pointer;color:#c62828;font-size:16px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s" onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=0">×</button>`:''}
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+            <div class="t-av" style="width:44px;height:44px;font-size:16px;border-radius:12px;flex-shrink:0">${ini(t.name)}</div>
+            <div><div class="gc-name">${t.name}</div><div style="font-size:12px;color:#999">${(t.groups||[]).length} групп · ${c2} ${tr('stuCount')}</div></div>
+          </div></div>`;
+      }).join('')||'<div class="empty"><h3>Нет данных</h3></div>'}
+      </div>
+    </div>`;
+}
+
+function renderTeacher(el){
+  const t=D.teachers.find(x=>x.id===selT);
+  if(!t){goHome();return;}
+  const groups=t.groups||[];
+  const mwf=groups.filter(g=>g.day==='MWF'),tts=groups.filter(g=>g.day==='TTS');
+  const dayBlock=(lbl,list)=>!list.length?'':
+    `<div style="margin-bottom:20px"><div class="day-lbl">${lbl}</div><div class="gg">
+      ${list.map(g=>{
+        const sts=(g.students||[]).filter(s=>s.name);
+        const ovs=sts.map(s=>calcFinal(s,g.level)).filter(v=>v!==null);
+        const avg=ovs.length?(ovs.reduce((a,b)=>a+b,0)/ovs.length).toFixed(1):'—';
+        return `<div class="gc" onclick="gotoG('${g.id}')" style="position:relative">
+          ${isAdmin()?`<button onclick="event.stopPropagation();confirmDelG('${g.id}')" style="position:absolute;top:8px;right:8px;background:#ffebee;border:none;border-radius:6px;cursor:pointer;color:#c62828;font-size:16px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s" onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=0">×</button>`:''}
+          <div class="gc-name">${g.time} <span style="color:#ccc">·</span> <span class="lp lv-${lvc(g.level)}">${lvl(g.level)}</span></div>
+          <div class="gc-meta"><div><div class="gm-v">${sts.length}</div><div class="gm-l">${tr('students')}</div></div>
+          <div><div class="gm-v">${avg}</div><div class="gm-l">Средний</div></div></div></div>`;
+      }).join('')}</div></div>`;
+  const other=groups.filter(g=>g.day!=='MWF'&&g.day!=='TTS');
+  el.innerHTML=`
+    <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">${t.name}</span></div>
+    <div class="ph">
+      <div><div class="pt">${t.name}</div><div class="ps">${groups.length} ${tr('grpCount')}</div></div>
+      ${isAdmin()?`<div style="display:flex;gap:8px">
+        <button class="btn btn-sec btn-sm" onclick="showEditT('${t.id}')">✏️</button>
+        <button class="btn btn-pri btn-sm" onclick="showAddGroup('${t.id}')">+ Группа</button>
+      </div>`:''}
+    </div>
+    ${!groups.length?`<div class="card"><div class="empty"><h3>Нет групп</h3></div></div>`:`
+    <div class="card">${dayBlock(tr('mwfLabel'),mwf)}${dayBlock(tr('ttsLabel'),tts)}${dayBlock(tr('otherLabel'),other)}</div>`}`;
+}
+
+function renderGroup(el,archMode,archSnap){
+  const teachers=archMode?archSnap:D.teachers;
+  const t=teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  if(!g){archMode?null:gotoT(selT);return;}
+  const sts=g.students||[];
+  const isE=['beginner','elementary'].includes(g.level);
+  const ed=canEdit(t?.id)&&!archMode;
+  // Sort
+  const sortKey=window._sortKey||'name', sortDir=window._sortDir||1;
+  const realSts=sts.filter(s=>s.name);
+  const sorted=[...realSts].sort((a,b)=>{
+    if(sortKey==='name') return sortDir*a.name.localeCompare(b.name,'ru');
+    if(sortKey==='overall'){const oa=calcFinal(a,g.level)??-1,ob=calcFinal(b,g.level)??-1;return sortDir*(oa-ob);}
+    if(sortKey==='unit'){const ua=avg2((a.units||[]).filter(v=>v!=null&&v!=='')),ub=avg2((b.units||[]).filter(v=>v!=null&&v!==''));return sortDir*(ua-ub);}
+    if(sortKey==='final'){const fa=a.final??-1,fb=b.final??-1;return sortDir*(fa-fb);}
+    return 0;
+  });
+  // Empty rows at end only in edit mode
+  const rows=ed&&sorted.length===0?[null]:[...sorted];
+  const title=`${g.day} ${g.time} — ${lvl(g.level)}`;
+  el.innerHTML=`
+    <div class="bc">
+      <span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span>
+      ${archMode?`<span class="bc-l" onclick="gotoArch('${selArch}')">${(D.archives.find(a=>a.id===selArch)||{}).label||'Архив'}</span>`
+               :`<span class="bc-l" onclick="gotoT('${t.id}')">${t.name}</span>`}
+      <span class="bc-s">›</span><span class="bc-c">${title}</span>
+    </div>
+    <div class="ph">
+      <div><div class="pt">${title}</div>
+        <div style="margin-top:4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span class="lp lv-${lvc(g.level)}">${lvl(g.level)}</span>
+          ${archMode?`<span class="arch-badge">📦 Архив</span>`:''}
+          <span style="font-size:13px;color:#888">${sts.filter(s=>s.name).length} студентов</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${isAdmin()&&!archMode?`<button class="btn btn-sec btn-sm" onclick="showEditG('${g.id}')">⚙️</button>
+          <button class="btn btn-ora btn-sm" onclick="showPromoteGroup()">${tr('finishGrp')}</button>`:''}
+        ${ed?`<button class="btn btn-grn btn-sm" onclick="showAddStudentToGroup()">${tr('addStu')}</button>
+              <button class="btn btn-sec btn-sm" onclick="showImport()">${tr('paste')}</button>`:''}
+        <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">${tr('excel')}</button>
+        ${!archMode?`
+        <button class="btn btn-grn btn-sm" onclick="showUploadExcel()">${tr('uploadXl')}</button>`:''}
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="font-size:12px;color:#888;font-weight:600">${tr('sorting')}</span>
+      ${getSortButtons()}
+    </div>
+    <div class="tw"><table>
+      <thead>
+        <tr>
+          <th class="nc" rowspan="2">#</th>
+          <th class="nmc" rowspan="2">Студент</th>
+          <th colspan="12" class="gb gh">Unit Tests (10%)</th>
+          <th colspan="5" class="gb gh">Homework (10%)</th>
+          <th colspan="5" class="gb gh">Achievement Test (15%)</th>
+          <th class="gb gh" rowspan="2">PPT (20%)</th>
+          <th class="gh" rowspan="2">${isE?'SPT (15%)':'SPT (25%)'}</th>
+          <th class="gh" rowspan="2">${isE?'Final (30%)':'Final (20%)'}</th>
+          <th class="gh" rowspan="2">Overall</th>
+          <th class="gh" rowspan="2" style="background:#fff3e0!important;color:#e65100!important;min-width:60px">Retake</th>
+          ${ed?'<th rowspan="2" style="min-width:80px"></th>':''}
+        </tr>
+        <tr>
+          ${[1,2,3,4,5,6,7,8,9,10,11,12].map((n,i)=>`<th${i===0?' class="gb"':''}>U${n}</th>`).join('')}
+          ${[1,2,3,4,5].map((n,i)=>`<th${i===0?' class="gb"':''}>HW${n}</th>`).join('')}
+          ${[1,2,3,4,5].map((n,i)=>`<th${i===0?' class="gb"':''}>AT${n}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map((s,i)=>srow(s,i+1,g,ed,archMode)).join('')}
+        ${ed?`<tr class="empty-row"><td class="nc">${sorted.length+1}</td>
+          <td class="nmc"><input class="ni" type="text" placeholder="Введите имя..." onblur="nameBlur('',${sorted.length},this)" onkeydown="nameKey(event,'',${sorted.length},this)"></td>
+          ${Array(27+1).fill('<td></td>').join('')}
+          <td></td></tr>`:''}
+      </tbody>
+    </table></div>`;
+}
+
+function srow(s,num,g,ed,archMode){
+  const empty=!s||!s.name;
+  const sid=s?s.id:'';
+  const ov=s?calc(s,g.level):null;
+  const retake=s?.retake!=null&&s?.retake!==''?Number(s.retake):null;
+  const finalOv=ov!==null?(ov+(retake||0)):(retake!==null?retake:null);
+  const ovc=finalOv===null?'on':finalOv>=75?'og':finalOv>=70?'oy':'or';
+  const gcell=(val,field,idx)=>{
+    const v=(val!=null&&val!=='')?val:'';
+    if(ed) return `<input class="gi" type="text" inputmode="decimal" value="${v}" oninput="gch('${sid}','${field}',${idx!=null?idx:'null'},this.value)" onkeydown="gradeKey(event,this)" onfocus="this.select()" placeholder="">`;
+    return `<span style="color:${v===''?'#ddd':'inherit'}">${v!==''?fmt(v):'—'}</span>`;
+  };
+  const namecell=ed
+    ?`<input class="ni" type="text" value="${s?s.name:''}" placeholder="Введите имя..." onblur="nameBlur('${sid}',${num-1},this)" onkeydown="nameKey(event,'${sid}',${num-1},this)" onfocus="this.select()">`
+    :(s?.name?`<span class="name-link" onclick="clickStudent('${sid}')">${s.name}</span>`:'<span style="color:#ddd">—</span>');
+  const us=s?(s.units||Array(12).fill(null)):Array(12).fill(null);
+  const hw=s?(s.homework||Array(5).fill(null)):Array(5).fill(null);
+  const at=s?(s.achievements||Array(5).fill(null)):Array(5).fill(null);
+  return `<tr class="${empty?'empty-row':''}">
+    <td class="nc">${num}</td>
+    <td class="nmc">${namecell}</td>
+    ${us.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'units',i)}</td>`).join('')}
+    ${hw.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'homework',i)}</td>`).join('')}
+    ${at.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'achievements',i)}</td>`).join('')}
+    <td class="gb">${gcell(s?.presentation,'presentation')}</td>
+    <td>${gcell(s?.speaking,'speaking')}</td>
+    <td>${gcell(s?.final,'final')}</td>
+    <td><span class="ob ${ovc}" data-ov="${sid}">${finalOv!==null?finalOv.toFixed(1):'—'}</span></td>
+    <td style="background:#fffbf5">${ed&&s?`<input class="gi" type="text" inputmode="decimal" value="${s.retake||''}" oninput="gch('${sid}','retake',null,this.value)" placeholder="">`:(s?.retake&&s.retake>0?`<span style="color:#e65100;font-weight:700">+${fmt(s.retake)}</span>`:'<span style="color:#ddd">—</span>')}</td>
+    ${ed&&!empty?`<td><div class="row-acts">
+      <button class="ra" onclick="showSetStart('${sid}')" title="Начало с юнита" style="font-size:11px;padding:2px 6px">▶U${(s&&s.startUnit)||1}</button>
+      <button class="ra ra-move" onclick="showMoveStudent('${sid}')" title="Перенести">↗</button>
+      <button class="ra ra-arch" onclick="archiveStudent('${sid}')" title="В архив">📦</button>
+      <button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>
+    </div></td>`:(ed?'<td></td>':'')}
+  </tr>`;
+}
+
+// ── Calc ──────────────────────────────────────────────────────────────────
+function calc(s,level){
+  if(!s||!s.name) return null;
+  const ok=v=>v!==null&&v!==undefined&&v!=='';
+  const u=(s.units||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
+  const hw=(s.homework||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
+  const at=(s.achievements||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
+  const ppt=ok(s.presentation)?Number(s.presentation):null;
+  const spt=ok(s.speaking)?Number(s.speaking):null;
+  const fin=ok(s.final)?Number(s.final):null;
+  if(!u.length&&!hw.length&&!at.length&&ppt===null&&spt===null&&fin===null) return null;
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+  const isE=['beginner','elementary'].includes(level);
+  return avg(u)*.10+avg(hw)*.10+avg(at)*.15+(ppt||0)*.20+(isE?(spt||0)*.15+(fin||0)*.30:(spt||0)*.25+(fin||0)*.20);
+}
+function calcFinal(s,level){
+  const ov=calc(s,level);
+  const r=s?.retake!=null&&s?.retake!==''?Number(s.retake):null;
+  return ov!==null?(ov+(r||0)):(r!==null?r:null);
+}
+
+// ── Grade input ───────────────────────────────────────────────────────────
+function gch(sid,field,idx,val){
+  if(!sid) return;
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=(g?.students||[]).find(x=>x.id===sid);
+  if(!s) return;
+  const n=val===''?null:parseFloat(val);
+  if(idx!==null){if(!s[field])s[field]=Array(field==='units'?12:5).fill(null);s[field][idx]=n;}
+  else s[field]=n;
+  const ov=calc(s,g.level);
+  const r=s.retake!=null&&s.retake!==''?Number(s.retake):null;
+  const fv=ov!==null?(ov+(r||0)):(r!==null?r:null);
+  const badge=document.querySelector(`[data-ov="${sid}"]`);
+  if(badge){badge.textContent=fv!==null?fv.toFixed(1):'—';badge.className='ob '+(fv===null?'on':fv>=75?'og':fv>=70?'oy':'or');}
+  sched();
+}
+function nameBlur(sid,rowIdx,inp){
+  const val=inp.value.trim();
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  if(!g||!g.students) g&&(g.students=[]);
+  if(!g) return;
+  if(sid){const s=g.students.find(x=>x.id===sid);if(s&&val){s.name=val;sched();}}
+  else if(val){
+    const ns=newStudent(val);
+    g.students.push(ns);
+    if(!D.students.find(x=>x.name.toLowerCase()===val.toLowerCase()))
+      D.students.push({id:ns.id,name:val,status:'active',createdAt:new Date().toISOString().split('T')[0]});
+    sched();setTimeout(()=>renderGroup(document.getElementById('main')),100);
+  }
+}
+function nameKey(e,sid,idx,inp){if(e.key==='Enter') inp.blur();}
+
+// ── Student actions ───────────────────────────────────────────────────────
+function delStudent(sid){
+  if(!sid||!confirm('Удалить студента из группы?')) return;
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  g.students=g.students.filter(x=>x.id!==sid);
+  renderGroup(document.getElementById('main'));sched();
+}
+
+function archiveStudent(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=g?.students?.find(x=>x.id===sid);if(!s) return;
+  const fv=calcFinal(s,g.level);
+  openModal(`<div class="modal-title">📦 Архивировать студента</div>
+    <div class="modal-desc"><b>${s.name}</b> будет перемещён в архив. Оценки сохранятся.</div>
+    <div style="background:#f8f9fb;border-radius:10px;padding:14px;margin-bottom:16px;text-align:center">
+      <div style="font-size:12px;color:#888;margin-bottom:4px">Overall</div>
+      <div class="ob ${fv===null?'on':fv>=75?'og':fv>=70?'oy':'or'}" style="font-size:20px">${fv!==null?fv.toFixed(1):'—'}</div>
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-ora" onclick="doArchiveStu('${sid}')">📦 В архив</button></div>`);
+}
+function doArchiveStu(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const s=g.students.find(x=>x.id===sid);if(!s) return;
+  if(!g.archived_students) g.archived_students=[];
+  g.archived_students.push({...s,archived_at:new Date().toISOString()});
+  g.students=g.students.filter(x=>x.id!==sid);
+  const gs=D.students.find(x=>x.id===sid||x.name===s.name);
+  if(gs) gs.status='archived';
+  closeModal();renderGroup(document.getElementById('main'));sched();toast(`${s.name} архивирован ✓`,'success');
+}
+
+function showMoveStudent(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=g?.students?.find(x=>x.id===sid);if(!s) return;
+  const opts=[];
+  D.teachers.forEach(tc=>(tc.groups||[]).forEach(gr=>{if(gr.id!==selG) opts.push({t:tc,g:gr});}));
+  openModal(`<div class="modal-title">↗ Перенести студента</div>
+    <div class="modal-desc">Куда перенести <b>${s.name}</b>?</div>
+    <div style="max-height:320px;overflow-y:auto">
+      ${opts.map(({t:tc,g:gr})=>`<div class="gc-choice" onclick="doMove('${sid}','${gr.id}')">
+        <div class="t-av" style="width:32px;height:32px;font-size:11px;border-radius:8px">${ini(tc.name)}</div>
+        <div><div style="font-size:13px;font-weight:700">${tc.name}</div>
+          <div style="font-size:12px;color:#888">${gr.day} ${gr.time} · <span class="lp lv-${lvc(gr.level)}" style="padding:1px 7px">${lvl(gr.level)}</span></div>
+        </div></div>`).join('')||'<div style="text-align:center;padding:20px;color:#bbb">'+tr('noGroups')+'</div>'}
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button></div>`);
+}
+function doMove(sid,targetGid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=g?.students?.find(x=>x.id===sid);if(!s) return;
+  let tgt=null;D.teachers.forEach(tc=>(tc.groups||[]).forEach(gr=>{if(gr.id===targetGid) tgt=gr;}));
+  if(!tgt) return;
+  if(!tgt.students) tgt.students=[];
+  tgt.students.push({...s,id:uid()});
+  g.students=g.students.filter(x=>x.id!==sid);
+  closeModal();renderGroup(document.getElementById('main'));sched();toast(`${s.name} перенесён ✓`,'success');
+}
+
+function clickStudent(sid){
+  const found=[];
+  D.teachers.forEach(t=>(t.groups||[]).forEach(g=>{
+    const s=(g.students||[]).find(x=>x.id===sid);
+    if(s) found.push({t,g,s});
+  }));
+  if(!found.length) return;
+  if(found.length===1){selT=found[0].t.id;selG=found[0].g.id;view='group';renderAll();}
+  else{
+    openModal(`<div class="modal-title">Студент в нескольких группах</div>
+      <div class="modal-desc">Выберите группу:</div>
+      ${found.map(({t,g})=>`<div class="gc-choice" onclick="selT='${t.id}';selG='${g.id}';view='group';renderAll();closeModal()">
+        <div class="t-av" style="width:32px;height:32px;font-size:11px;border-radius:8px">${ini(t.name)}</div>
+        <div><div style="font-size:13px;font-weight:700">${t.name}</div>
+          <div style="font-size:12px;color:#888">${g.day} ${g.time} · <span class="lp lv-${lvc(g.level)}" style="padding:1px 7px">${lvl(g.level)}</span></div>
+        </div></div>`).join('')}
+      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button></div>`);
+  }
+}
+
+// ── Students page ─────────────────────────────────────────────────────────
+function renderStudentsPage(el){
+  const stus=D.students||[];
+  el.innerHTML=`
+    <div class="ph">
+      <div><div class="pt">${tr('stuBase')}</div><div class="ps">${stus.length} ${tr('stuCount')}</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-pri btn-sm" onclick="showAddStudentGlobal()">+ Добавить</button>
+      </div>
+    </div>
+    <div class="card">
+      <input type="text" class="fi" placeholder="Поиск студента..." style="margin-bottom:16px" oninput="filterStudentsList(this.value)">
+      <div id="stu-list">
+        ${!stus.length?`<div class="empty"><h3>База пуста</h3><p>Студенты добавляются автоматически при добавлении в группу</p></div>`:''}
+        ${stus.map(s=>{
+          const groups=findStudentGroups(s.id,s.name);
+          return `<div class="acc-row" data-sname="${s.name.toLowerCase()}">
+            <div class="t-av stu" style="width:38px;height:38px;font-size:13px;border-radius:10px">${ini(s.name)}</div>
+            <div class="acc-info">
+              <div class="acc-name" style="cursor:pointer;color:#4361ee" onclick="viewStudentProfile('${s.id}')">${s.name}</div>
+              <div class="acc-login">${groups.length?groups.map(({t,g})=>`${t.name} · ${g.day} ${g.time}`).join(' | '):'Не в группе'}</div>
+            </div>
+            <span class="status-pill ${s.status==='active'?'sp-active':s.status==='archived'?'sp-archived':'sp-graduated'}">${s.status==='active'?'Активен':s.status==='archived'?'Архив':'Выпускник'}</span>
+            <button class="btn btn-pri btn-sm" onclick="showAssignToGroup('${s.id}')">↗ В группу</button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+function filterStudentsList(q){
+  document.querySelectorAll('#stu-list [data-sname]').forEach(el=>{
+    el.style.display=!q||el.dataset.sname.includes(q.toLowerCase())?'flex':'none';
+  });
+}
+function findStudentGroups(sid,sname){
+  const res=[];
+  D.teachers.forEach(t=>(t.groups||[]).forEach(g=>{
+    const s=(g.students||[]).find(x=>x.id===sid||x.name===sname);
+    if(s) res.push({t,g,s});
+  }));
+  return res;
+}
+function showAddStudentGlobal(){
+  openModal(`<div class="modal-title">Новый студент</div>
+    <div class="fg"><label class="fl">Имя и фамилия</label>
+      <input type="text" class="fi" id="sn" placeholder="Иванов Иван" onkeydown="if(event.key==='Enter')addStudentGlobal()">
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="addStudentGlobal()">${tr('addBtn')}</button></div>`);
+  setTimeout(()=>document.getElementById('sn')?.focus(),80);
+}
+function addStudentGlobal(){
+  const n=document.getElementById('sn')?.value?.trim();if(!n) return;
+  if(D.students.find(x=>x.name.toLowerCase()===n.toLowerCase())){toast('Уже есть в базе','error');return;}
+  D.students.push({id:uid(),name:n,status:'active',createdAt:new Date().toISOString().split('T')[0]});
+  closeModal();renderStudentsPage(document.getElementById('main'));sched();toast('Добавлен ✓','success');
+}
+function showAssignToGroup(stuId){
+  const stu=D.students.find(x=>x.id===stuId);if(!stu) return;
+  const opts=[];
+  D.teachers.forEach(tc=>(tc.groups||[]).forEach(gr=>opts.push({t:tc,g:gr})));
+  openModal(`<div class="modal-title">↗ Добавить в группу</div>
+    <div class="modal-desc">Куда добавить <b>${stu.name}</b>?</div>
+    <div style="max-height:340px;overflow-y:auto">
+      ${opts.map(({t,g})=>`<div class="gc-choice" onclick="doAssignToGroup('${stuId}','${g.id}')">
+        <div class="t-av" style="width:32px;height:32px;font-size:11px;border-radius:8px">${ini(t.name)}</div>
+        <div><div style="font-size:13px;font-weight:700">${t.name}</div>
+          <div style="font-size:12px;color:#888">${g.day} ${g.time} · <span class="lp lv-${lvc(g.level)}" style="padding:1px 7px">${lvl(g.level)}</span></div>
+        </div></div>`).join('')}
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button></div>`);
+}
+function doAssignToGroup(stuId,gid){
+  const stu=D.students.find(x=>x.id===stuId);if(!stu) return;
+  let tgt=null;D.teachers.forEach(tc=>(tc.groups||[]).forEach(gr=>{if(gr.id===gid) tgt=gr;}));
+  if(!tgt) return;
+  if(!tgt.students) tgt.students=[];
+  if(tgt.students.find(s=>s.name===stu.name)){toast('Уже в этой группе','error');return;}
+  tgt.students.push(newStudent(stu.name));
+  closeModal();renderStudentsPage(document.getElementById('main'));sched();toast(`${stu.name} добавлен в группу ✓`,'success');
+}
+function viewStudentProfile(stuId){
+  selStu=stuId;view='student';curPage=null;renderMain();
+}
+function renderStudentProfile(el){
+  const stu=D.students.find(x=>x.id===selStu);if(!stu){goHome();return;}
+  const groups=findStudentGroups(stu.id,stu.name);
+  el.innerHTML=`
+    <div class="bc">
+      <span class="bc-l" onclick="gotoPage('students')">База студентов</span><span class="bc-s">›</span>
+      <span class="bc-c">${stu.name}</span>
+    </div>
+    <div class="ph">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="t-av stu" style="width:56px;height:56px;font-size:20px;border-radius:16px">${ini(stu.name)}</div>
+        <div><div class="pt">${stu.name}</div>
+          <div style="margin-top:4px;display:flex;gap:8px">
+            <span class="status-pill ${stu.status==='active'?'sp-active':stu.status==='archived'?'sp-archived':'sp-graduated'}">${stu.status==='active'?'Активен':stu.status==='archived'?'Архив':'Выпускник'}</span>
+            <span style="font-size:12px;color:#888">с ${stu.createdAt||'—'}</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-pri btn-sm" onclick="showAssignToGroup('${stu.id}')">↗ В группу</button>
+        ${isAdmin()?`<select class="fs" style="padding:5px 10px;font-size:12px;width:auto" onchange="changeStudentStatus('${stu.id}',this.value)">
+          <option value="active" ${stu.status==='active'?'selected':''}>Активен</option>
+          <option value="archived" ${stu.status==='archived'?'selected':''}>Архив</option>
+          <option value="graduated" ${stu.status==='graduated'?'selected':''}>Выпускник</option>
+        </select>`:''}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px">Текущие группы (${groups.length})</div>
+      ${!groups.length?`<div style="color:#bbb;font-size:13px;padding:20px 0;text-align:center">Не добавлен ни в одну группу</div>`:
+        groups.map(({t,g,s})=>{
+          const fv=calcFinal(s,g.level);
+          return `<div class="stu-hist-row">
+            <div>
+              <div style="font-size:14px;font-weight:700">${t.name}</div>
+              <div style="font-size:12px;color:#888;margin-top:2px">${g.day} ${g.time} · <span class="lp lv-${lvc(g.level)}" style="padding:1px 7px">${lvl(g.level)}</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="ob ${fv===null?'on':fv>=75?'og':fv>=70?'oy':'or'}">${fv!==null?fv.toFixed(1):'—'}</span>
+              <button class="btn btn-sec btn-sm" onclick="selT='${t.id}';selG='${g.id}';view='group';curPage=null;renderAll()">Открыть →</button>
+            </div>
+          </div>`;
+        }).join('')}
+    </div>`;
+}
+function changeStudentStatus(sid,status){
+  const s=D.students.find(x=>x.id===sid);if(s) s.status=status;sched();toast('Статус обновлён','success');
+}
+
+// ── Accounts ──────────────────────────────────────────────────────────────
+function renderAccounts(el){
+  const accs=D.accounts||[];
+  const teachers=accs.filter(a=>a.role!=='supporter');
+  const supporters=accs.filter(a=>a.role==='supporter');
+  el.innerHTML=`
+    <div class="ph">
+      <div><div class="pt">${tr('accounts')}</div><div class="ps">${accs.length} аккаунтов</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sec btn-sm" onclick="showAddAccount()">${tr('addTeacher')}</button>
+        <button class="btn btn-pri btn-sm" onclick="showAddSupporter()">${tr('newSupporter')}</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px">👤 Учителя (${teachers.length})</div>
+      ${!teachers.length?`<div style="color:#bbb;font-size:13px;padding:10px 0">Нет аккаунтов учителей</div>`:''}
+      ${teachers.map(a=>{
+        const tc=D.teachers.find(x=>x.id===a.teacherId);
+        return `<div class="acc-row">
+          <div class="t-av" style="width:38px;height:38px;font-size:13px;border-radius:10px">${ini(tc?tc.name:a.login)}</div>
+          <div class="acc-info"><div class="acc-name">${tc?tc.name:a.login}</div>
+            <div class="acc-login">Логин: <b>${a.login}</b></div></div>
+          <span class="role-badge rb-teacher">Учитель</span>
+          <button class="btn btn-sec btn-sm" onclick="showEditAccount('${a.id}')">✏️</button>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px">🤝 Supporters (${supporters.length})</div>
+      ${!supporters.length?`<div style="color:#bbb;font-size:13px;padding:10px 0">Нет аккаунтов supporters</div>`:''}
+      ${supporters.map(a=>`
+        <div class="acc-row">
+          <div class="t-av" style="width:38px;height:38px;font-size:13px;border-radius:10px;background:linear-gradient(135deg,#2b9348,#1b5e20)">${ini(a.name||a.login)}</div>
+          <div class="acc-info"><div class="acc-name">${a.name||a.login}</div>
+            <div class="acc-login">Логин: <b>${a.login}</b></div></div>
+          <span class="role-badge" style="background:#e8f5e9;color:#1b5e20">Supporter</span>
+          <button class="btn btn-sec btn-sm" onclick="showEditAccount('${a.id}')">✏️</button>
+        </div>`).join('')}
+    </div>`;
+}
+function showAddAccount(){
+  const teacherOpts=D.teachers.map(tc=>`<option value="${tc.id}">${tc.name}</option>`).join('');
+  openModal(`<div class="modal-title">Новый аккаунт</div>
+    <div class="fg"><label class="fl">Преподаватель</label>
+      <select class="fs" id="ac-t">${teacherOpts}</select>
+    </div>
+    <div class="fg"><label class="fl">Логин</label>
+      <input type="text" class="fi" id="ac-l" placeholder="например: ivanova">
+    </div>
+    <div class="fg"><label class="fl">Пароль</label>
+      <input type="text" class="fi" id="ac-p" placeholder="минимум 4 символа">
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="addAccount()">Создать</button></div>`);
+}
+function showAddSupporter(){
+  openModal(`<div class="modal-title">🤝 Новый Supporter</div>
+    <div class="fg"><label class="fl">Имя и фамилия</label>
+      <input type="text" class="fi" id="sup-name" placeholder="Дилноза Абдуллаева">
+    </div>
+    <div class="fg"><label class="fl">Логин</label>
+      <input type="text" class="fi" id="sup-login" placeholder="например: dilnoza">
+    </div>
+    <div class="fg"><label class="fl">Пароль</label>
+      <input type="text" class="fi" id="sup-pass" placeholder="минимум 4 символа">
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="addSupporter()">Создать</button></div>`);
+  setTimeout(()=>document.getElementById('sup-name')?.focus(),80);
+}
+function addSupporter(){
+  const name=document.getElementById('sup-name')?.value?.trim();
+  const login=document.getElementById('sup-login')?.value?.trim();
+  const pass=document.getElementById('sup-pass')?.value?.trim();
+  if(!name||!login||!pass){toast('Заполните все поля','error');return;}
+  if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
+  if((D.accounts||[]).find(a=>a.login===login)){toast('Логин уже занят','error');return;}
+  if(!D.accounts) D.accounts=[];
+  D.accounts.push({id:uid(),role:'supporter',name,login,password:pass});
+  closeModal();renderAccounts(document.getElementById('main'));sched();toast('Supporter создан ✓','success');
+}
+
+function addAccount(){
+  const tid=document.getElementById('ac-t')?.value;
+  const login=document.getElementById('ac-l')?.value?.trim();
+  const pass=document.getElementById('ac-p')?.value?.trim();
+  if(!login||!pass){toast('Заполните все поля','error');return;}
+  if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
+  if((D.accounts||[]).find(a=>a.login===login)){toast('Логин уже занят','error');return;}
+  if(!D.accounts) D.accounts=[];
+  D.accounts.push({id:uid(),teacherId:tid,login,password:pass});
+  closeModal();renderAccounts(document.getElementById('main'));sched();toast('Аккаунт создан ✓','success');
+}
+function showEditAccount(id){
+  const a=D.accounts.find(x=>x.id===id);if(!a) return;
+  const tc=D.teachers.find(x=>x.id===a.teacherId);
+  openModal(`<div class="modal-title">Изменить аккаунт</div>
+    <div style="background:#f8f9fb;border-radius:10px;padding:12px;margin-bottom:20px;font-size:13px">
+      <b>${tc?tc.name:a.name||a.login}</b> · логин: <code>${a.login}</code>
+    </div>
+    <div class="fg"><label class="fl">Новый логин</label>
+      <input type="text" class="fi" id="ac-l" value="${a.login}">
+    </div>
+    <div class="fg"><label class="fl">Новый пароль</label>
+      <input type="text" class="fi" id="ac-p" placeholder="Оставьте пустым чтобы не менять">
+    </div>
+    <div class="fa"><button class="btn btn-dan btn-sm" onclick="delAccount('${id}')">Удалить</button>
+      <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="editAccount('${id}')">${tr('saveBtn')}</button></div>`);
+}
+function editAccount(id){
+  const a=D.accounts.find(x=>x.id===id);if(!a) return;
+  const login=document.getElementById('ac-l')?.value?.trim();
+  const pass=document.getElementById('ac-p')?.value?.trim();
+  if(login) a.login=login;
+  if(pass&&pass.length>=4) a.password=pass;
+  closeModal();renderAccounts(document.getElementById('main'));sched();toast('Обновлено ✓','success');
+}
+function delAccount(id){
+  if(!confirm('Удалить аккаунт?')) return;
+  D.accounts=D.accounts.filter(x=>x.id!==id);
+  closeModal();renderAccounts(document.getElementById('main'));sched();
+}
+
+// ── Import / Export ───────────────────────────────────────────────────────
+function showAddStudentToGroup(){
+  const existing=D.students.slice().sort((a,b)=>a.status==='active'?-1:1);
+  openModal(`<div class="modal-title">+ Добавить студента</div>
+    <div class="tab-row" style="margin-bottom:16px">
+      <button class="tab-btn active" id="st-tab1" onclick="stuAddTab(1)">Из базы</button>
+      <button class="tab-btn" id="st-tab2" onclick="stuAddTab(2)">Новый</button>
+    </div>
+    <div id="st-form1">
+      <input type="text" class="fi" placeholder="Поиск студента..." style="margin-bottom:10px" oninput="filterStuPick(this.value)">
+      <div id="stu-pick-list" style="max-height:260px;overflow-y:auto">
+        ${!existing.length?'<div style="text-align:center;padding:20px;color:#bbb">База пуста</div>':
+          existing.map(s=>`<div class="stu-pick-row" data-sn="${s.name.toLowerCase()}" onclick="pickStudentForGroup('${s.id}','${s.name}')">
+            <div class="t-av stu" style="width:30px;height:30px;font-size:11px;border-radius:8px;${s.status!=='active'?'background:linear-gradient(135deg,#888,#555)':''}">${ini(s.name)}</div>
+            <div>
+              <div style="font-size:13px;font-weight:600">${s.name}</div>
+              ${s.status!=='active'?`<div style="font-size:11px;color:#e65100">${s.status==='archived'?'Архив':'Выпускник'}</div>`:''}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div id="st-form2" style="display:none">
+      <div class="fg"><label class="fl">Имя и фамилия</label>
+        <input type="text" class="fi" id="new-sn" placeholder="Иванов Иван" onkeydown="if(event.key==='Enter')addNewStudentToGroup()">
+      </div>
+      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+        <button class="btn btn-pri" onclick="addNewStudentToGroup()">${tr('addBtn')}</button></div>
+    </div>
+    <div class="fa" id="st-fa1"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button></div>`);
+}
+function stuAddTab(n){
+  document.getElementById('st-tab1').classList.toggle('active',n===1);
+  document.getElementById('st-tab2').classList.toggle('active',n===2);
+  document.getElementById('st-form1').style.display=n===1?'block':'none';
+  document.getElementById('st-form2').style.display=n===2?'block':'none';
+  document.getElementById('st-fa1').style.display=n===1?'flex':'none';
+}
+function filterStuPick(q){
+  document.querySelectorAll('#stu-pick-list [data-sn]').forEach(el=>{
+    el.style.display=!q||el.dataset.sn.includes(q.toLowerCase())?'flex':'none';
+  });
+}
+function pickStudentForGroup(stuId,name){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  if(!g.students) g.students=[];
+  if(g.students.find(s=>s.name===name)){toast('Уже в этой группе','error');return;}
+  g.students.push(newStudent(name));
+  closeModal();renderGroup(document.getElementById('main'));sched();toast(`${name} добавлен ✓`,'success');
+}
+function addNewStudentToGroup(){
+  const name=document.getElementById('new-sn')?.value?.trim();if(!name) return;
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  if(!g.students) g.students=[];
+  if(g.students.find(s=>s.name===name)){toast('Уже в этой группе','error');return;}
+  g.students.push(newStudent(name));
+  if(!D.students.find(x=>x.name.toLowerCase()===name.toLowerCase()))
+    D.students.push({id:uid(),name,status:'active',createdAt:new Date().toISOString().split('T')[0]});
+  closeModal();renderGroup(document.getElementById('main'));sched();toast(`${name} добавлен ✓`,'success');
+}
+
+function showImport(){
+  openModal(`<div class="modal-title">📋 Импорт из Excel</div>
+    <div class="modal-desc">Скопируйте столбец с именами в Excel и вставьте сюда</div>
+    <div class="fg"><label class="fl">Список имён</label>
+      <textarea class="paste-area" id="paste-names" placeholder="Иванов Иван&#10;Петров Пётр&#10;..."></textarea>
+      <div class="paste-hint">💡 Выделите столбец → Ctrl+C → вставьте сюда (Ctrl+V)</div>
+    </div>
+    <div class="fg" style="display:flex;align-items:center;gap:10px">
+      <input type="checkbox" id="clear-chk" style="width:16px;height:16px">
+      <label for="clear-chk" style="font-size:13px;color:#444;cursor:pointer">Очистить список перед добавлением</label>
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-grn" onclick="doImport()">${tr('addBtn')}</button></div>`);
+  setTimeout(()=>document.getElementById('paste-names')?.focus(),80);
+}
+function doImport(){
+  const raw=document.getElementById('paste-names')?.value||'';
+  const clear=document.getElementById('clear-chk')?.checked;
+  const names=raw.split(/[\n\r\t]+/).map(s=>s.trim()).filter(s=>s.length>0);
+  if(!names.length){toast('Нет имён','error');return;}
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  if(clear) g.students=[];if(!g.students) g.students=[];
+  const ex=new Set(g.students.map(s=>s.name.toLowerCase()));
+  let added=0;
+  names.forEach(name=>{
+    if(!ex.has(name.toLowerCase())){
+      g.students.push(newStudent(name));ex.add(name.toLowerCase());added++;
+      if(!D.students.find(x=>x.name.toLowerCase()===name.toLowerCase()))
+        D.students.push({id:uid(),name,status:'active',createdAt:new Date().toISOString().split('T')[0]});
+    }
+  });
+  closeModal();renderGroup(document.getElementById('main'));sched();toast(`Добавлено ${added} студентов ✓`,'success');
+}
+
+function openGlobalSearch(){
+  openModal(`<div class="modal-title">${tr('search')}</div>
+    <div class="fg" style="margin-bottom:8px">
+      <input type="text" class="fi" id="gs-q" placeholder="Введите имя или фамилию..." oninput="runGlobalSearch(this.value)" autocomplete="off">
+    </div>
+    <div id="gs-results" style="max-height:420px;overflow-y:auto;margin-top:8px">
+      <div style="text-align:center;padding:30px;color:#bbb;font-size:13px">${tr('startType')}</div>
+    </div>
+    <div class="fa" style="margin-top:12px"><button class="btn btn-sec" onclick="closeModal()">Закрыть</button></div>`);
+  setTimeout(()=>document.getElementById('gs-q')?.focus(),80);
+}
+
+function runGlobalSearch(q){
+  const el=document.getElementById('gs-results');if(!el) return;
+  q=q.trim().toLowerCase();
+  if(!q){el.innerHTML='<div style="text-align:center;padding:30px;color:#bbb;font-size:13px">'+tr('startType')+'</div>';return;}
+  const res=[];
+  D.teachers.forEach(t=>(t.groups||[]).forEach(g=>(g.students||[]).filter(s=>s.name).forEach(s=>{
+    if(s.name.toLowerCase().includes(q)){
+      const fv=calcFinal(s,g.level);
+      res.push({s,g,t,fv});
+    }
+  })));
+  if(!res.length){
+    el.innerHTML='<div style="text-align:center;padding:30px;color:#bbb;font-size:13px">'+tr('notFoundSearch')+'</div>';
+    return;
+  }
+  el.innerHTML=res.map(({s,g,t,fv})=>`
+    <div onclick="goToStudent('${t.id}','${g.id}')" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;cursor:pointer;transition:.15s;border-bottom:1px solid #f0f0f0" onmouseenter="this.style.background='#f0f4ff'" onmouseleave="this.style.background='white'">
+      <div class="t-av stu" style="width:40px;height:40px;font-size:14px;border-radius:12px;flex-shrink:0">${ini(s.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;color:#1a1a1a">${highlightMatch(s.name,q)}</div>
+        <div style="font-size:12px;color:#888;margin-top:2px">${t.name} · ${g.day} ${g.time} · <span class="lp lv-${lvc(g.level)}" style="padding:1px 7px;font-size:10px">${lvl(g.level)}</span></div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <span class="ob ${fv===null?'on':fv>=75?'og':fv>=70?'oy':'or'}" style="font-size:13px">${fv!==null?fv.toFixed(1):'—'}</span>
+      </div>
+    </div>`).join('');
+}
+
+function highlightMatch(name,q){
+  const i=name.toLowerCase().indexOf(q);
+  if(i<0) return name;
+  return name.slice(0,i)+`<mark style="background:#fff3cd;border-radius:3px;padding:0 2px">${name.slice(i,i+q.length)}</mark>`+name.slice(i+q.length);
+}
+
+function goToStudent(tid,gid){
+  closeModal();
+  selT=tid;selG=gid;view='group';curPage=null;renderAll();
+}
+
+function showSetStart(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=g?.students?.find(x=>x.id===sid);
+  if(!s) return;
+  openModal(`<div class="modal-title">▶ Начало обучения</div>
+    <div class="modal-desc">Укажите с какого юнита/теста начал <b>${s.name}</b>.<br>Пропущенные до этого юниты не будут считаться долгом.</div>
+    <div style="display:flex;gap:16px">
+      <div class="fg" style="flex:1"><label class="fl">Начал с Unit №</label>
+        <select class="fs" id="start-unit">
+          ${[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}"${(s.startUnit||1)===n?' selected':''}>${n}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fg" style="flex:1"><label class="fl">Начал с AT №</label>
+        <select class="fs" id="start-at">
+          ${[1,2,3,4,5].map(n=>`<option value="${n}"${(s.startAT||1)===n?' selected':''}>${n}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div style="background:#eef2ff;border-radius:10px;padding:10px 14px;font-size:12px;color:#4361ee;margin-bottom:4px">
+      💡 Если студент пришёл в группу на 3-м юните — выберите U3. Долги U1 и U2 учитываться не будут.
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveSetStart('${sid}')">Сохранить</button></div>`);
+}
+function saveSetStart(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=g?.students?.find(x=>x.id===sid);
+  if(!s) return;
+  s.startUnit=parseInt(document.getElementById('start-unit')?.value)||1;
+  s.startAT=parseInt(document.getElementById('start-at')?.value)||1;
+  closeModal();renderGroup(document.getElementById('main'));sched();
+  toast(`${s.name}: начало с U${s.startUnit} / AT${s.startAT} ✓`,'success');
+}
+
+function gradeKey(e,inp){
+  if(e.key==='Enter'||e.key==='Tab'){
+    e.preventDefault();
+    const row=inp.closest('tr');
+    const allInRow=[...row.querySelectorAll('input.gi')];
+    const idx=allInRow.indexOf(inp);
+    if(idx>=0&&idx<allInRow.length-1){
+      // Move to next cell in same row
+      allInRow[idx+1].focus();
+      allInRow[idx+1].select();
+    } else {
+      // Last cell in row — move to first cell of next row
+      const rows=[...document.querySelectorAll('tbody tr')];
+      const ri=rows.indexOf(row);
+      if(ri>=0&&ri<rows.length-1){
+        const nextInput=rows[ri+1].querySelector('input.gi');
+        if(nextInput){nextInput.focus();nextInput.select();}
+      }
+    }
+  }
+}
+
+function getSortButtons(){
+  const labels={name:tr('sortName'),overall:tr('sortOverall'),unit:tr('sortUnit'),final:tr('sortFinal')};
+  return ['name','overall','unit','final'].map(k=>{
+    const active=(window._sortKey||'name')===k;
+    const dir=active?(window._sortDir||1):-99;
+    return `<button onclick="setSortKey('${k}')" style="padding:5px 12px;border-radius:20px;border:1.5px solid ${active?'#4361ee':'#e0e4f0'};background:${active?'#eef2ff':'white'};color:${active?'#4361ee':'#666'};font-size:12px;font-weight:${active?700:500};cursor:pointer;transition:.15s">${labels[k]}${active?(dir===1?' ↑':' ↓'):''}</button>`;
+  }).join('');
+}
+function setSortKey(k){
+  if((window._sortKey||'name')===k) window._sortDir=(window._sortDir||1)*-1;
+  else{window._sortKey=k;window._sortDir=1;}
+  renderGroup(document.getElementById('main'));
+}
+function avg2(arr){return arr.length?arr.map(Number).filter(v=>!isNaN(v)).reduce((a,b)=>a+b,0)/arr.length:0;}
+
+function downloadTemplate(){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const isE=['beginner','elementary'].includes(g.level);
+
+  // Info sheet
+  const infoData=[
+    ['SUCCESS ACADEMY — Шаблон для ввода оценок'],
+    [''],
+    ['Преподаватель:', t.name],
+    ['Группа:', g.day+' '+g.time],
+    ['Уровень:', lvl(g.level)],
+    ['Дата создания:', new Date().toLocaleDateString('ru')],
+    [''],
+    ['ИНСТРУКЦИЯ:'],
+    ['1. Перейдите на лист "Оценки"'],
+    ['2. Заполните оценки для каждого студента (от 0 до 100)'],
+    ['3. Retake — от 0 до 6 (прибавляется к Overall)'],
+    ['4. Оставьте ячейку пустой если оценка ещё не выставлена'],
+    ['5. Сохраните файл и загрузите обратно на сайт'],
+    [''],
+    ['ВЕСА ОЦЕНОК:'],
+    ['Unit Tests (U1-U12):', '10%'],
+    ['Homework (HW1-HW5):', '10%'],
+    ['Achievement Tests (AT1-AT5):', '15%'],
+    ['Presentation (PPT):', '20%'],
+    ['Speaking (SPT):', isE?'15%':'25%'],
+    ['Final Test:', isE?'30%':'20%'],
+    ['Retake (макс. 6):', 'прибавляется к Overall'],
+  ];
+
+  // Grades sheet — header rows
+  const h1=['','','Unit Tests (U1-U12) — 10%','','','','','','','','','','','','Homework (HW1-HW5) — 10%','','','','','Achievement Tests (AT1-AT5) — 15%','','','','','PPT','SPT','Final','Retake'];
+  const h2=['#','Студент','U1','U2','U3','U4','U5','U6','U7','U8','U9','U10','U11','U12','HW1','HW2','HW3','HW4','HW5','AT1','AT2','AT3','AT4','AT5','PPT (20%)','SPT ('+( isE?'15%':'25%')+')','Final ('+(isE?'30%':'20%')+')','Retake (0-6)'];
+  const students=(g.students||[]).filter(s=>s.name);
+  const empty27=Array(26).fill('');
+  const rows=students.length
+    ? students.map((s,i)=>[i+1,s.name,...empty27])
+    : [[1,'Студент 1',...empty27],[2,'Студент 2',...empty27],[3,'Студент 3',...empty27]];
+
+  const wb=XLSX.utils.book_new();
+
+  // Sheet 1: Instructions
+  const wsInfo=XLSX.utils.aoa_to_sheet(infoData);
+  wsInfo['!cols']=[{wch:30},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,wsInfo,'Инструкция');
+
+  // Sheet 2: Grades
+  const wsGrades=XLSX.utils.aoa_to_sheet([h1,h2,...rows]);
+  wsGrades['!cols']=[{wch:4},{wch:24},...Array(26).fill({wch:7})];
+  // Merge cells for group headers
+  wsGrades['!merges']=[
+    {s:{r:0,c:2},e:{r:0,c:13}},  // Unit Tests
+    {s:{r:0,c:14},e:{r:0,c:18}}, // Homework
+    {s:{r:0,c:19},e:{r:0,c:23}}, // Achievement
+  ];
+  XLSX.utils.book_append_sheet(wb,wsGrades,'Оценки');
+
+  XLSX.writeFile(wb,`Шаблон_${t.name}_${g.day}_${g.time}.xlsx`);
+  toast('Шаблон скачан ✓','success');
+}
+
+function showUploadExcel(){
+  openModal(`<div class="modal-title">⬆ Загрузить оценки из Excel</div>
+    <div class="modal-desc">Загрузите заполненный шаблон. Студенты сопоставляются по имени. Только заполненные ячейки обновятся.</div>
+    <div style="background:#eef2ff;border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:#4361ee">
+      💡 Сначала скачайте <b>📄 Шаблон</b>, заполните оценки в Excel, затем загрузите обратно
+    </div>
+    <div class="fg">
+      <label class="fl">Выберите файл Excel (.xlsx)</label>
+      <input type="file" class="fi" id="xl-file" accept=".xlsx,.xls" style="padding:8px;cursor:pointer" onchange="previewExcel(this)">
+    </div>
+    <div id="xl-preview" style="display:none">
+      <div style="border-radius:10px;padding:14px;margin-bottom:4px;font-size:13px;line-height:1.8" id="xl-info"></div>
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-grn" id="xl-confirm" style="display:none" onclick="doUploadExcel()">✅ Применить оценки</button></div>`);
+}
+
+let _xlData=null;
+function previewExcel(input){
+  const file=input.files[0];if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(rows.length<2){toast('Файл пустой','error');return;}
+      const hdr=rows[0];
+      // Find column indices
+      const col=name=>hdr.findIndex(h=>String(h).trim().toLowerCase()===name.toLowerCase());
+      const nameCol=col('Студент');
+      if(nameCol<0){toast('Не найден столбец "Студент"','error');return;}
+      _xlData={rows:rows.slice(1),hdr,nameCol};
+      // Preview
+      const t=D.teachers.find(x=>x.id===selT);
+      const g=(t?.groups||[]).find(x=>x.id===selG);
+      const dataRows=rows.slice(1).filter(r=>r[nameCol]&&String(r[nameCol]).trim());
+      const matched=dataRows.filter(r=>(g.students||[]).find(s=>s.name===String(r[nameCol]).trim()));
+      const notFound=dataRows.filter(r=>!(g.students||[]).find(s=>s.name===String(r[nameCol]).trim()));
+      document.getElementById('xl-info').innerHTML=`
+        <div style="color:#1b5e20;font-weight:700;margin-bottom:6px">✅ Совпадений: ${matched.length} ${tr('stuCount')}</div>
+        ${notFound.length?`<div style="color:#e65100;margin-bottom:6px">⚠️ Не найдено в группе (${notFound.length}): ${notFound.map(r=>r[nameCol]).join(', ')}</div>`:''}
+        <div style="color:#555">Заполненные ячейки будут обновлены. Пустые ячейки останутся без изменений.</div>`;
+      document.getElementById('xl-preview').style.display='block';
+      document.getElementById('xl-confirm').style.display='flex';
+    }catch(err){toast('Ошибка чтения файла','error');}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function doUploadExcel(){
+  if(!_xlData) return;
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const {rows,hdr,nameCol}=_xlData;
+  const col=name=>hdr.findIndex(h=>String(h).trim().toLowerCase()===name.toLowerCase());
+  const getNum=(row,name)=>{const i=col(name);if(i<0) return null;const v=row[i];return v!==''&&v!==null&&v!==undefined?parseFloat(v):null;};
+  let updated=0;
+  rows.forEach(row=>{
+    const name=String(row[nameCol]||'').trim();if(!name) return;
+    const s=(g.students||[]).find(x=>x.name===name);if(!s) return;
+    if(!s.units) s.units=Array(12).fill(null);
+    if(!s.homework) s.homework=Array(5).fill(null);
+    if(!s.achievements) s.achievements=Array(5).fill(null);
+    for(let i=1;i<=12;i++){const v=getNum(row,`U${i}`);if(v!==null) s.units[i-1]=v;}
+    for(let i=1;i<=5;i++){const v=getNum(row,`HW${i}`);if(v!==null) s.homework[i-1]=v;}
+    for(let i=1;i<=5;i++){const v=getNum(row,`AT${i}`);if(v!==null) s.achievements[i-1]=v;}
+    const ppt=getNum(row,'PPT');if(ppt!==null) s.presentation=ppt;
+    const spt=getNum(row,'SPT');if(spt!==null) s.speaking=spt;
+    const fin=getNum(row,'Final');if(fin!==null) s.final=fin;
+    const ret=getNum(row,'Retake');if(ret!==null) s.retake=ret;
+    updated++;
+  });
+  _xlData=null;
+  closeModal();renderGroup(document.getElementById('main'));sched();
+  toast(`Обновлено ${updated} студентов ✓`,'success');
+}
+
+function sheetData(g){
+  const h=['#','Студент','U1','U2','U3','U4','U5','U6','U7','U8','U9','U10','U11','U12','HW1','HW2','HW3','HW4','HW5','AT1','AT2','AT3','AT4','AT5','PPT','SPT','Final','Overall','Retake'];
+  const rows=(g.students||[]).filter(s=>s.name).map((s,i)=>{
+    const ov=calc(s,g.level);
+    const r=s.retake!=null&&s.retake!==''?Number(s.retake):null;
+    const fv=ov!==null?(ov+(r||0)):(r!==null?r:null);
+    return [i+1,s.name,...(s.units||[]).map(v=>v??''),...(s.homework||[]).map(v=>v??''),...(s.achievements||[]).map(v=>v??''),s.presentation??'',s.speaking??'',s.final??'',fv!==null?parseFloat(fv.toFixed(1)):'',s.retake??''];
+  });
+  return [h,...rows];
+}
+function exportGroup(archMode){
+  const teachers=archMode?(D.archives.find(a=>a.id===selArch)?.snapshot||[]):D.teachers;
+  const t=teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sheetData(g)),`${g.day} ${g.time}`.slice(0,31));
+  XLSX.writeFile(wb,`${t.name} ${g.day} ${g.time} ${lvl(g.level)}.xlsx`);
+}
+function exportAll(){
+  const wb=XLSX.utils.book_new();
+  D.teachers.forEach(t=>(t.groups||[]).forEach(g=>{
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sheetData(g)),`${t.name.split(' ')[0]} ${g.day} ${g.time}`.slice(0,31));
+  }));
+  XLSX.writeFile(wb,'Success_Academy_All.xlsx');
+}
+
+// ── Archives ──────────────────────────────────────────────────────────────
+function showCreateArchive(){
+  const now=new Date();
+  const def=`Семестр ${now.getMonth()<6?1:2} ${now.getFullYear()}`;
+  openModal(`<div class="modal-title">🗃 Создать архив</div>
+    <div class="modal-desc">Сохранит снимок всех текущих данных.</div>
+    <div class="fg"><label class="fl">Название</label>
+      <input type="text" class="fi" id="arch-name" value="${def}">
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="doCreateArchive()">${tr('createBtn')}</button></div>`);
+  setTimeout(()=>{const el=document.getElementById('arch-name');el?.focus();el?.select();},80);
+}
+function doCreateArchive(){
+  const label=document.getElementById('arch-name')?.value?.trim();if(!label) return;
+  if(!D.archives) D.archives=[];
+  D.archives.push({id:uid(),label,date:new Date().toLocaleDateString('ru'),snapshot:JSON.parse(JSON.stringify(D.teachers))});
+  closeModal();renderAll();sched();toast('Архив создан ✓','success');
+}
+function gotoArch(id){selArch=id;selT=null;selG=null;view='archive';curPage=null;renderAll();}
+function renderArchive(el){
+  const arch=D.archives.find(a=>a.id===selArch);if(!arch){goHome();return;}
+  const snap=arch.snapshot||[];
+  el.innerHTML=`
+    <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">📦 ${arch.label}</span></div>
+    <div class="ph">
+      <div><div class="pt">📦 ${arch.label}</div><div class="ps">${arch.date}</div></div>
+      ${isAdmin()?`<button class="btn btn-dan btn-sm" onclick="delArchive('${arch.id}')">Удалить</button>`:''}
+    </div>
+    <div class="card"><div class="gg">
+      ${snap.map(t=>{
+        const c=(t.groups||[]).reduce((s,g)=>s+(g.students||[]).filter(x=>x.name).length,0);
+        return `<div class="gc" onclick="openArchT('${t.id}','${arch.id}')">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+            <div class="t-av arch" style="width:44px;height:44px;font-size:16px;border-radius:12px;flex-shrink:0">${ini(t.name)}</div>
+            <div><div class="gc-name">${t.name}</div><div style="font-size:12px;color:#999">${(t.groups||[]).length} групп · ${c} ${tr('stuCount')}</div></div>
+          </div></div>`;
+      }).join('')}
+    </div></div>`;
+}
+function openArchT(tid,aid){
+  const arch=D.archives.find(a=>a.id===aid);if(!arch) return;
+  const t=(arch.snapshot||[]).find(x=>x.id===tid);if(!t) return;
+  const el=document.getElementById('main');
+  el.innerHTML=`
+    <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span>
+      <span class="bc-l" onclick="gotoArch('${aid}')">📦 ${arch.label}</span><span class="bc-s">›</span>
+      <span class="bc-c">${t.name}</span></div>
+    <div class="pt" style="margin-bottom:20px">${t.name}</div>
+    <div class="card"><div class="gg">
+      ${(t.groups||[]).map(g=>{
+        const sts=(g.students||[]).filter(s=>s.name);
+        const ovs=sts.map(s=>calcFinal(s,g.level)).filter(v=>v!==null);
+        const avg=ovs.length?(ovs.reduce((a,b)=>a+b,0)/ovs.length).toFixed(1):'—';
+        return `<div class="gc" onclick="openArchG('${t.id}','${g.id}','${aid}')">
+          <div class="gc-name">${g.day} ${g.time}</div>
+          <div><span class="lp lv-${lvc(g.level)}">${lvl(g.level)}</span></div>
+          <div class="gc-meta"><div><div class="gm-v">${sts.length}</div><div class="gm-l">${tr('students')}</div></div>
+          <div><div class="gm-v">${avg}</div><div class="gm-l">Средний</div></div></div></div>`;
+      }).join('')}
+    </div></div>`;
+}
+function openArchG(tid,gid,aid){
+  selT=tid;selG=gid;selArch=aid;
+  const arch=D.archives.find(a=>a.id===aid);
+  renderGroup(document.getElementById('main'),true,arch?.snapshot||[]);
+}
+function delArchive(id){if(!confirm('Удалить архив?')) return;D.archives=D.archives.filter(a=>a.id!==id);goHome();sched();}
+
+// ── Search ────────────────────────────────────────────────────────────────
+function onSearch(q){
+  const sr=document.getElementById('sb-sr');
+  const nav=document.getElementById('sb-nav');
+  const tb=document.getElementById('sb-teachers');
+  const ab=document.getElementById('sb-archives');
+  q=q.trim().toLowerCase();
+  if(!q){sr.style.display='none';nav.style.display='flex';tb.style.display=curSbTab==='teachers'?'block':'none';ab.style.display=curSbTab==='archives'?'block':'none';return;}
+  nav.style.display='none';tb.style.display='none';ab.style.display='none';sr.style.display='block';
+  const res=[];
+  const teachers=isAdmin()?D.teachers:D.teachers.filter(t=>t.id===curUser?.teacherId);
+  teachers.forEach(t=>{
+    if(t.name.toLowerCase().includes(q)) res.push({type:'teacher',name:t.name,sub:`${(t.groups||[]).length} групп`,id:t.id});
+    (t.groups||[]).forEach(g=>(g.students||[]).filter(s=>s.name).forEach(s=>{
+      if(s.name.toLowerCase().includes(q)){
+        const fv=calcFinal(s,g.level);
+        res.push({type:'student',name:s.name,sub:`${t.name} · ${g.day} ${g.time}`,tid:t.id,gid:g.id,ov:fv});
+      }
+    }));
+  });
+  sr.innerHTML=`<div class="sb-hdr">${tr('searchResults')} ${res.length}</div>`+
+    (res.length?res.map(r=>`<div class="sr-item" onclick="${r.type==='teacher'?`gotoT('${r.id}')`:`selT='${r.tid}';selG='${r.gid}';view='group';curPage=null;renderAll()`}">
+      <div class="t-av ${r.type==='student'?'stu':''}" style="width:30px;height:30px;font-size:11px;border-radius:8px">${ini(r.name)}</div>
+      <div class="sr-info"><div class="sr-name">${r.name}</div>
+        <div class="sr-sub">${r.sub}${r.ov!==undefined?` · <b>${r.ov!==null?r.ov.toFixed(1):'—'}</b>`:''}</div>
+      </div>
+      <span class="sr-badge ${r.type==='teacher'?'sr-t':'sr-s'}">${r.type==='teacher'?'Препод':'Студент'}</span>
+    </div>`).join('')
+    :'<div style="padding:20px;text-align:center;color:#bbb;font-size:13px">'+tr('notFoundSearch')+'</div>');
+}
+function sbTab(tab,btn){
+  curSbTab=tab;
+  document.querySelectorAll('.sb-nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('sb-teachers').style.display=tab==='teachers'?'block':'none';
+  document.getElementById('sb-archives').style.display=tab==='archives'?'block':'none';
+  document.getElementById('sb-sr').style.display='none';
+  renderSidebar();
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function goHome(){view='home';selT=null;selG=null;selArch=null;selStu=null;curPage=null;renderAll();}
+function gotoT(id){selT=id;selG=null;selArch=null;view='teacher';curPage=null;renderAll();}
+function gotoG(id){selG=id;view='group';curPage=null;renderAll();}
+function gotoPage(p){curPage=p;view=null;renderMain();}
+
+// ── CRUD Teachers ─────────────────────────────────────────────────────────
+function renderSupporter(el){
+  const q=(window._supQ||'').toLowerCase();
+  const filter=window._supFilter||'all';
+
+  // Colors for each debt type
+  const DEBT_COLORS={u:'#e3f2fd:#1565c0:#90caf9',hw:'#f3e5f5:#6a1b9a:#ce93d8',at:'#fff3e0:#e65100:#ffb74d'};
+
+  async function refreshAndRender(){
+  const btn=document.getElementById('sup-refresh-btn');
+  if(btn){btn.textContent='⏳ Загрузка...';btn.disabled=true;}
+  await loadData();
+  renderAll();
+  if(btn){btn.textContent='🔄 Обновить';btn.disabled=false;}
+  toast('Данные обновлены ✓','success');
+}
+
+function getDebts(s){
+    const debts=[];
+    // 0 = not taken (debt), any positive number = has result
+    const ok=v=>v!==null&&v!==undefined&&v!==''&&Number(v)>0;
+    const startU=(s.startUnit||1)-1;  // 0-indexed start
+    const startA=(s.startAT||1)-1;
+
+    // Unit Tests: debt only if:
+    // 1. Empty AND a LATER unit has a score
+    // 2. AND index >= startUnit (student joined from this unit)
+    const units=s.units||Array(12).fill(null);
+    let lastFilledUnit=-1;
+    for(let i=11;i>=0;i--){if(ok(units[i])){lastFilledUnit=i;break;}}
+    for(let i=startU;i<lastFilledUnit;i++){
+      if(!ok(units[i])) debts.push({key:'u',label:`U${i+1}`});
+    }
+
+    // Achievement Tests: debt if empty AND later AT has score AND >= startAT
+    const ats=s.achievements||Array(5).fill(null);
+    let lastFilledAT=-1;
+    for(let i=4;i>=0;i--){if(ok(ats[i])){lastFilledAT=i;break;}}
+    for(let i=startA;i<lastFilledAT;i++){
+      if(!ok(ats[i])) debts.push({key:'at',label:`AT${i+1}`});
+    }
+
+    // Homework <-> AT bidirectional check
+    const hws=s.homework||Array(5).fill(null);
+    // Find last filled HW
+    let lastFilledHW=-1;
+    for(let i=4;i>=0;i--){if(ok(hws[i])){lastFilledHW=i;break;}}
+    for(let i=startA;i<=Math.max(lastFilledAT,lastFilledHW);i++){
+      const hasAT=ok(ats[i]), hasHW=ok(hws[i]);
+      // AT done but no HW → HW debt
+      if(hasAT&&!hasHW) debts.push({key:'hw',label:`HW${i+1}`});
+      // HW done but no AT → AT debt (student did HW but missed AT)
+      if(hasHW&&!hasAT&&i<=lastFilledAT) debts.push({key:'at',label:`AT${i+1} (нет)`});
+    }
+
+    return debts;
+  }
+
+  // Collect results
+  const results=[];
+  D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+    (g.students||[]).filter(s=>s.name).forEach(s=>{
+      const allDebts=getDebts(s);
+      if(!allDebts.length) return;
+      const filtered=filter==='all'?allDebts:allDebts.filter(d=>d.key===filter);
+      if(!filtered.length) return;
+      if(q&&!s.name.toLowerCase().includes(q)) return;
+      results.push({s,g,t:tc,allDebts,filtered});
+    });
+  }));
+  results.sort((a,b)=>b.filtered.length-a.filtered.length);
+
+  const FILTERS=[['all','Все'],['u','Unit Tests'],['at','Achievement'],['hw','Homework']];
+
+  el.innerHTML=`
+    <div class="ph" style="margin-bottom:14px">
+      <div>
+        <div class="pt">🤝 Долги студентов</div>
+        <div class="ps">${results.length} студентов с незакрытыми тестами</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="refreshAndRender()" style="padding:6px 14px;border-radius:8px;border:1.5px solid #e0e4f0;background:white;cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:5px" id="sup-refresh-btn">🔄 Обновить</button>
+        <div style="display:flex;align-items:center;gap:8px;background:white;border:1.5px solid #e8eaf0;border-radius:10px;padding:7px 14px;width:220px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" value="${window._supQ||''}" placeholder="Поиск студента..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="clearTimeout(window._supTimer);window._supTimer=setTimeout(()=>{window._supQ=this.value;renderMain();},300)">
+        </div>
+      </div>
+    </div>
+    <div style="background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:10px 14px;font-size:12px;color:#e65100;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      Оценки скрыты. Показаны только незакрытые Unit Tests, Achievement Tests и Homework.
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+      ${FILTERS.map(([k,l])=>`<button onclick="window._supFilter='${k}';renderMain()" style="padding:5px 14px;border-radius:20px;border:1.5px solid ${(window._supFilter||'all')===k?'#4361ee':'#e0e4f0'};background:${(window._supFilter||'all')===k?'#eef2ff':'white'};color:${(window._supFilter||'all')===k?'#4361ee':'#666'};font-size:12px;font-weight:${(window._supFilter||'all')===k?600:400};cursor:pointer">${l}</button>`).join('')}
+    </div>
+    ${!results.length
+      ?`<div style="text-align:center;padding:60px;color:#bbb;font-size:14px">${q?'Студент не найден':'Все студенты сдали все тесты 🎉'}</div>`
+      :results.map(({s,g,t,filtered})=>`
+      <div style="background:white;border-radius:12px;border:1.5px solid #e0e4f0;margin-bottom:10px;overflow:hidden">
+        <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:14px;font-weight:600">${s.name}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">${t.name} · ${g.day} ${g.time} · <span class="lp lv-${lvc(g.level)}" style="padding:1px 7px;font-size:10px">${lvl(g.level)}</span></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;background:${filtered.length>5?'#ffebee':'#fff3e0'};color:${filtered.length>5?'#c62828':'#e65100'};padding:3px 10px;border-radius:10px">${filtered.length} ${filtered.length===1?'долг':filtered.length<5?'долга':'долгов'}</span>
+        </div>
+        <div style="padding:10px 16px;display:flex;flex-wrap:wrap;gap:6px">
+          ${filtered.map(d=>{const [bg,tx,bd]=DEBT_COLORS[d.key].split(':');return `<span style="background:${bg};color:${tx};border:1px solid ${bd};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">${d.label}</span>`;}).join('')}
+        </div>
+      </div>`).join('')}`;
+}
+
+function confirmDelT(id){
+  const t=D.teachers.find(x=>x.id===id);if(!t) return;
+  const gc=(t.groups||[]).length;
+  const sc=(t.groups||[]).reduce((s,g)=>s+(g.students||[]).filter(x=>x.name).length,0);
+  openModal(`<div class="modal-title">🗑 Удалить преподавателя?</div>
+    <div class="modal-desc">Вы удаляете <b>${t.name}</b>.<br>Будет удалено: <b>${gc} групп</b> и <b>${sc} студентов</b> со всеми оценками. Это действие нельзя отменить.</div>
+    <div style="background:#ffebee;border-radius:10px;padding:14px;margin-bottom:4px;font-size:13px;color:#b71c1c">
+      ⚠️ Все данные этого преподавателя будут безвозвратно удалены
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-dan" onclick="delT('${id}')">Удалить</button></div>`);
+}
+
+function confirmDelG(gid){
+  const t=D.teachers.find(x=>x.id===selT)||D.teachers.find(tc=>(tc.groups||[]).find(g=>g.id===gid));
+  const g=(t?.groups||[]).find(x=>x.id===gid);if(!g) return;
+  const sc=(g.students||[]).filter(s=>s.name).length;
+  openModal(`<div class="modal-title">🗑 Удалить группу?</div>
+    <div class="modal-desc">Вы удаляете группу <b>${g.day} ${g.time} — ${lvl(g.level)}</b>.<br>Будет удалено <b>${sc} студентов</b> со всеми оценками.</div>
+    <div style="background:#ffebee;border-radius:10px;padding:14px;margin-bottom:4px;font-size:13px;color:#b71c1c">
+      ⚠️ Все оценки этой группы будут безвозвратно удалены
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-dan" onclick="selT='${t?.id}';delG('${gid}')">Удалить</button></div>`);
+}
+
+function showAddStaff(){
+  openModal(`<div class="modal-title">+ Новый сотрудник</div>
+    <div class="modal-desc">Выберите тип сотрудника</div>
+    <div class="radio-group" style="margin-bottom:24px">
+      <label class="radio-card selected" id="st-teacher" onclick="selectStaffType('teacher')" style="cursor:pointer">
+        <div style="font-size:28px;margin-bottom:6px">👤</div>
+        <div class="rc-title">Преподаватель</div>
+        <div class="rc-sub">Ведёт группы и занятия</div>
+      </label>
+      <label class="radio-card" id="st-supporter" onclick="selectStaffType('supporter')" style="cursor:pointer">
+        <div style="font-size:28px;margin-bottom:6px">🤝</div>
+        <div class="rc-title">Supporter</div>
+        <div class="rc-sub">Работает со студентами</div>
+      </label>
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="goAddStaff()">Далее →</button>
+    </div>`);
+  window._staffType='teacher';
+}
+function selectStaffType(t){
+  window._staffType=t;
+  document.getElementById('st-teacher').classList.toggle('selected',t==='teacher');
+  document.getElementById('st-supporter').classList.toggle('selected',t==='supporter');
+}
+function goAddStaff(){
+  if(window._staffType==='supporter') showAddSupporter();
+  else showAddTeacher();
+}
+
+function showAddTeacher(){
+  openModal(`<div class="modal-title">Новый преподаватель</div>
+    <div class="fg"><label class="fl">Имя и фамилия</label>
+      <input type="text" class="fi" id="tn" placeholder="Иванова Айгуль">
+    </div>
+    <div style="background:#f0f4ff;border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:#4361ee;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px">🔐 Данные для входа</div>
+      <div class="fg" style="margin-bottom:12px"><label class="fl">Логин</label>
+        <input type="text" class="fi" id="ac-l" placeholder="например: ivanova">
+      </div>
+      <div class="fg" style="margin-bottom:0"><label class="fl">Пароль</label>
+        <input type="text" class="fi" id="ac-p" placeholder="минимум 4 символа">
+      </div>
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="addT()">${tr('createBtn')}</button></div>`);
+  setTimeout(()=>document.getElementById('tn')?.focus(),80);
+}
+function addT(){
+  const n=document.getElementById('tn')?.value?.trim();
+  const login=document.getElementById('ac-l')?.value?.trim();
+  const pass=document.getElementById('ac-p')?.value?.trim();
+  if(!n){toast('Введите имя','error');return;}
+  if(!login||!pass){toast('Введите логин и пароль','error');return;}
+  if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
+  if((D.accounts||[]).find(a=>a.login===login)){toast('Логин уже занят','error');return;}
+  const tid=uid();
+  D.teachers.push({id:tid,name:n,groups:[]});
+  if(!D.accounts) D.accounts=[];
+  D.accounts.push({id:uid(),teacherId:tid,login,password:pass});
+  closeModal();renderAll();sched();toast(`${n} добавлен ✓`,'success');
+}
+function showEditT(id){
+  const t=D.teachers.find(x=>x.id===id);
+  openModal(`<div class="modal-title">Изменить преподавателя</div>
+    <div class="fg"><label class="fl">Имя</label><input type="text" class="fi" id="tn" value="${t.name}"></div>
+    <div class="fa"><button class="btn btn-dan btn-sm" onclick="delT('${id}')">Удалить</button>
+      <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="editT('${id}')">${tr('saveBtn')}</button></div>`);
+}
+function editT(id){const n=document.getElementById('tn')?.value?.trim();if(!n) return;const t=D.teachers.find(x=>x.id===id);if(t) t.name=n;closeModal();renderAll();sched();}
+function delT(id){if(!confirm('Удалить преподавателя?')) return;D.teachers=D.teachers.filter(x=>x.id!==id);closeModal();goHome();sched();}
+
+// ── CRUD Groups ───────────────────────────────────────────────────────────
+
+const LEVEL_ORDER=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+function nextLevel(l){const i=LEVEL_ORDER.indexOf(l);return i>=0&&i<LEVEL_ORDER.length-1?LEVEL_ORDER[i+1]:null;}
+
+function showPromoteGroup(){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const sts=(g.students||[]).filter(s=>s.name);
+  const next=nextLevel(g.level);
+  const passed=sts.filter(s=>calcFinal(s,g.level)>=70);
+  const failed=sts.filter(s=>{const v=calcFinal(s,g.level);return v!==null&&v<70;});
+  const noGrade=sts.filter(s=>calcFinal(s,g.level)===null);
+
+  openModal(`<div class="modal-title">${tr('finishGrp')}</div>
+    <div class="modal-desc">Группа будет добавлена в архив. Вы можете создать новую группу следующего уровня для студентов, которые сдали.</div>
+
+    <div style="background:#f0f9f0;border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:#2b9348;margin-bottom:10px">✅ Сдали (Overall ≥ 70) — ${passed.length} ${tr('stuCount')}</div>
+      ${passed.map(s=>{const fv=calcFinal(s,g.level);return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #e0f0e0">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+          <input type="checkbox" checked value="${s.id}" class="promote-chk" style="width:15px;height:15px;accent-color:#2b9348"> ${s.name}
+        </label>
+        <span class="ob ${fv>=75?'og':'oy'}" style="font-size:12px;padding:2px 8px">${fv.toFixed(1)}</span>
+      </div>`}).join('')||'<div style="color:#bbb;font-size:13px">Нет</div>'}
+    </div>
+
+    ${failed.length?`<div style="background:#fff0f0;border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:#b71c1c;margin-bottom:8px">❌ Не сдали (Overall < 70) — ${failed.length} ${tr('stuCount')}</div>
+      ${failed.map(s=>`<div style="font-size:13px;padding:4px 0;color:#666">${s.name} — <b style="color:#b71c1c">${calcFinal(s,g.level).toFixed(1)}</b></div>`).join('')}
+    </div>`:''}
+
+    ${next?`<div style="background:#f0f4ff;border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:#4361ee;margin-bottom:10px">📚 Новая группа следующего уровня</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <div>
+          <div style="font-size:11px;color:#888;margin-bottom:4px">Уровень</div>
+          <span class="lp lv-${lvc(next)}">${lvl(next)}</span>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#888;margin-bottom:4px">День</div>
+          <div class="radio-group" style="gap:6px">
+            <label class="radio-card selected" id="pg-mwf" onclick="pgDay('MWF')" style="padding:6px 10px">
+              <div class="rc-title" style="font-size:12px">MWF</div></label>
+            <label class="radio-card" id="pg-tts" onclick="pgDay('TTS')" style="padding:6px 10px">
+              <div class="rc-title" style="font-size:12px">TTS</div></label>
+          </div>
+        </div>
+        <div style="flex:1;min-width:120px">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">Время</div>
+          <select class="fs" id="pg-time" style="padding:6px 10px;font-size:13px">
+            ${TIMES.map(tm=>`<option value="${tm}"${tm===g.time?' selected':''}>${tm}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:0">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="pg-create" checked style="width:15px;height:15px;accent-color:#4361ee">
+        Создать новую группу для сдавших студентов
+      </label>
+    </div>`:'<div style="background:#fff8e1;border-radius:10px;padding:12px;font-size:13px;color:#e65100">⚠️ Это последний уровень. Студенты будут переведены в статус Выпускник.</div>'}
+
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-ora" onclick="doPromoteGroup('${g.id}','${next||''}')">🎓 Завершить и архивировать</button>
+    </div>`);
+  window._pgDay=g.day||'MWF';
+}
+
+function pgDay(d){
+  window._pgDay=d;
+  document.getElementById('pg-mwf')?.classList.toggle('selected',d==='MWF');
+  document.getElementById('pg-tts')?.classList.toggle('selected',d==='TTS');
+}
+
+function doPromoteGroup(gid,nextLvl){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===gid);if(!g) return;
+
+  // Get selected students to promote
+  const checked=[...document.querySelectorAll('.promote-chk:checked')].map(el=>el.value);
+  const createNew=document.getElementById('pg-create')?.checked!==false;
+  const newDay=window._pgDay||g.day||'MWF';
+  const newTime=document.getElementById('pg-time')?.value||g.time;
+
+  // Archive current group state
+  if(!D.archives) D.archives=[];
+  const archLabel=`${t.name} — ${g.day} ${g.time} ${lvl(g.level)}`;
+  D.archives.push({id:uid(),label:archLabel,date:new Date().toLocaleDateString('ru'),snapshot:JSON.parse(JSON.stringify(D.teachers))});
+
+  // Create new group if next level exists and checkbox checked
+  if(nextLvl&&createNew&&checked.length){
+    if(!t.groups) t.groups=[];
+    // Check duplicate
+    let newGrp=t.groups.find(gr=>gr.day===newDay&&gr.time===newTime&&gr.level===nextLvl);
+    if(!newGrp){
+      newGrp={id:uid(),day:newDay,time:newTime,level:nextLvl,students:[]};
+      t.groups.push(newGrp);
+    }
+    // Add passing students to new group with fresh grades
+    const promoted=(g.students||[]).filter(s=>checked.includes(s.id));
+    promoted.forEach(s=>{
+      if(!newGrp.students.find(x=>x.name===s.name))
+        newGrp.students.push(newStudent(s.name));
+    });
+  }
+
+  // Mark non-promoted students as graduated if last level
+  if(!nextLvl){
+    (g.students||[]).forEach(s=>{
+      const ds=D.students.find(x=>x.name===s.name);
+      if(ds) ds.status='graduated';
+    });
+  }
+
+  // Remove old group
+  t.groups=t.groups.filter(x=>x.id!==gid);
+  closeModal();
+  selG=null;view='teacher';
+  renderAll();sched();
+  toast(`Группа завершена${nextLvl&&createNew&&checked.length?' · Новая группа создана':''}  ✓`,'success');
+}
+
+function showAddGroup(tid){
+  openModal(`<div class="modal-title">Новая группа</div>
+    <div class="fg"><label class="fl">День</label>
+      <div class="radio-group">
+        <label class="radio-card selected" id="rc-mwf" onclick="selDay('MWF')"><input type="radio" name="day" value="MWF" checked>
+          <div class="rc-title">MWF</div><div class="rc-sub">Пн · Ср · Пт</div></label>
+        <label class="radio-card" id="rc-tts" onclick="selDay('TTS')"><input type="radio" name="day" value="TTS">
+          <div class="rc-title">TTS</div><div class="rc-sub">Вт · Чт · Сб</div></label>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Время</label>
+      <div class="time-grid">${TIMES.map((tm,i)=>`<div class="time-btn${i===0?' selected':''}" onclick="selTime('${tm}',this)">${tm}</div>`).join('')}</div>
+    </div>
+    <div class="fg"><label class="fl">Уровень</label>
+      <select class="fs" id="glvl">${LEVELS.map(l=>`<option value="${l.v}">${l.l}</option>`).join('')}</select>
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="addG('${tid}')">${tr('createBtn')}</button></div>`);
+  window._sd='MWF';window._st='09:00';
+}
+function selDay(d){window._sd=d;document.getElementById('rc-mwf').classList.toggle('selected',d==='MWF');document.getElementById('rc-tts').classList.toggle('selected',d==='TTS');}
+function selTime(t,el){window._st=t;document.querySelectorAll('.time-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');}
+function addG(tid){
+  const day=window._sd||'MWF',time=window._st||'09:00',level=document.getElementById('glvl')?.value||'elementary';
+  const t=D.teachers.find(x=>x.id===tid);if(!t) return;if(!t.groups) t.groups=[];
+  if(t.groups.find(g=>g.day===day&&g.time===time)){toast('Такая группа уже есть!','error');return;}
+  t.groups.push({id:uid(),day,time,level,students:[]});closeModal();gotoT(tid);sched();
+}
+function showEditG(gid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===gid);
+  openModal(`<div class="modal-title">Настройки группы</div>
+    <div class="fg"><label class="fl">Уровень</label>
+      <select class="fs" id="glvl">${LEVELS.map(l=>`<option value="${l.v}"${g.level===l.v?' selected':''}>${l.l}</option>`).join('')}</select>
+    </div>
+    <div class="fa"><button class="btn btn-dan btn-sm" onclick="delG('${gid}')">Удалить</button>
+      <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="editG('${gid}')">${tr('saveBtn')}</button></div>`);
+}
+function editG(gid){const l=document.getElementById('glvl')?.value;const t=D.teachers.find(x=>x.id===selT);const g=(t?.groups||[]).find(x=>x.id===gid);if(g) g.level=l;closeModal();renderAll();sched();}
+function delG(gid){if(!confirm('Удалить группу?')) return;const t=D.teachers.find(x=>x.id===selT);if(t) t.groups=t.groups.filter(x=>x.id!==gid);closeModal();gotoT(selT);sched();}
+
+// ── Settings ──────────────────────────────────────────────────────────────
+function showSettings(){
+  openModal(`<div class="modal-title">⚙️ Настройки</div>
+    <div class="fg"><label class="fl">Логин администратора</label>
+      <input type="text" class="fi" id="admin-login" value="${D.settings?.adminLogin||'admin'}" placeholder="admin">
+    </div>
+    <div class="fg"><label class="fl">Новый PIN-код (пароль) администратора</label>
+      <input type="password" class="fi" id="np" placeholder="Оставьте пустым чтобы не менять">
+    </div>
+    <div class="fg"><label class="fl">GitHub Token</label>
+      <input type="password" class="fi" id="nt" value="${token}" placeholder="ghp_...">
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="applySettings()">${tr('saveBtn')}</button></div>`);
+}
+function backupData(){
+  const json=JSON.stringify(D,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  toast('Бэкап скачан ✓','success');
+}
+
+function restoreData(input){
+  const file=input.files[0];if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const parsed=JSON.parse(e.target.result);
+      if(!parsed.teachers&&!parsed.students){toast('Неверный формат файла','error');return;}
+      if(!confirm('Восстановить данные из бэкапа? Все текущие данные будут заменены.')) return;
+      D=parsed;
+      if(!D.settings) D.settings={pin:DPIN};
+      if(!D.teachers) D.teachers=[];
+      if(!D.students) D.students=[];
+      if(!D.accounts) D.accounts=[];
+      if(!D.archives) D.archives=[];
+      closeModal();
+      applyLogo();
+      renderAll();
+      sched();
+      toast('Данные восстановлены ✓','success');
+    }catch(e){toast('Ошибка чтения файла','error');}
+  };
+  reader.readAsText(file);
+}
+
+function applySettings(){
+  const adminLoginVal=document.getElementById('admin-login')?.value?.trim();
+  const p=document.getElementById('np')?.value?.trim();
+  const tk=document.getElementById('nt')?.value?.trim();
+  const orgName=document.getElementById('org-name')?.value?.trim();
+  const orgLogo=document.getElementById('org-logo')?.value?.trim();
+  if(adminLoginVal) D.settings.adminLogin=adminLoginVal;
+  if(p){D.settings.pin=p;toast('PIN изменён','success');}
+  if(tk){token=tk;localStorage.setItem('gh_token',tk);}
+  if(orgName){D.settings.orgName=orgName;}
+  if(orgLogo!==undefined){D.settings.orgLogo=orgLogo;}
+  applyLogo();
+  closeModal();sched();toast('Настройки сохранены ✓','success');
+}
+function applyLogo(){
+  const name=D.settings?.orgName||'Success Academy';
+  const logo=D.settings?.orgLogo||'';
+  const img=document.getElementById('logo-img');
+  const txt=document.getElementById('logo-text');
+  if(logo&&img&&txt){
+    img.src=logo;img.style.display='block';txt.style.display='none';
+  } else if(img&&txt){
+    img.style.display='none';txt.style.display='flex';
+    const badge=txt.querySelector('.logo-badge');
+    if(badge) badge.textContent=name.substring(0,2).toUpperCase();
+    const span=txt.querySelector('div:not(.logo-badge)');
+    if(!span){txt.innerHTML=`<div class="logo-badge">${name.substring(0,2).toUpperCase()}</div>${name}`;}
+    else txt.lastChild.textContent=name;
+  }
+}
+async function testTokenSettings(){
+  const v=document.getElementById('nt')?.value?.trim();
+  const res=document.getElementById('tok-settings-result');
+  if(!v){res.textContent='Введите токен';res.style.color='#e65100';return;}
+  res.textContent='⏳ Проверяю...';res.style.color='#888';
+  try{
+    const r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{
+      headers:{Authorization:`token ${v}`,Accept:'application/vnd.github.v3+json'}
+    });
+    if(r.ok){res.textContent='✅ Токен работает!';res.style.color='#1b5e20';}
+    else if(r.status===401){res.textContent='❌ Неверный токен (401)';res.style.color='#b71c1c';}
+    else if(r.status===403){res.textContent='❌ Нет прав repo (403)';res.style.color='#b71c1c';}
+    else if(r.status===404){res.textContent='❌ Репозиторий не найден (404)';res.style.color='#b71c1c';}
+    else{res.textContent=`❌ Ошибка ${r.status}`;res.style.color='#b71c1c';}
+  }catch(e){res.textContent='⚠️ Нет соединения';res.style.color='#e65100';}
+}
+
+function showTokenModal(cb){
+  window._tcb=cb;
+  openModal(`<div class="modal-title">GitHub Token</div>
+    <div class="fg"><label class="fl">Token</label>
+      <input type="password" class="fi" id="tok-in" placeholder="ghp_...">
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="saveTok()">${tr('saveBtn')}</button></div>`);
+}
+function saveTok(){
+  const v=document.getElementById('tok-in')?.value?.trim();if(!v) return;
+  token=v;localStorage.setItem('gh_token',v);
+  if(D.settings) D.settings.ghToken=btoa(v); // save for cross-device
+  closeModal();
+  if(window._tcb){window._tcb();window._tcb=null;}
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+function openModal(h){document.getElementById('mbox').innerHTML=h;document.getElementById('mbg').style.display='flex';}
+function closeModal(e){if(e&&e.target!==document.getElementById('mbg'))return;document.getElementById('mbg').style.display='none';}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg,type=''){document.querySelector('.toast')?.remove();const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3000);}
+
+// ── Utils ─────────────────────────────────────────────────────────────────
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
+function ini(n){return(n||'').split(' ').slice(0,2).map(w=>w[0]?.toUpperCase()).join('');}
+function fmt(v){const n=Number(v);return n%1===0?n:n.toFixed(1);}
+function lvc(l){return(l||'').replace(/\s+/g,'-').toLowerCase();}
+function lvl(l){return{beginner:'Beginner',elementary:'Elementary','pre-intermediate':'Pre-Int',intermediate:'Intermediate','upper-intermediate':'Upper Int'}[l]||l;}
+function newStudent(name){return{id:uid(),name,units:Array(12).fill(null),homework:Array(5).fill(null),achievements:Array(5).fill(null),presentation:null,speaking:null,final:null,retake:null,startUnit:1,startAT:1};}
+
+
+// ── Translations ──────────────────────────────────────────────────────────
+
+let curLang=localStorage.getItem('sa_lang')||'ru';
+const LANGS={
+  ru:{
+    home:'Главная',teachers:'Преподаватели',groups:'Групп',students:'Студентов',
+    avg:'Средний балл',addStaff:'+ Сотрудник',accounts:'Аккаунты',
+    stuBase:'База студентов',archive:'Архив',excel:'Excel',search:'Поиск',
+    logout:'Выйти',adminMode:'✅ Режим администратора',
+    tgText:'Обращения',noTeachers:'Нет преподавателей',archivesLbl:'Архивы',createArchive:'🗃 Архив',settings:'⚙️',noGroups:'Нет групп',
+    sortName:'По имени',sorting:'[sorting]',
+    addTeacher:'+ Преподаватель',addGroup:'+ Группа',
+    cancelBtn:'Отмена',saveBtn:'Сохранить',createBtn:'Создать',addBtn:'Добавить',
+    newTeacher:'Новый преподаватель',newGroup:'Новая группа',
+    newStaff:'+ Новый сотрудник',staffType:'Выберите тип сотрудника',
+    nameLabel:'Имя и фамилия',loginLabel:'Логин',passLabel:'Пароль',
+    dayLabel:'День недели',timeLabel:'Время',levelLabel:'Уровень',
+    allAccounts:'Аккаунты',teacherAcc:'Учителя',supporterAcc:'Supporters',
+    noAccounts:'Нет аккаунтов',newAccount:'Новый аккаунт',
+    newSupporterBtn:'🤝 Новый Supporter',createAcc:'Создать',
+    stuDB:'🎓 База студентов',stuSearch:'Поиск студента...',
+    stuEmpty:'База пуста',assignGrp:'↗ В группу',
+    stuActive:'Активен',stuArchived:'Архив',stuGrad:'Выпускник',
+    stuGroups:'Текущие группы',notInGroup:'Не добавлен ни в одну группу',
+    createArchiveBtn:'Создать архив',deleteArchive:'Удалить архив',
+    backupDown:'⬇ Скачать бэкап',backupUp:'⬆ Восстановить',
+    backupTitle:'💾 Резервная копия',logoTitle:'🖼 Логотип',
+    orgName:'Название организации',orgLogo:'Логотип (ссылка)',
+    adminProfile:'👤 Профиль администратора',teacherProfile:'👤 Мой профиль',
+    changePin:'Смена PIN-кода',changePass:'Смена пароля',
+    currentPin:'Текущий PIN',newPin:'Новый PIN',confirmPin:'Подтвердите PIN',
+    currentPass:'Текущий пароль',newPass:'Новый пароль',confirmPass:'Подтвердите пароль',
+    profileSaved:'Профиль сохранён ✓',wrongPin:'Неверный текущий PIN',wrongPass:'Неверный текущий пароль',
+    pinMismatch:'PIN-коды не совпадают',passMismatch:'Пароли не совпадают',
+    pinMin:'Новый PIN минимум 4 символа',passMin:'Новый пароль минимум 4 символа',
+    tokenTitle:'GitHub Token',settingsTitle:'⚙️ Настройки',
+    adminPinLabel:'Новый PIN-код администратора',settingsSaved:'Настройки сохранены ✓',
+    searchPlaceholder:'Поиск преподавателя, студента...',searchResults:'Найдено:',
+    globalSearch:'🔍 Поиск студента',globalPlaceholder:'Введите имя или фамилию...',
+    startType:'Начните вводить имя...',notFound:'Ничего не найдено',
+    importTitle:'📋 Импорт из Excel',importHint:'💡 Выделите столбец → Ctrl+C → вставьте сюда',
+    clearBefore:'Очистить список перед добавлением',
+    uploadTitle:'⬆ Загрузить оценки из Excel',applyGrades:'✅ Применить оценки',
+    addFromDB:'Из базы',addNew:'Новый',
+    moveStudent:'↗ Перенести студента',moveTo:'Куда перенести',
+    archiveStu:'📦 Архивировать студента',archiveStuBtn:'📦 В архив',
+    promoteTitle:'🎓 Завершить группу',finishArchive:'🎓 Завершить и архивировать',
+    passedStu:'Сдали (Overall ≥ 70)',failedStu:'Не сдали (Overall < 70)',
+    createNewGroup:'Создать новую группу для сдавших',
+    supBarText:'только незакрытые тесты студентов',
+    tchBarText:'только ваши группы отображаются',
+    roleTeacher:'Преподаватель',roleSupporter:'Supporter',
+    mwfLabel:'[mwfDay]',ttsLabel:'[ttsDay]',otherLabel:'[otherDay]',
+    debts:'[debts]',allDone:'Все студенты сдали все тесты 🎉',
+    noResult:'[noResult]',eyeOff:'Оценки скрыты. Только незакрытые тесты.',
+    filterAll:'Все',grpCount:'групп',stuCount:'студентов',
+    stuSuffix:'студентов',grpSuffix:'групп',
+    finishGrp:'🎓 Завершить группу',addStu:'+ Студент',
+    paste:'📋 Вставить',uploadXl:'⬆ Загрузить Excel',saveOk:'Сохранено ✓',
+    loginTitle:'Система управления оценками',loginAdmin:'🔐 Админ',
+    loginTeacher:'👤 Учитель',loginSupporter:'[loginSupporter]',loginBtn:'Войти',
+  },
+  en:{
+    home:'Home',teachers:'Teachers',groups:'Groups',students:'Students',
+    avg:'Average score',addStaff:'+ Staff',accounts:'Accounts',
+    stuBase:'Students DB',archive:'Archive',excel:'Excel',search:'Search',
+    logout:'Logout',adminMode:'✅ Admin mode',
+    tgText:'Support',noTeachers:'No teachers',archivesLbl:'Archives',createArchive:'🗃 Archive',settings:'⚙️',noGroups:'No groups',
+    sortName:'By name',sortOverall:'Overall',sortUnit:'Unit Tests',sortFinal:'Final',sorting:'Sort:',
+    addTeacher:'+ Teacher',addGroup:'+ Group',
+    cancelBtn:'Cancel',saveBtn:'Save',createBtn:'Create',addBtn:'Add',
+    newTeacher:'New teacher',newGroup:'New group',
+    newStaff:'+ New staff',staffType:'Choose staff type',
+    nameLabel:'Full name',loginLabel:'Login',passLabel:'Password',
+    dayLabel:'Days',timeLabel:'Time',levelLabel:'Level',
+    allAccounts:'Accounts',teacherAcc:'Teachers',supporterAcc:'Supporters',
+    noAccounts:'No accounts',newAccount:'New account',
+    newSupporterBtn:'🤝 New Supporter',createAcc:'Create',
+    stuDB:'🎓 Students database',stuSearch:'Search student...',
+    stuEmpty:'Database empty',assignGrp:'↗ Assign to group',
+    stuActive:'Active',stuArchived:'Archived',stuGrad:'Graduate',
+    stuGroups:'Current groups',notInGroup:'Not assigned to any group',
+    createArchiveBtn:'Create archive',deleteArchive:'Delete archive',
+    backupDown:'⬇ Download backup',backupUp:'⬆ Restore',
+    backupTitle:'💾 Backup',logoTitle:'🖼 Logo',
+    orgName:'Organization name',orgLogo:'Logo URL',
+    adminProfile:'👤 Admin profile',teacherProfile:'👤 My profile',
+    changePin:'Change PIN',changePass:'Change password',
+    currentPin:'Current PIN',newPin:'New PIN',confirmPin:'Confirm PIN',
+    currentPass:'Current password',newPass:'New password',confirmPass:'Confirm password',
+    profileSaved:'Profile saved ✓',wrongPin:'Wrong current PIN',wrongPass:'Wrong current password',
+    pinMismatch:'PINs do not match',passMismatch:'Passwords do not match',
+    pinMin:'New PIN must be at least 4 characters',passMin:'New password must be at least 4 characters',
+    tokenTitle:'GitHub Token',settingsTitle:'⚙️ Settings',
+    adminPinLabel:'New admin PIN',settingsSaved:'Settings saved ✓',
+    searchPlaceholder:'Search teacher, student...',searchResults:'Found:',
+    globalSearch:'🔍 Search student',globalPlaceholder:'Enter name...',
+    startType:'Start typing a name...',notFound:'Nothing found',
+    importTitle:'📋 Import from Excel',importHint:'💡 Select column → Ctrl+C → paste here',
+    clearBefore:'Clear list before adding',
+    uploadTitle:'⬆ Upload grades from Excel',applyGrades:'✅ Apply grades',
+    addFromDB:'From DB',addNew:'New',
+    moveStudent:'↗ Move student',moveTo:'Move to',
+    archiveStu:'📦 Archive student',archiveStuBtn:'📦 Archive',
+    promoteTitle:'🎓 Finish group',finishArchive:'🎓 Finish and archive',
+    passedStu:'Passed (Overall ≥ 70)',failedStu:'Failed (Overall < 70)',
+    createNewGroup:'Create new group for passed students',
+    supBarText:'only missing tests shown',
+    tchBarText:'only your groups are shown',
+    roleTeacher:'Teacher',roleSupporter:'Supporter',
+    mwfLabel:'📅 MWF — Mon · Wed · Fri',ttsLabel:'📅 TTS — Tue · Thu · Sat',otherLabel:'📅 Other groups',
+    debts:'Student debts',allDone:'All students completed all tests 🎉',
+    noResult:'Student not found',eyeOff:'Grades hidden. Only missing tests shown.',
+    filterAll:'All',grpCount:'groups',stuCount:'students',
+    stuSuffix:'students',grpSuffix:'groups',
+    finishGrp:'🎓 Finish group',addStu:'+ Student',
+    paste:'📋 Paste',uploadXl:'⬆ Upload Excel',saveOk:'Saved ✓',
+    loginTitle:'Grade Management System',loginAdmin:'🔐 Admin',
+    loginTeacher:'👤 Teacher',loginSupporter:'[loginSupporter]',loginBtn:'Login',
+  }
+};
+
+
+const t=tr; // alias
+
+function tr(k){
+  try{return (LANGS[curLang]||LANGS.ru)[k]||k;}
+  catch(e){return k;}
+}
+
+
+function setLang(l){
+  curLang=l;
+  localStorage.setItem('sa_lang',l);
+  document.documentElement.lang=l;
+  updateLangBtn(l);
+  applyI18n();
+  if(curUser) renderAll();
+  else{
+    const ltEl=document.getElementById('login-title-text');
+    if(ltEl) ltEl.textContent=tr('loginTitle');
+    const ll=document.getElementById('ll-login');
+    const lp=document.getElementById('ll-pass');
+    const lb=document.getElementById('li-btn');
+    if(ll) ll.textContent=tr('loginLbl');
+    if(lp) lp.textContent=tr('passLbl');
+    if(lb) lb.textContent=tr('loginBtn');
+  }
+}
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    if(el.children.length>0) return;
+    const key=el.getAttribute('data-i18n');
+    const txt=tr(key);
+    if(txt&&txt!==key) el.textContent=txt;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    const key=el.getAttribute('data-i18n-placeholder');
+    const txt=tr(key);
+    if(txt&&txt!==key) el.placeholder=txt;
+  });
+}
+
+function toggleLangMenu(){
+  const m=document.getElementById('lang-menu');
+  if(m) m.style.display=m.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',e=>{
+  const wrap=document.getElementById('lang-dropdown-wrap');
+  if(wrap&&!wrap.contains(e.target)){
+    const m=document.getElementById('lang-menu');
+    if(m) m.style.display='none';
+  }
+});
+function updateLangBtn(l){
+  const flags={ru:'🇷🇺',en:'🇬🇧'};
+  const labels={ru:'RU',en:'EN'};
+  const flag=document.getElementById('lang-cur-flag');
+  const txt=document.getElementById('lang-cur-text');
+  if(flag) flag.textContent=flags[l]||'🌐';
+  if(txt) txt.textContent=labels[l]||l.toUpperCase();
+}
+function toggleTheme(){
+  const isDark=document.body.classList.toggle('dark');
+  localStorage.setItem('sa_theme',isDark?'dark':'light');
+  document.getElementById('theme-btn').textContent=isDark?'☀️':'🌙';
+}
+
+function applyTheme(){
+  document.documentElement.lang=curLang;
+  const saved=localStorage.getItem('sa_theme');
+  if(saved==='dark'){document.body.classList.add('dark');const tb=document.getElementById('theme-btn');if(tb)tb.textContent='☀️';}
+  updateLangBtn(curLang);
+}
+
+// Apply i18n and theme immediately
+document.addEventListener('DOMContentLoaded',()=>{
+  applyTheme();
+  applyI18n();
+  updateLangBtn(curLang);
+});
+initApp();
+setTimeout(()=>{applyI18n();updateLangBtn(curLang);},200);
+
+
+const OWNER='SuccessAcademyLC',REPO='school-grades',FILE='data.json',DPIN='1234';
+const TIMES=['09:00','10:30','14:00','15:30','17:00','18:30'];
+const LEVELS=[{v:'beginner',l:'Beginner'},{v:'elementary',l:'Elementary'},{v:'pre-intermediate',l:'Pre-Intermediate'},{v:'intermediate',l:'Intermediate'},{v:'upper-intermediate',l:'Upper Intermediate'}];
+
+let D={teachers:[],students:[],accounts:[],archives:[],settings:{pin:DPIN}};
+let view='home',selT=null,selG=null,selArch=null,selStu=null,curPage=null;
+let curUser=null; // {role:'admin'|'teacher', teacherId, name, accountId}
+let token=localStorage.getItem('gh_token')||'';
+let saveTimer=null,curSbTab='teachers',loginMode='admin';
+
+// ── Data ──────────────────────────────────────────────────────────────────
+let dataLoaded=false;
+async function loadData(){
+  try{
+    const r=await fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${FILE}?t=${Date.now()}`);
+    if(r.ok){
+      const github=await r.json();
+      // Check if localStorage has newer unsaved data
+      try{
+        const local=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');
+        // Use local modification time (set on every change)
+        const ghTime=new Date(github._savedAt||0).getTime();
+        const lcTime=new Date(local._localAt||local._savedAt||0).getTime();
+        // Use local if it has more data OR is newer than GitHub
+        const localHasMoreStudents=(local.teachers||[]).reduce((s,t)=>s+(t.groups||[]).reduce((g,gr)=>g+(gr.students||[]).length,0),0);
+        const ghHasMoreStudents=(github.teachers||[]).reduce((s,t)=>s+(t.groups||[]).reduce((g,gr)=>g+(gr.students||[]).length,0),0);
+        if(local.teachers&&local.teachers.length&&(lcTime>ghTime||localHasMoreStudents>ghHasMoreStudents)){
+          D=local;
+          console.log('Loaded from local backup (newer/more data)');
+        } else {
+          D=github;
+        }
+      }catch(e){ D=github; }
+    } else {
+      // GitHub failed - try local backup
+      try{
+        const local=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');
+        if(local.teachers) D=local;
+      }catch(e){}
+    }
+  }catch(e){
+    // No connection - use local backup
+    try{
+      const local=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');
+      if(local.teachers) D=local;
+    }catch(e2){}
+  }
+  if(!D.settings) D.settings={pin:DPIN};
+  if(!D.teachers) D.teachers=[];
+  if(!D.students) D.students=[];
+  if(!D.accounts) D.accounts=[];
+  if(!D.archives) D.archives=[];
+  dataLoaded=true;
+}
+
+async function saveData(){
+  if(!token){showTokenModal(()=>saveData());return;}
+  const pill=document.getElementById('saving-pill');
+  if(pill) pill.style.display='flex';
+  try{
+    // Get fresh SHA
+    const g=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{
+      cache:'no-store',
+      headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json'}
+    });
+    let sha='';
+    if(g.ok){sha=(await g.json()).sha||'';}
+    else if(g.status===401||g.status===403){
+      token='';localStorage.removeItem('gh_token');
+      showTokenModal(()=>saveData());
+      if(pill) pill.style.display='none';
+      return;
+    }
+    // Stamp and save token
+    D._savedAt=new Date().toISOString();
+    if(token&&isAdmin()) try{D.settings.ghToken=btoa(token);}catch(e){}
+    // Upload
+    const body={message:'Update '+D._savedAt,content:btoa(unescape(encodeURIComponent(JSON.stringify(D,null,2))))};
+    if(sha) body.sha=sha;
+    const p=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{
+      method:'PUT',
+      headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    if(p.ok){
+      try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+      const up=document.getElementById('unsaved-pill');
+      if(up) up.style.display='none';
+      toast(tr('saveOk'),'success');
+    } else if(p.status===401||p.status===403){
+      token='';localStorage.removeItem('gh_token');
+      toast('Токен недействителен — введите новый','error');
+      showTokenModal(()=>saveData());
+    } else if(p.status===409||p.status===422){
+      // SHA conflict - retry once after short delay
+      setTimeout(saveData,1500);
+    } else {
+      let msg='Ошибка сохранения';
+      try{const j=await p.json();msg=j.message||msg;}catch(e){}
+      toast(`${p.status}: ${msg}`,'error');
+    }
+  }catch(e){
+    toast('Нет соединения. Данные сохранены локально.','error');
+    const up=document.getElementById('unsaved-pill');
+    if(up) up.style.display='flex';
+  }
+  if(pill) pill.style.display='none';
+}
+
+
+function sched(){
+  D._localAt=new Date().toISOString(); // stamp local modification time
+  try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+  const up=document.getElementById('unsaved-pill');
+  if(up) up.style.display='flex';
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(saveNow,3000);
+}
+function saveNow(){saveData();}
+
+// ── Login ─────────────────────────────────────────────────────────────────
+// loginTab removed - unified login
+
+async function initApp(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  await loadData();
+  // Try to restore session
+  const saved=loadSession();
+  if(saved){
+    // Verify saved session is still valid
+    if(saved.role==='admin'){
+      curUser=saved;startApp();return;
+    } else if(saved.role==='teacher'){
+      const acc=(D.accounts||[]).find(a=>a.id===saved.accountId);
+      const teacher=D.teachers.find(x=>x.id===saved.teacherId);
+      if(acc){curUser={...saved,name:teacher?teacher.name:saved.name};startApp();return;}
+    } else if(saved.role==='supporter'){
+      const acc=(D.accounts||[]).find(a=>a.id===saved.accountId);
+      if(acc){curUser=saved;startApp();return;}
+    }
+    clearSession();
+  }
+}
+
+function doLogin(){
+  try{
+    const login=(document.getElementById('li-login')?.value||'').trim().toLowerCase();
+    const pass=document.getElementById('li-pass')?.value||'';
+    document.getElementById('login-err').style.display='none';
+
+    if(!login){document.getElementById('li-login').focus();showLoginErr('Введите логин');return;}
+    if(!pass){document.getElementById('li-pass').focus();showLoginErr('Введите пароль');return;}
+
+    // Admin: accept login 'admin' with DPIN always as fallback
+    const adminLogin=(D.settings?.adminLogin||'admin').toLowerCase();
+    const adminPin=D.settings?.pin||DPIN;
+    if(login===adminLogin||login==='admin'){
+      if(pass===adminPin||pass===DPIN){
+        curUser={role:'admin',name:D.settings?.adminName||'Администратор'};
+        startApp();return;
+      }
+    }
+    // Teacher
+    const tAcc=(D.accounts||[]).find(a=>a.login===login&&a.password===pass&&a.role!=='supporter');
+    if(tAcc){
+      const teacher=D.teachers.find(x=>x.id===tAcc.teacherId);
+      curUser={role:'teacher',teacherId:tAcc.teacherId,name:teacher?teacher.name:login,accountId:tAcc.id};
+      startApp();return;
+    }
+    // Supporter
+    const sAcc=(D.accounts||[]).find(a=>a.login===login&&a.password===pass&&a.role==='supporter');
+    if(sAcc){
+      curUser={role:'supporter',name:sAcc.name||login,accountId:sAcc.id};
+      startApp();return;
+    }
+    showLoginErr('Неверный логин или пароль');
+    document.getElementById('li-pass').value='';
+    document.getElementById('li-pass').focus();
+  }catch(err){
+    showLoginErr('Ошибка: '+err.message);
+    console.error('Login error:',err);
+  }
+}
+
+function showLoginErr(msg){
+  const el=document.getElementById('login-err');
+  el.textContent=msg;el.style.display='block';
+}
+
+function startApp(){
+  try{saveSession(curUser);}catch(e){console.warn('session save failed:',e);}
+  // Restore token from settings if not in localStorage
+  if(!token && D.settings?.ghToken){
+    try{token=atob(D.settings.ghToken);localStorage.setItem('gh_token',token);}catch(e){}
+  }
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  const isAdm=curUser.role==='admin';
+  const isSup=curUser.role==='supporter';
+  const isTch=curUser.role==='teacher';
+  // Show/hide bars
+  document.getElementById('adm-bar').style.display=isAdm?'flex':'none';
+  document.getElementById('tch-bar').style.display=isTch?'flex':'none';
+  const supBar=document.getElementById('sup-bar');
+  if(supBar) supBar.style.display=isSup?'flex':'none';
+  if(isTch) document.getElementById('tch-bar-name').textContent='👤 '+curUser.name;
+  // Who pill
+  const pill=document.getElementById('who-pill');
+  const avCls=isAdm?'wa-admin':isSup?'wa-supporter':'wa-teacher';
+  pill.innerHTML=`<div class="who-av ${avCls}" style="width:24px;height:24px;font-size:10px;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(curUser.name)}</div> ${curUser.name}`;
+  applyLogo();
+  applyI18n();
+  updateLangBtn(curLang);
+  if(isSup){view='supporter';renderAll();}
+  else{
+    view='home';renderAll();
+    if(isTch&&curUser.teacherId){selT=curUser.teacherId;view='teacher';renderAll();}
+  }
+  // Auto-refresh data every 60 seconds
+  clearInterval(window._refreshTimer);
+  window._refreshTimer=setInterval(async()=>{
+    if(!_saving){  // only refresh if not currently saving
+      await loadData();
+      renderAll();
+    }
+  },60000);
+}
+
+function showProfile(){
+  if(!curUser) return;
+  if(curUser.role==='admin'){
+    const adminName=D.settings?.adminName||'Администратор';
+    openModal(`<div class="modal-title">👤 Профиль администратора</div>
+      <div style="background:#f8f9fb;border-radius:12px;padding:16px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="who-av wa-admin" style="width:48px;height:48px;font-size:18px;border-radius:50%">${ini(adminName)}</div>
+          <div><div style="font-size:16px;font-weight:700">${adminName}</div>
+            <div style="font-size:12px;color:#888;margin-top:2px">Полный доступ</div></div>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Имя и фамилия</label>
+        <input type="text" class="fi" id="pp-name" value="${adminName}" placeholder="Введите ФИО">
+      </div>
+      <div style="border-top:1px solid #f0f0f0;padding-top:16px;margin-top:4px">
+        <div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Смена PIN-кода</div>
+        <div class="fg"><label class="fl">Текущий PIN</label>
+          <input type="password" class="fi" id="pp-old" placeholder="Введите текущий PIN">
+        </div>
+        <div class="fg"><label class="fl">Новый PIN</label>
+          <input type="password" class="fi" id="pp-new" placeholder="Минимум 4 символа">
+        </div>
+        <div class="fg"><label class="fl">Подтвердите новый PIN</label>
+          <input type="password" class="fi" id="pp-confirm" placeholder="Повторите PIN">
+        </div>
+      </div>
+      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+        <button class="btn btn-pri" onclick="saveAdminProfile()">${tr('saveBtn')}</button></div>`);
+  } else {
+    const acc=(D.accounts||[]).find(a=>a.id===curUser.accountId);
+    const t=D.teachers.find(x=>x.id===curUser.teacherId);
+    openModal(`<div class="modal-title">👤 Мой профиль</div>
+      <div style="background:#f8f9fb;border-radius:12px;padding:16px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="who-av wa-teacher" style="width:48px;height:48px;font-size:18px;border-radius:50%">${ini(curUser.name)}</div>
+          <div><div style="font-size:16px;font-weight:700">${curUser.name}</div>
+            <div style="font-size:12px;color:#888;margin-top:2px">Логин: <b>${acc?acc.login:'—'}</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Имя и фамилия</label>
+        <input type="text" class="fi" id="pp-name" value="${t?t.name:curUser.name}" placeholder="Введите ФИО">
+      </div>
+      <div style="border-top:1px solid #f0f0f0;padding-top:16px;margin-top:4px">
+        <div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Смена пароля</div>
+        <div class="fg"><label class="fl">Текущий пароль</label>
+          <input type="password" class="fi" id="pp-old" placeholder="Введите текущий пароль">
+        </div>
+        <div class="fg"><label class="fl">Новый пароль</label>
+          <input type="password" class="fi" id="pp-new" placeholder="Минимум 4 символа">
+        </div>
+        <div class="fg"><label class="fl">Подтвердите новый пароль</label>
+          <input type="password" class="fi" id="pp-confirm" placeholder="Повторите пароль">
+        </div>
+      </div>
+      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+        <button class="btn btn-pri" onclick="saveTeacherProfile()">${tr('saveBtn')}</button></div>`);
+  }
+}
+
+function saveAdminProfile(){
+  const name=document.getElementById('pp-name')?.value?.trim();
+  const old=document.getElementById('pp-old')?.value;
+  const nw=document.getElementById('pp-new')?.value?.trim();
+  const cf=document.getElementById('pp-confirm')?.value?.trim();
+  let changed=false;
+  // Save name
+  if(name){
+    D.settings.adminName=name;
+    curUser.name=name;
+    document.getElementById('who-pill').innerHTML=`<div class="who-av wa-admin" style="width:24px;height:24px;font-size:10px;font-weight:700;background:#e94560;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(name)}</div> ${name}`;
+    changed=true;
+  }
+  // Change PIN if fields filled
+  if(old||nw||cf){
+    if(old!==(D.settings?.pin||DPIN)){toast('Неверный текущий PIN','error');return;}
+    if(!nw||nw.length<4){toast('Новый PIN минимум 4 символа','error');return;}
+    if(nw!==cf){toast('PIN-коды не совпадают','error');return;}
+    D.settings.pin=nw; changed=true;
+  }
+  if(changed){closeModal();sched();toast('Профиль сохранён ✓','success');}
+  else closeModal();
+}
+
+function saveTeacherProfile(){
+  const acc=(D.accounts||[]).find(a=>a.id===curUser.accountId);if(!acc) return;
+  const t=D.teachers.find(x=>x.id===curUser.teacherId);
+  const name=document.getElementById('pp-name')?.value?.trim();
+  const old=document.getElementById('pp-old')?.value;
+  const nw=document.getElementById('pp-new')?.value?.trim();
+  const cf=document.getElementById('pp-confirm')?.value?.trim();
+  let changed=false;
+  // Save name
+  if(name&&t){
+    t.name=name; curUser.name=name;
+    document.getElementById('who-pill').innerHTML=`<div class="who-av wa-teacher" style="width:24px;height:24px;font-size:10px;font-weight:700;background:#4361ee;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(name)}</div> ${name}`;
+    document.getElementById('tch-bar-name').textContent='👤 '+name;
+    changed=true;
+  }
+  // Change password if fields filled
+  if(old||nw||cf){
+    if(old!==acc.password){toast('Неверный текущий пароль','error');return;}
+    if(!nw||nw.length<4){toast('Новый пароль минимум 4 символа','error');return;}
+    if(nw!==cf){toast('Пароли не совпадают','error');return;}
+    acc.password=nw; changed=true;
+  }
+  if(changed){closeModal();renderSidebar();sched();toast('Профиль сохранён ✓','success');}
+  else closeModal();
+}
+
+function doLogout(){
+  clearInterval(window._refreshTimer);
+  clearSession();
+  curUser=null;
+  document.getElementById('li-login').value='';
+  document.getElementById('li-pass').value='';
+  initApp();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  applyTheme();
+  applyI18n();
+  updateLangBtn(curLang);
+});
+initApp();
+setTimeout(()=>{applyI18n();updateLangBtn(curLang);},300);
+</script>
+</body>
+</html>
