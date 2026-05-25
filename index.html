@@ -2335,8 +2335,9 @@ setTimeout(()=>{applyI18n();updateLangBtn(curLang);},200);
 
 
 const DPIN='1234';
-// Firebase Realtime Database
-let FIREBASE_URL=localStorage.getItem('firebase_url')||'';
+// Firebase Realtime Database - default URL
+const FIREBASE_DEFAULT='https://ongoingassessment-262b7-default-rtdb.firebaseio.com';
+let FIREBASE_URL=localStorage.getItem('firebase_url')||FIREBASE_DEFAULT;
 const TIMES=['09:00','10:30','14:00','15:30','17:00','18:30'];
 const LEVELS=[{v:'beginner',l:'Beginner'},{v:'elementary',l:'Elementary'},{v:'pre-intermediate',l:'Pre-Intermediate'},{v:'intermediate',l:'Intermediate'},{v:'upper-intermediate',l:'Upper Intermediate'}];
 
@@ -2534,28 +2535,8 @@ function startApp(){
     if(isTch&&curUser.teacherId){selT=curUser.teacherId;view='teacher';renderAll();}
   }
   // If admin and no Firebase URL - show setup
-  if(isAdm&&!FIREBASE_URL){
-    setTimeout(()=>{
-      openModal(`<div class="modal-title">🔑 Настройка GitHub Token</div>
-        <div class="modal-desc">Для сохранения данных между устройствами нужен токен GitHub. Введите его один раз.</div>
-        <div class="fg"><label class="fl">GitHub Personal Access Token</label>
-          <input type="text" class="fi" id="tok-setup" placeholder="ghp_..." style="font-family:monospace" autocomplete="off">
-        </div>
-        <div style="background:#e8f5e9;border-radius:10px;padding:12px;font-size:12px;color:#1b5e20;margin-bottom:4px">
-          <b>Как получить токен:</b><br>
-          1. github.com → Settings → Developer settings<br>
-          2. Personal access tokens → Tokens (classic)<br>
-          3. Generate new token → выберите <b>repo</b> → No expiration<br>
-          4. Скопируйте и вставьте сюда
-        </div>
-        <div id="tok-setup-result" style="font-size:13px;margin:8px 0"></div>
-        <div class="fa">
-          <button class="btn btn-sec" onclick="closeModal()">Позже</button>
-          <button class="btn btn-sec" onclick="testSetupToken()">🔍 Проверить</button>
-          <button class="btn btn-pri" onclick="saveSetupToken()">Сохранить и синхронизировать</button>
-        </div>`);
-    },500);
-  }
+  // Auto-sync to Firebase on admin login
+  if(isAdm) setTimeout(()=>saveData(),1000);
   // Auto-refresh data every 60 seconds
   clearInterval(window._refreshTimer);
   window._refreshTimer=setInterval(async()=>{
