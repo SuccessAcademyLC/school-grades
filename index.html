@@ -144,7 +144,7 @@ tbody tr.empty-row td{background:#fafafa}
 .name-link:hover{color:#4361ee;text-decoration:underline}
 .gb{border-left:2px solid #e0e4ff}
 .gh{background:#eef2ff!important;color:#4361ee!important}
-.gi{width:42px;border:1.5px solid transparent;border-radius:5px;padding:3px 4px;text-align:center;font-size:12.5px;background:transparent;font-family:inherit;transition:.15s}
+.gi{width:42px;border:1.5px solid #e8eaf0;border-radius:5px;padding:3px 4px;text-align:center;font-size:12.5px;background:#fafbff;font-family:inherit;transition:.15s}
 .gi:hover{border-color:#c5cae9;background:#f8f9ff}
 .gi:focus{outline:none;border-color:#4361ee;background:white;box-shadow:0 0 0 3px rgba(67,97,238,.1)}
 .ni{width:100%;border:1.5px solid transparent;border-radius:5px;padding:3px 6px;font-size:13px;background:transparent;font-family:inherit;transition:.15s;font-weight:600}
@@ -238,7 +238,7 @@ body.dark tbody td{border-color:#2a2d3a}
 body.dark tbody td.nc,body.dark tbody td.nmc{background:#1a1d27}
 body.dark tbody tr:hover td{background:#1e2340!important}
 body.dark tbody tr.empty-row td{background:#141620}
-body.dark .gi{color:#e8eaf0}
+body.dark .gi{color:#e8eaf0;border-color:#2a2d3a;background:#1e2133}
 body.dark .ni{color:#e8eaf0}
 body.dark .modal{background:#1a1d27;color:#e8eaf0}
 body.dark .fi,body.dark .fs{background:#141620;border-color:#2a2d3a;color:#e8eaf0}
@@ -2468,7 +2468,20 @@ function doLogin(){
     if(!login){document.getElementById('li-login').focus();showLoginErr('Введите логин');return;}
     if(!pass){document.getElementById('li-pass').focus();showLoginErr('Введите пароль');return;}
 
-    // Admin: accept login 'admin' with DPIN always as fallback
+    // If data not loaded yet - wait and retry
+    if(!dataLoaded){
+      showLoginErr('Загрузка данных...');
+      const btn=document.getElementById('li-btn');
+      if(btn){btn.disabled=true;btn.textContent='Загрузка...';}
+      loadData().then(()=>{
+        if(btn){btn.disabled=false;btn.textContent='Войти';}
+        document.getElementById('login-err').style.display='none';
+        doLogin();
+      });
+      return;
+    }
+
+    // Admin check
     const adminLogin=(D.settings?.adminLogin||'admin').toLowerCase();
     const adminPin=D.settings?.pin||DPIN;
     if(login===adminLogin||login==='admin'){
@@ -2477,20 +2490,26 @@ function doLogin(){
         startApp();return;
       }
     }
-    // Teacher
-    const tAcc=(D.accounts||[]).find(a=>a.login===login&&a.password===pass&&a.role!=='supporter');
+    // Teacher - check both exact and lowercase login match
+    const tAcc=(D.accounts||[]).find(a=>
+      (a.login||'').toLowerCase()===login && a.password===pass && a.role!=='supporter'
+    );
     if(tAcc){
       const teacher=D.teachers.find(x=>x.id===tAcc.teacherId);
       curUser={role:'teacher',teacherId:tAcc.teacherId,name:teacher?teacher.name:login,accountId:tAcc.id};
       startApp();return;
     }
     // Supporter
-    const sAcc=(D.accounts||[]).find(a=>a.login===login&&a.password===pass&&a.role==='supporter');
+    const sAcc=(D.accounts||[]).find(a=>
+      (a.login||'').toLowerCase()===login && a.password===pass && a.role==='supporter'
+    );
     if(sAcc){
       curUser={role:'supporter',name:sAcc.name||login,accountId:sAcc.id};
       startApp();return;
     }
-    showLoginErr('Неверный логин или пароль');
+    // Show helpful error with account count
+    const total=(D.accounts||[]).length;
+    showLoginErr(total>0 ? 'Неверный логин или пароль' : 'Данные не загружены. Обновите страницу.');
     document.getElementById('li-pass').value='';
     document.getElementById('li-pass').focus();
   }catch(err){
