@@ -1967,15 +1967,30 @@ function showSettings(){
     <div class="fg"><label class="fl">Новый PIN-код (пароль) администратора</label>
       <input type="password" class="fi" id="np" placeholder="Оставьте пустым чтобы не менять">
     </div>
-    <div class="fg"><label class="fl">GitHub Token</label>
-      <input type="text" class="fi" id="nt" value="${token}" placeholder="ghp_..." style="font-family:monospace;font-size:12px">
+    <div class="fg"><label class="fl">Firebase Database URL</label>
+      <input type="text" class="fi" id="fb-url" value="${FIREBASE_URL}" placeholder="https://your-app-default-rtdb.firebaseio.com" style="font-family:monospace;font-size:12px">
       <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
-        <button class="btn btn-sec btn-sm" onclick="testTokenSettings()">🔍 Проверить токен</button>
-        <span id="tok-settings-result" style="font-size:12px;font-weight:600"></span>
+        <button class="btn btn-sec btn-sm" onclick="testFirebase()">🔍 Проверить</button>
+        <span id="fb-test-result" style="font-size:12px;font-weight:600"></span>
       </div>
+    </div>
+    <div class="fg"><label class="fl">Название организации</label>
+      <input type="text" class="fi" id="org-name" value="${D.settings?.orgName||''}" placeholder="Success Academy">
     </div>
     <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
       <button class="btn btn-pri" onclick="applySettings()">${tr('saveBtn')}</button></div>`);
+}
+
+async function testFirebase(){
+  const url=document.getElementById('fb-url')?.value?.trim();
+  const res=document.getElementById('fb-test-result');
+  if(!url){res.textContent='Введите URL';res.style.color='#e65100';return;}
+  res.textContent='⏳ Проверяю...';res.style.color='#888';
+  try{
+    const r=await fetch(`${url}/ping.json`,{method:'PUT',body:'"ok"',headers:{'Content-Type':'application/json'}});
+    if(r.ok){res.textContent='✅ Firebase работает!';res.style.color='#1b5e20';}
+    else{res.textContent=`❌ Ошибка ${r.status} — проверьте правила базы`;res.style.color='#b71c1c';}
+  }catch(e){res.textContent='⚠️ Нет соединения';res.style.color='#e65100';}
 }
 function backupData(){
   const json=JSON.stringify(D,null,2);
@@ -2014,22 +2029,19 @@ function restoreData(input){
 function applySettings(){
   const adminLoginVal=document.getElementById('admin-login')?.value?.trim();
   const p=document.getElementById('np')?.value?.trim();
-  const tk=document.getElementById('nt')?.value?.trim();
+  const fbUrl=(document.getElementById('fb-url')?.value||'').trim().replace(/\/+$/,'');
   const orgName=document.getElementById('org-name')?.value?.trim();
-  const orgLogo=document.getElementById('org-logo')?.value?.trim();
   if(adminLoginVal) D.settings.adminLogin=adminLoginVal;
   if(p){D.settings.pin=p;}
-  if(tk){
-    token=tk;
-    localStorage.setItem('gh_token',tk);
-    D.settings.ghToken=btoa(tk);
+  if(fbUrl){
+    FIREBASE_URL=fbUrl;
+    localStorage.setItem('firebase_url',fbUrl);
+    D.settings.firebaseUrl=fbUrl;
   }
   if(orgName) D.settings.orgName=orgName;
-  if(orgLogo!==undefined) D.settings.orgLogo=orgLogo;
   applyLogo();
   closeModal();
-  toast('Настройки сохранены. Синхронизация...','success');
-  // Force save current data to GitHub
+  toast('Сохранено. Синхронизация с Firebase...','success');
   saveData();
 }
 function applyLogo(){
@@ -2090,13 +2102,8 @@ async function testTokenSettings(){
 }
 
 function showTokenModal(cb){
-  window._tcb=cb;
-  openModal(`<div class="modal-title">GitHub Token</div>
-    <div class="fg"><label class="fl">Token</label>
-      <input type="password" class="fi" id="tok-in" placeholder="ghp_...">
-    </div>
-    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-      <button class="btn btn-pri" onclick="saveTok()">${tr('saveBtn')}</button></div>`);
+  // Redirect to Firebase settings
+  showSettings();
 }
 function saveTok(){
   const v=document.getElementById('tok-in')?.value?.trim();if(!v) return;
@@ -2132,7 +2139,7 @@ const LANGS={
     stuBase:'База студентов',archive:'Архив',excel:'Excel',search:'Поиск',
     logout:'Выйти',adminMode:'✅ Режим администратора',
     tgText:'Обращения',noTeachers:'Нет преподавателей',archivesLbl:'Архивы',createArchive:'🗃 Архив',settings:'⚙️',noGroups:'Нет групп',
-    sortName:'По имени',sorting:'[sorting]',
+    sortName:'По имени',sortOverall:'Overall',sortUnit:'Unit Tests',sortFinal:'Final',sorting:'Сортировка:',
     addTeacher:'+ Преподаватель',addGroup:'+ Группа',
     cancelBtn:'Отмена',saveBtn:'Сохранить',createBtn:'Создать',addBtn:'Добавить',
     newTeacher:'Новый преподаватель',newGroup:'Новая группа',
@@ -2327,121 +2334,84 @@ initApp();
 setTimeout(()=>{applyI18n();updateLangBtn(curLang);},200);
 
 
-const OWNER='SuccessAcademyLC',REPO='school-grades',FILE='data.json',DPIN='1234';
+const DPIN='1234';
+// Firebase Realtime Database
+let FIREBASE_URL=localStorage.getItem('firebase_url')||'';
 const TIMES=['09:00','10:30','14:00','15:30','17:00','18:30'];
 const LEVELS=[{v:'beginner',l:'Beginner'},{v:'elementary',l:'Elementary'},{v:'pre-intermediate',l:'Pre-Intermediate'},{v:'intermediate',l:'Intermediate'},{v:'upper-intermediate',l:'Upper Intermediate'}];
 
 let D={teachers:[],students:[],accounts:[],archives:[],settings:{pin:DPIN}};
 let view='home',selT=null,selG=null,selArch=null,selStu=null,curPage=null;
 let curUser=null; // {role:'admin'|'teacher', teacherId, name, accountId}
-let token=localStorage.getItem('gh_token')||'';
+let token=''; // legacy
 let saveTimer=null,curSbTab='teachers',loginMode='admin';
 
 // ── Data ──────────────────────────────────────────────────────────────────
 let dataLoaded=false;
 async function loadData(){
-  // Always check local first
   let local={};
   try{local=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');}catch(e){}
-
-  try{
-    const r=await fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${FILE}?t=${Date.now()}`);
-    if(r.ok){
-      const github=await r.json();
-      const ghTeachers=(github.teachers||[]).length;
-      const lcTeachers=(local.teachers||[]).length;
-      const ghAccounts=(github.accounts||[]).length;
-      const lcAccounts=(local.accounts||[]).length;
-      const ghTime=new Date(github._savedAt||0).getTime();
-      const lcTime=new Date(local._localAt||local._savedAt||0).getTime();
-
-      // Decision: use whichever has MORE data, with local preferred if equal time
-      const ghScore=ghTeachers*10+ghAccounts;
-      const lcScore=lcTeachers*10+lcAccounts;
-
-      if(lcScore>ghScore){
-        // Local has more data - use it and trigger save to GitHub
+  if(!FIREBASE_URL){
+    // No Firebase yet - use local only
+    if(local.teachers) D=local;
+  } else {
+    try{
+      const r=await fetch(`${FIREBASE_URL}/data.json?t=${Date.now()}`);
+      if(r.ok){
+        const cloud=await r.json()||{};
+        const cloudTime=new Date(cloud._savedAt||0).getTime();
+        const lcTime=new Date(local._localAt||local._savedAt||0).getTime();
+        const cloudScore=(cloud.teachers||[]).length*10+(cloud.accounts||[]).length;
+        const lcScore=(local.teachers||[]).length*10+(local.accounts||[]).length;
+        // Use whichever has more data, prefer local if newer
+        if(lcScore>cloudScore||(lcScore===cloudScore&&lcTime>cloudTime&&lcScore>0)){
+          D=local;
+          console.log('Using local backup');
+          setTimeout(saveData,1000); // push to Firebase
+        } else if(cloudScore>0){
+          D=cloud;
+          console.log('Using Firebase');
+        } else if(local.teachers){
+          D=local;
+          setTimeout(saveData,1000);
+        }
+      } else if(local.teachers){
         D=local;
-        console.log('Using local (more data than GitHub)');
-        if(token) setTimeout(saveData,2000); // sync to GitHub
-      } else if(ghScore>lcScore){
-        D=github;
-        console.log('Using GitHub (more data)');
-      } else if(lcTime>ghTime&&lcScore>0){
-        D=local;
-        console.log('Using local (newer)');
-        if(token) setTimeout(saveData,2000);
-      } else {
-        D=github;
-        console.log('Using GitHub');
       }
-    } else {
-      // GitHub unreachable - use local
+    }catch(e){
       if(local.teachers) D=local;
     }
-  }catch(e){
-    // No connection - use local
-    if(local.teachers) D=local;
-    console.log('Offline mode: using local backup');
   }
-
   if(!D.settings) D.settings={pin:DPIN};
   if(!D.teachers) D.teachers=[];
   if(!D.students) D.students=[];
   if(!D.accounts) D.accounts=[];
   if(!D.archives) D.archives=[];
-  // Restore token from settings
-  if(!token&&D.settings?.ghToken){
-    try{token=atob(D.settings.ghToken);localStorage.setItem('gh_token',token);}catch(e){}
-  }
   dataLoaded=true;
 }
 
 async function saveData(){
-  if(!token){showTokenModal(()=>saveData());return;}
+  if(!FIREBASE_URL){
+    // No Firebase configured - save locally only
+    try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+    return;
+  }
   const pill=document.getElementById('saving-pill');
   if(pill) pill.style.display='flex';
   try{
-    // Get fresh SHA
-    const g=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{
-      cache:'no-store',
-      headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json'}
-    });
-    let sha='';
-    if(g.ok){sha=(await g.json()).sha||'';}
-    else if(g.status===401||g.status===403){
-      token='';localStorage.removeItem('gh_token');
-      showTokenModal(()=>saveData());
-      if(pill) pill.style.display='none';
-      return;
-    }
-    // Stamp and save token
     D._savedAt=new Date().toISOString();
-    if(token&&isAdmin()) try{D.settings.ghToken=btoa(token);}catch(e){}
-    // Upload
-    const body={message:'Update '+D._savedAt,content:btoa(unescape(encodeURIComponent(JSON.stringify(D,null,2))))};
-    if(sha) body.sha=sha;
-    const p=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{
+    const r=await fetch(`${FIREBASE_URL}/data.json`,{
       method:'PUT',
-      headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},
-      body:JSON.stringify(body)
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(D)
     });
-    if(p.ok){
+    if(r.ok){
       try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
       const up=document.getElementById('unsaved-pill');
       if(up) up.style.display='none';
       toast(tr('saveOk'),'success');
-    } else if(p.status===401||p.status===403){
-      token='';localStorage.removeItem('gh_token');
-      toast('Токен недействителен — введите новый','error');
-      showTokenModal(()=>saveData());
-    } else if(p.status===409||p.status===422){
-      // SHA conflict - retry once after short delay
-      setTimeout(saveData,1500);
     } else {
-      let msg='Ошибка сохранения';
-      try{const j=await p.json();msg=j.message||msg;}catch(e){}
-      toast(`${p.status}: ${msg}`,'error');
+      toast('Ошибка Firebase: '+r.status,'error');
     }
   }catch(e){
     toast('Нет соединения. Данные сохранены локально.','error');
@@ -2535,9 +2505,10 @@ function showLoginErr(msg){
 
 function startApp(){
   try{saveSession(curUser);}catch(e){console.warn('session save failed:',e);}
-  // Restore token from settings if not in localStorage
-  if(!token && D.settings?.ghToken){
-    try{token=atob(D.settings.ghToken);localStorage.setItem('gh_token',token);}catch(e){}
+  // Restore Firebase URL from settings
+  if(!FIREBASE_URL&&D.settings?.firebaseUrl){
+    FIREBASE_URL=D.settings.firebaseUrl;
+    localStorage.setItem('firebase_url',FIREBASE_URL);
   }
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
@@ -2562,8 +2533,8 @@ function startApp(){
     view='home';renderAll();
     if(isTch&&curUser.teacherId){selT=curUser.teacherId;view='teacher';renderAll();}
   }
-  // If admin and no token - show token setup
-  if(isAdm&&!token){
+  // If admin and no Firebase URL - show setup
+  if(isAdm&&!FIREBASE_URL){
     setTimeout(()=>{
       openModal(`<div class="modal-title">🔑 Настройка GitHub Token</div>
         <div class="modal-desc">Для сохранения данных между устройствами нужен токен GitHub. Введите его один раз.</div>
