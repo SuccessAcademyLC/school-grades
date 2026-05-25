@@ -2305,45 +2305,50 @@ let saveTimer=null,curSbTab='teachers',loginMode='admin';
 // ── Data ──────────────────────────────────────────────────────────────────
 let dataLoaded=false;
 async function loadData(){
+  // Always check local first
+  let local={};
+  try{local=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');}catch(e){}
+
   try{
     const r=await fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${FILE}?t=${Date.now()}`);
     if(r.ok){
       const github=await r.json();
-      // Check if localStorage has newer unsaved data
-      try{
-        const local=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');
-        // Use local modification time (set on every change)
-        const ghTime=new Date(github._savedAt||0).getTime();
-        const lcTime=new Date(local._localAt||local._savedAt||0).getTime();
-        // Use local if it has more data OR is newer than GitHub
-        const localHasMoreStudents=(local.teachers||[]).reduce((s,t)=>s+(t.groups||[]).reduce((g,gr)=>g+(gr.students||[]).length,0),0);
-        const ghHasMoreStudents=(github.teachers||[]).reduce((s,t)=>s+(t.groups||[]).reduce((g,gr)=>g+(gr.students||[]).length,0),0);
-        if(local.teachers&&local.teachers.length&&(lcTime>ghTime||localHasMoreStudents>ghHasMoreStudents)){
+      const ghTime=new Date(github._savedAt||0).getTime();
+      const lcTime=new Date(local._localAt||local._savedAt||0).getTime();
+
+      // Use local if it was modified AFTER last GitHub save
+      if(local.teachers&&local.teachers.length>0&&lcTime>ghTime){
+        D=local;
+        console.log('Using local (newer than GitHub)');
+      } else {
+        D=github;
+        // Merge: if local has more teachers/accounts than GitHub, prefer local
+        const lc=(local.teachers||[]).length+(local.accounts||[]).length;
+        const gh=(github.teachers||[]).length+(github.accounts||[]).length;
+        if(lc>gh&&lcTime>0){
           D=local;
-          console.log('Loaded from local backup (newer/more data)');
-        } else {
-          D=github;
+          console.log('Using local (more data)');
         }
-      }catch(e){ D=github; }
+      }
     } else {
-      // GitHub failed - try local backup
-      try{
-        const local=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');
-        if(local.teachers) D=local;
-      }catch(e){}
+      // GitHub unreachable - use local
+      if(local.teachers) D=local;
     }
   }catch(e){
-    // No connection - use local backup
-    try{
-      const local=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');
-      if(local.teachers) D=local;
-    }catch(e2){}
+    // No connection - use local
+    if(local.teachers) D=local;
+    console.log('Offline mode: using local backup');
   }
+
   if(!D.settings) D.settings={pin:DPIN};
   if(!D.teachers) D.teachers=[];
   if(!D.students) D.students=[];
   if(!D.accounts) D.accounts=[];
   if(!D.archives) D.archives=[];
+  // Restore token from settings
+  if(!token&&D.settings?.ghToken){
+    try{token=atob(D.settings.ghToken);localStorage.setItem('gh_token',token);}catch(e){}
+  }
   dataLoaded=true;
 }
 
@@ -2402,8 +2407,9 @@ async function saveData(){
 }
 
 
+const LOCAL_KEY='sa_data_backup';
 function sched(){
-  D._localAt=new Date().toISOString(); // stamp local modification time
+  D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   const up=document.getElementById('unsaved-pill');
   if(up) up.style.display='flex';
