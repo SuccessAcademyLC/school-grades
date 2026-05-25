@@ -2018,12 +2018,19 @@ function applySettings(){
   const orgName=document.getElementById('org-name')?.value?.trim();
   const orgLogo=document.getElementById('org-logo')?.value?.trim();
   if(adminLoginVal) D.settings.adminLogin=adminLoginVal;
-  if(p){D.settings.pin=p;toast('PIN изменён','success');}
-  if(tk){token=tk;localStorage.setItem('gh_token',tk);}
-  if(orgName){D.settings.orgName=orgName;}
-  if(orgLogo!==undefined){D.settings.orgLogo=orgLogo;}
+  if(p){D.settings.pin=p;}
+  if(tk){
+    token=tk;
+    localStorage.setItem('gh_token',tk);
+    D.settings.ghToken=btoa(tk);
+  }
+  if(orgName) D.settings.orgName=orgName;
+  if(orgLogo!==undefined) D.settings.orgLogo=orgLogo;
   applyLogo();
-  closeModal();sched();toast('Настройки сохранены ✓','success');
+  closeModal();
+  toast('Настройки сохранены. Синхронизация...','success');
+  // Force save current data to GitHub
+  saveData();
 }
 function applyLogo(){
   const name=D.settings?.orgName||'Success Academy';
@@ -2341,22 +2348,32 @@ async function loadData(){
     const r=await fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${FILE}?t=${Date.now()}`);
     if(r.ok){
       const github=await r.json();
+      const ghTeachers=(github.teachers||[]).length;
+      const lcTeachers=(local.teachers||[]).length;
+      const ghAccounts=(github.accounts||[]).length;
+      const lcAccounts=(local.accounts||[]).length;
       const ghTime=new Date(github._savedAt||0).getTime();
       const lcTime=new Date(local._localAt||local._savedAt||0).getTime();
 
-      // Use local if it was modified AFTER last GitHub save
-      if(local.teachers&&local.teachers.length>0&&lcTime>ghTime){
+      // Decision: use whichever has MORE data, with local preferred if equal time
+      const ghScore=ghTeachers*10+ghAccounts;
+      const lcScore=lcTeachers*10+lcAccounts;
+
+      if(lcScore>ghScore){
+        // Local has more data - use it and trigger save to GitHub
         D=local;
-        console.log('Using local (newer than GitHub)');
+        console.log('Using local (more data than GitHub)');
+        if(token) setTimeout(saveData,2000); // sync to GitHub
+      } else if(ghScore>lcScore){
+        D=github;
+        console.log('Using GitHub (more data)');
+      } else if(lcTime>ghTime&&lcScore>0){
+        D=local;
+        console.log('Using local (newer)');
+        if(token) setTimeout(saveData,2000);
       } else {
         D=github;
-        // Merge: if local has more teachers/accounts than GitHub, prefer local
-        const lc=(local.teachers||[]).length+(local.accounts||[]).length;
-        const gh=(github.teachers||[]).length+(github.accounts||[]).length;
-        if(lc>gh&&lcTime>0){
-          D=local;
-          console.log('Using local (more data)');
-        }
+        console.log('Using GitHub');
       }
     } else {
       // GitHub unreachable - use local
