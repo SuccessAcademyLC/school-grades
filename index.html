@@ -1968,7 +1968,11 @@ function showSettings(){
       <input type="password" class="fi" id="np" placeholder="Оставьте пустым чтобы не менять">
     </div>
     <div class="fg"><label class="fl">GitHub Token</label>
-      <input type="password" class="fi" id="nt" value="${token}" placeholder="ghp_...">
+      <input type="text" class="fi" id="nt" value="${token}" placeholder="ghp_..." style="font-family:monospace;font-size:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+        <button class="btn btn-sec btn-sm" onclick="testTokenSettings()">🔍 Проверить токен</button>
+        <span id="tok-settings-result" style="font-size:12px;font-weight:600"></span>
+      </div>
     </div>
     <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
       <button class="btn btn-pri" onclick="applySettings()">${tr('saveBtn')}</button></div>`);
