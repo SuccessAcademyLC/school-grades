@@ -2383,12 +2383,59 @@ async function loadData(){
       if(local.teachers) D=local;
     }
   }
+  // Fix Firebase object->array conversion
+  fixFirebaseArrays(D);
   if(!D.settings) D.settings={pin:DPIN};
   if(!D.teachers) D.teachers=[];
   if(!D.students) D.students=[];
   if(!D.accounts) D.accounts=[];
   if(!D.archives) D.archives=[];
   dataLoaded=true;
+}
+
+function fixFirebaseArrays(obj){
+  if(!obj||typeof obj!=='object') return obj;
+  // Convert numeric-keyed objects back to arrays
+  function fix(v){
+    if(Array.isArray(v)){v.forEach(fix);return v;}
+    if(v&&typeof v==='object'){
+      const keys=Object.keys(v);
+      // If all keys are numeric strings - it's an array
+      if(keys.length>0&&keys.every(k=>/^\d+$/.test(k))){
+        const arr=[];
+        keys.forEach(k=>{arr[parseInt(k)]=fix(v[k]);});
+        return arr;
+      }
+      keys.forEach(k=>{v[k]=fix(v[k]);});
+    }
+    return v;
+  }
+  // Fix teachers->groups->students arrays
+  (obj.teachers||[]).forEach(t=>{
+    if(t.groups&&!Array.isArray(t.groups)){
+      t.groups=Object.values(t.groups);
+    }
+    (t.groups||[]).forEach(g=>{
+      if(g.students&&!Array.isArray(g.students)){
+        g.students=Object.values(g.students);
+      }
+      (g.students||[]).forEach(s=>{
+        if(s){
+          ['units','homework','achievements'].forEach(field=>{
+            if(s[field]&&!Array.isArray(s[field])){
+              const keys=Object.keys(s[field]);
+              const arr=new Array(field==='units'?12:5).fill(null);
+              keys.forEach(k=>{arr[parseInt(k)]=s[field][k];});
+              s[field]=arr;
+            }
+          });
+        }
+      });
+    });
+  });
+  if(obj.accounts&&!Array.isArray(obj.accounts)) obj.accounts=Object.values(obj.accounts);
+  if(obj.students&&!Array.isArray(obj.students)) obj.students=Object.values(obj.students);
+  if(obj.archives&&!Array.isArray(obj.archives)) obj.archives=Object.values(obj.archives);
 }
 
 async function saveData(){
