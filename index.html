@@ -2037,6 +2037,30 @@ function applyLogo(){
     else txt.lastChild.textContent=name;
   }
 }
+async function testSetupToken(){
+  const v=document.getElementById('tok-setup')?.value?.trim();
+  const res=document.getElementById('tok-setup-result');
+  if(!v){res.textContent='Введите токен';res.style.color='#e65100';return;}
+  res.textContent='⏳ Проверяю...';res.style.color='#888';
+  try{
+    const r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{
+      headers:{Authorization:`token ${v}`,Accept:'application/vnd.github.v3+json'}
+    });
+    if(r.ok){res.textContent='✅ Токен работает!';res.style.color='#1b5e20';}
+    else{res.textContent=`❌ Ошибка ${r.status}`;res.style.color='#b71c1c';}
+  }catch(e){res.textContent='⚠️ Нет соединения';res.style.color='#e65100';}
+}
+async function saveSetupToken(){
+  const v=document.getElementById('tok-setup')?.value?.trim();
+  if(!v){document.getElementById('tok-setup-result').textContent='Введите токен';return;}
+  token=v;
+  localStorage.setItem('gh_token',v);
+  if(D.settings) D.settings.ghToken=btoa(v);
+  closeModal();
+  toast('Токен сохранён! Синхронизация...','success');
+  await saveData();
+}
+
 async function testTokenSettings(){
   const v=document.getElementById('nt')?.value?.trim();
   const res=document.getElementById('tok-settings-result');
@@ -2516,6 +2540,29 @@ function startApp(){
   else{
     view='home';renderAll();
     if(isTch&&curUser.teacherId){selT=curUser.teacherId;view='teacher';renderAll();}
+  }
+  // If admin and no token - show token setup
+  if(isAdm&&!token){
+    setTimeout(()=>{
+      openModal(`<div class="modal-title">🔑 Настройка GitHub Token</div>
+        <div class="modal-desc">Для сохранения данных между устройствами нужен токен GitHub. Введите его один раз.</div>
+        <div class="fg"><label class="fl">GitHub Personal Access Token</label>
+          <input type="text" class="fi" id="tok-setup" placeholder="ghp_..." style="font-family:monospace" autocomplete="off">
+        </div>
+        <div style="background:#e8f5e9;border-radius:10px;padding:12px;font-size:12px;color:#1b5e20;margin-bottom:4px">
+          <b>Как получить токен:</b><br>
+          1. github.com → Settings → Developer settings<br>
+          2. Personal access tokens → Tokens (classic)<br>
+          3. Generate new token → выберите <b>repo</b> → No expiration<br>
+          4. Скопируйте и вставьте сюда
+        </div>
+        <div id="tok-setup-result" style="font-size:13px;margin:8px 0"></div>
+        <div class="fa">
+          <button class="btn btn-sec" onclick="closeModal()">Позже</button>
+          <button class="btn btn-sec" onclick="testSetupToken()">🔍 Проверить</button>
+          <button class="btn btn-pri" onclick="saveSetupToken()">Сохранить и синхронизировать</button>
+        </div>`);
+    },500);
   }
   // Auto-refresh data every 60 seconds
   clearInterval(window._refreshTimer);
