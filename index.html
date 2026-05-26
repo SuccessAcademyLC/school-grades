@@ -118,6 +118,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .lv-pre-intermediate{background:#fff3e0;color:#e65100}
 .lv-intermediate{background:#f3e5f5;color:#6a1b9a}
 .lv-upper-intermediate{background:#fce4ec;color:#880e4f}
+.lv-rus{background:#e8eaf6;color:#3949ab}
 .gc-meta{display:flex;gap:16px;margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0}
 .gm-v{font-size:20px;font-weight:800;color:#4361ee}
 .gm-l{font-size:11px;color:#999;font-weight:500}
@@ -314,8 +315,8 @@ body.dark .tg-link{background:#0d2a3a;border-color:#0055aa;color:#64b5f6}
         <span id="lang-cur-flag">🌐</span><span id="lang-cur-text">RU</span><span style="font-size:9px;opacity:.7">▾</span>
       </button>
       <div id="lang-menu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:white;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;z-index:500;min-width:150px">
-        <div onclick="setLang('ru');toggleLangMenu()" style="padding:11px 16px;cursor:pointer;font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:10px" onmouseenter="this.style.background='#f0f4ff'" onmouseleave="this.style.background='white'">🇷🇺 Русский</div>
-        <div onclick="setLang('en');toggleLangMenu()" style="padding:11px 16px;cursor:pointer;font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:10px" onmouseenter="this.style.background='#f0f4ff'" onmouseleave="this.style.background='white'">🇬🇧 English</div>
+        <div onclick="setLang('ru');toggleLangMenu()" style="padding:11px 16px;cursor:pointer;font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:10px" onmouseenter="this.style.background='#f0f4ff'" onmouseleave="this.style.background='white'"><img src="https://flagcdn.com/24x18/ru.png" style="width:22px;height:16px;border-radius:2px;object-fit:cover;vertical-align:middle"> Русский</div>
+        <div onclick="setLang('en');toggleLangMenu()" style="padding:11px 16px;cursor:pointer;font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:10px" onmouseenter="this.style.background='#f0f4ff'" onmouseleave="this.style.background='white'"><img src="https://flagcdn.com/24x18/gb.png" style="width:22px;height:16px;border-radius:2px;object-fit:cover;vertical-align:middle"> English</div>
 
       </div>
     </div>
@@ -326,11 +327,12 @@ body.dark .tg-link{background:#0d2a3a;border-color:#0055aa;color:#64b5f6}
 <div class="admin-bar" id="adm-bar" style="display:none">
   <span id="adm-mode-text" data-i18n="adminMode">✅ Режим администратора</span>
   <div class="abar-acts">
-    <button class="btn-ab" onclick="showAddStaff()" data-i18n="addStaff">+ Сотрудник</button>
+    <button class="btn-ab" onclick="showAddStaff()">Новый сотрудник</button>
     <button class="btn-ab" onclick="gotoPage('accounts')" data-i18n="accounts">Аккаунты</button>
     <button class="btn-ab" onclick="gotoPage('students')" data-i18n="stuBase">База студентов</button>
     <button class="btn-ab" onclick="showCreateArchive()"><span data-i18n="createArchive">🗃 Архив</span></button>
     <button class="btn-ab" onclick="exportAll()" data-i18n="excel">Excel</button>
+    <button class="btn-ab" onclick="gotoPage('rating')">🏆 Рейтинг</button>
     <button class="btn-ab" onclick="openGlobalSearch()" data-i18n="search">🔍 Поиск</button>
     <button class="btn-ab" onclick="showSettings()" data-i18n="settings">⚙️</button>
   </div>
@@ -428,12 +430,17 @@ document.addEventListener('click',e=>{
   }
 });
 function updateLangBtn(l){
-  const flags={ru:'🇷🇺',en:'🇬🇧'};
+  const flagImgs={
+    ru:'https://flagcdn.com/24x18/ru.png',
+    en:'https://flagcdn.com/24x18/gb.png'
+  };
   const labels={ru:'RU',en:'EN'};
   const flag=document.getElementById('lang-cur-flag');
   const txt=document.getElementById('lang-cur-text');
-  if(flag) flag.textContent=flags[l]||'🌐';
-  if(txt) txt.textContent=labels[l]||l.toUpperCase();
+  if(flag){
+    flag.innerHTML=`<img src="${flagImgs[l]||''}" style="width:22px;height:16px;border-radius:2px;object-fit:cover;vertical-align:middle" onerror="this.style.display='none'">`;
+  }
+  if(txt) txt.textContent=' '+( labels[l]||l.toUpperCase());
 }
 function toggleTheme(){
   const isDark=document.body.classList.toggle('dark');
@@ -485,6 +492,7 @@ function renderMain(){
     if(curUser?.role==='supporter'){renderSupporter(el);return;}
     if(curPage==='accounts') renderAccounts(el);
     else if(curPage==='students') renderStudentsPage(el);
+    else if(curPage==='rating') renderRating(el);
     else if(view==='home') renderHome(el);
     else if(view==='teacher') renderTeacher(el);
     else if(view==='group') renderGroup(el);
@@ -517,7 +525,7 @@ function renderHome(el){
     </div>
     <div class="card">
       <div class="card-top"><div class="card-title">${tr('teachers')}</div>
-        ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAddStaff()">${tr('add')}</button>`:''}
+        ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAddStaff()">Новый сотрудник</button>`:''}
       </div>
       <div class="gg">${teachers.map(t=>{
         const c2=(t.groups||[]).reduce((s,g)=>s+(g.students||[]).filter(x=>x.name).length,0);
@@ -563,11 +571,121 @@ function renderTeacher(el){
     <div class="card">${dayBlock(tr('mwfLabel'),mwf)}${dayBlock(tr('ttsLabel'),tts)}${dayBlock(tr('otherLabel'),other)}</div>`}`;
 }
 
+function renderRusRow(s,num,g,ed){
+  const cfg=RUS_CFG[g.level]||RUS_CFG['rus-1'];
+  const sid=s?s.id:'';
+  const empty=!s||!s.name;
+  const ov=s?calc(s,g.level):null;
+  const ovc=ov===null?'on':ov>=75?'og':ov>=70?'oy':'or';
+  const gcell=(val,field,idx)=>{
+    const v=(val!=null&&val!=='')?val:'';
+    if(ed) return `<input class="gi" type="text" inputmode="decimal" value="${v}" oninput="gchRus('${sid}','${field}',${idx!=null?idx:'null'},this.value)" onkeydown="gradeKey(event,this)" onfocus="this.select()" placeholder="">`;
+    return `<span style="color:${v===''?'#ddd':'inherit'}">${v!==''?fmt(v):'—'}</span>`;
+  };
+  const namecell=ed
+    ?`<input class="ni" type="text" value="${s?s.name:''}" placeholder="Введите имя..." onblur="nameBlur('${sid}',${num-1},this)" onkeydown="nameKey(event,'${sid}',${num-1},this)" onfocus="this.select()">`
+    :(s?.name?`<span class="name-link" onclick="clickStudent('${sid}')">${s.name}</span>`:'<span style="color:#ddd">—</span>');
+  const convs=s?(s.conversations||Array(cfg.conv).fill(null)):Array(cfg.conv).fill(null);
+  const hws=s?(s.homework||Array(cfg.hw).fill(null)):Array(cfg.hw).fill(null);
+  const vocabs=s?(s.vocabulary||Array(cfg.vocab).fill(null)):Array(cfg.vocab).fill(null);
+  const ppts=s?(s.presentations||Array(cfg.ppt).fill(null)):Array(cfg.ppt).fill(null);
+  return `<tr class="${empty?'empty-row':''}">
+    <td class="nc">${num}</td>
+    <td class="nmc">${namecell}</td>
+    ${convs.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'conversations',i)}</td>`).join('')}
+    ${hws.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'homework',i)}</td>`).join('')}
+    ${vocabs.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'vocabulary',i)}</td>`).join('')}
+    ${ppts.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'presentations',i)}</td>`).join('')}
+    <td class="gb">${gcell(s?.finalConversation,'finalConversation')}</td>
+    ${cfg.hasFinalTest?`<td>${gcell(s?.finalTest,'finalTest')}</td>`:''}
+    <td><span class="ob ${ovc}" data-ov="${sid}">${ov!==null?ov.toFixed(1):'—'}</span></td>
+    ${ed&&!empty?`<td><div class="row-acts">
+      <button class="ra ra-move" onclick="showMoveStudent('${sid}')" title="Перенести">↗</button>
+      <button class="ra ra-arch" onclick="archiveStudent('${sid}')" title="В архив">📦</button>
+      <button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>
+    </div></td>`:(ed?'<td></td>':'')}
+  </tr>`;
+}
+
+function gchRus(sid,field,idx,val){
+  if(!sid) return;
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=(g?.students||[]).find(x=>x.id===sid);
+  if(!s) return;
+  const n=val===''?null:parseFloat(val);
+  if(idx!==null){if(!s[field])s[field]=[];s[field][idx]=n;}
+  else s[field]=n;
+  const ov=calc(s,g.level);
+  const badge=document.querySelector(`[data-ov="${sid}"]`);
+  if(badge){badge.textContent=ov!==null?ov.toFixed(1):'—';badge.className='ob '+(ov===null?'on':ov>=75?'og':ov>=70?'oy':'or');}
+  sched();
+}
+
+function renderRusGroup(el,g,t,ed,archMode){
+  const cfg=RUS_CFG[g.level]||RUS_CFG['rus-1'];
+  const sts=g.students||[];
+  const sorted=[...sts.filter(s=>s.name)].sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+  const title=`${g.day} ${g.time} — ${lvl(g.level)}`;
+  const colCount=cfg.conv+cfg.hw+cfg.vocab+cfg.ppt+1+(cfg.hasFinalTest?1:0)+1;
+  el.innerHTML=`
+    <div class="bc">
+      <span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span>
+      <span class="bc-l" onclick="gotoT('${t.id}')">${t.name}</span>
+      <span class="bc-s">›</span><span class="bc-c">${title}</span>
+    </div>
+    <div class="ph">
+      <div><div class="pt">${title}</div>
+        <div style="margin-top:4px;display:flex;align-items:center;gap:10px">
+          <span class="lp lv-rus">${lvl(g.level)}</span>
+          <span style="font-size:13px;color:#888">${sorted.length} студентов</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${ed?`<button class="btn btn-ora btn-sm" onclick="showPromoteGroup()">🎓 Завершить группу</button>
+          <button class="btn btn-grn btn-sm" onclick="showAddStudentToGroup()">+ Студент</button>
+          <button class="btn btn-sec btn-sm" onclick="showImport()">📋 Вставить</button>`:''}
+        <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">Excel</button>
+      </div>
+    </div>
+    <div class="tw"><table>
+      <thead>
+        <tr>
+          <th class="nc" rowspan="2">#</th>
+          <th class="nmc" rowspan="2">Студент</th>
+          <th colspan="${cfg.conv}" class="gb gh">Разговорки (15%)</th>
+          <th colspan="${cfg.hw}" class="gb gh">Домашнее задание (${g.level==='rus-1'?'10':'12'}%)</th>
+          <th colspan="${cfg.vocab}" class="gb gh">Словарь (${g.level==='rus-1'?'15':'13'}%)</th>
+          <th colspan="${cfg.ppt}" class="gb gh">Презентация (20%)</th>
+          <th class="gb gh" rowspan="2">Зак. разговорка (${g.level==='rus-1'?'25':'40'}%)</th>
+          ${cfg.hasFinalTest?'<th class="gh" rowspan="2">Зак. тест (15%)</th>':''}
+          <th class="gh" rowspan="2">Overall</th>
+          ${ed?'<th rowspan="2" style="min-width:70px"></th>':''}
+        </tr>
+        <tr>
+          ${Array(cfg.conv).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>Р${i+1}</th>`).join('')}
+          ${Array(cfg.hw).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>ДЗ${i+1}</th>`).join('')}
+          ${Array(cfg.vocab).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>С${i+1}</th>`).join('')}
+          ${Array(cfg.ppt).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>П${i+1}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map((s,i)=>renderRusRow(s,i+1,g,ed)).join('')}
+        ${ed?`<tr class="empty-row"><td class="nc">${sorted.length+1}</td>
+          <td class="nmc"><input class="ni" type="text" placeholder="Введите имя..." onblur="nameBlur('',${sorted.length},this)" onkeydown="nameKey(event,'',${sorted.length},this)"></td>
+          ${Array(colCount).fill('<td></td>').join('')}
+          ${ed?'<td></td>':''}
+        </tr>`:''}
+      </tbody>
+    </table></div>`;
+}
+
 function renderGroup(el,archMode,archSnap){
   const teachers=archMode?archSnap:D.teachers;
   const t=teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);
   if(!g){archMode?null:gotoT(selT);return;}
+  if(RUS_LEVELS.includes(g.level)){renderRusGroup(el,g,t,canEdit(t?.id)&&!archMode,archMode);return;}
   const sts=g.students||[];
   const isE=['beginner','elementary'].includes(g.level);
   const ed=canEdit(t?.id)&&!archMode;
@@ -686,6 +804,28 @@ function srow(s,num,g,ed,archMode){
 function calc(s,level){
   if(!s||!s.name) return null;
   const ok=v=>v!==null&&v!==undefined&&v!=='';
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+
+  // Russian language formula
+  if(RUS_LEVELS.includes(level)){
+    const conv=(s.conversations||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
+    const hw=(s.homework||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
+    const vocab=(s.vocabulary||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
+    const ppts=(s.presentations||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
+    const finConv=ok(s.finalConversation)?Number(s.finalConversation):null;
+    const finTest=ok(s.finalTest)?Number(s.finalTest):null;
+    if(!conv.length&&!hw.length&&!vocab.length&&!ppts.length&&finConv===null) return null;
+    const pptAvg=ppts.length?avg(ppts):0;
+    if(level==='rus-1'){
+      // Conv 15% + HW 10% + Vocab 15% + PPT 20% + FinalConv 25% + FinalTest 15%
+      return avg(conv)*.15+avg(hw)*.10+avg(vocab)*.15+pptAvg*.20+(finConv||0)*.25+(finTest||0)*.15;
+    } else {
+      // Conv 15% + HW 12% + Vocab 13% + PPT 20% + FinalConv 40%
+      return avg(conv)*.15+avg(hw)*.12+avg(vocab)*.13+pptAvg*.20+(finConv||0)*.40;
+    }
+  }
+
+  // English formula
   const u=(s.units||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
   const hw=(s.homework||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
   const at=(s.achievements||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
@@ -693,7 +833,6 @@ function calc(s,level){
   const spt=ok(s.speaking)?Number(s.speaking):null;
   const fin=ok(s.final)?Number(s.final):null;
   if(!u.length&&!hw.length&&!at.length&&ppt===null&&spt===null&&fin===null) return null;
-  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
   const isE=['beginner','elementary'].includes(level);
   return avg(u)*.10+avg(hw)*.10+avg(at)*.15+(ppt||0)*.20+(isE?(spt||0)*.15+(fin||0)*.30:(spt||0)*.25+(fin||0)*.20);
 }
@@ -959,14 +1098,27 @@ function renderAccounts(el){
   const accs=D.accounts||[];
   const teachers=accs.filter(a=>a.role!=='supporter');
   const supporters=accs.filter(a=>a.role==='supporter');
+  const admins=accs.filter(a=>a.role==='admin');
   el.innerHTML=`
     <div class="ph">
       <div><div class="pt">${tr('accounts')}</div><div class="ps">${accs.length} аккаунтов</div></div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-sec btn-sm" onclick="showAddTeacher()">+ Преподаватель</button>
-        <button class="btn btn-pri btn-sm" onclick="showAddSupporter()">+ Supporter</button>
+        <button class="btn btn-dan btn-sm" onclick="showAddAdmin()">Новый админ</button>
+        <button class="btn btn-sec btn-sm" onclick="showAddTeacher()">Новый преподаватель</button>
+        <button class="btn btn-pri btn-sm" onclick="showAddSupporter()">Новый supporter</button>
       </div>
     </div>
+    ${admins.length?`<div class="card">
+      <div class="card-title" style="margin-bottom:14px">👑 Администраторы (${admins.length})</div>
+      ${admins.map(a=>`
+        <div class="acc-row">
+          <div class="t-av" style="width:38px;height:38px;font-size:13px;border-radius:10px;background:linear-gradient(135deg,#e94560,#c62828)">${ini(a.name||a.login)}</div>
+          <div class="acc-info"><div class="acc-name">${a.name||a.login}</div>
+            <div class="acc-login">Логин: <b>${a.login}</b></div></div>
+          <span class="role-badge rb-admin">Администратор</span>
+          <button class="btn btn-sec btn-sm" onclick="showEditAccount('${a.id}')">✏️</button>
+        </div>`).join('')}
+    </div>`:''}
     <div class="card">
       <div class="card-title" style="margin-bottom:14px">👤 Учителя (${teachers.length})</div>
       ${!teachers.length?`<div style="color:#bbb;font-size:13px;padding:10px 0">Нет аккаунтов учителей</div>`:''}
@@ -994,6 +1146,34 @@ function renderAccounts(el){
         </div>`).join('')}
     </div>`;
 }
+function showAddAdmin(){
+  openModal(`<div class="modal-title">👑 Новый администратор</div>
+    <div class="modal-desc">Администратор имеет полный доступ — может вводить оценки, управлять аккаунтами и настройками.</div>
+    <div class="fg"><label class="fl">Имя и фамилия</label>
+      <input type="text" class="fi" id="adm-name" placeholder="Иванов Иван">
+    </div>
+    <div class="fg"><label class="fl">Логин</label>
+      <input type="text" class="fi" id="adm-login" placeholder="например: ivan">
+    </div>
+    <div class="fg"><label class="fl">Пароль</label>
+      <input type="text" class="fi" id="adm-pass" placeholder="минимум 4 символа">
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-dan" onclick="addAdmin()">Создать администратора</button></div>`);
+  setTimeout(()=>document.getElementById('adm-name')?.focus(),80);
+}
+function addAdmin(){
+  const name=document.getElementById('adm-name')?.value?.trim();
+  const login=document.getElementById('adm-login')?.value?.trim();
+  const pass=document.getElementById('adm-pass')?.value?.trim();
+  if(!name||!login||!pass){toast('Заполните все поля','error');return;}
+  if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
+  if((D.accounts||[]).find(a=>a.login===login)||(D.settings?.adminLogin||'admin')===login){toast('Логин уже занят','error');return;}
+  if(!D.accounts) D.accounts=[];
+  D.accounts.push({id:uid(),role:'admin',name,login,password:pass});
+  closeModal();renderAccounts(document.getElementById('main'));sched();toast('Администратор создан ✓','success');
+}
+
 function showAddAccount(){
   const teacherOpts=D.teachers.map(tc=>`<option value="${tc.id}">${tc.name}</option>`).join('');
   openModal(`<div class="modal-title">Новый аккаунт</div>
@@ -1692,6 +1872,129 @@ function getDebts(s){
       </div>`).join('')}`;
 }
 
+function renderRating(el){
+  const tab=window._ratingTab||'overall';
+  const levelFilter=window._ratingLevel||'all';
+  const showArchive=window._ratingArchive||false;
+
+  const medal=(i)=>i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+  const scoreColor=(v)=>v===null?'#bbb':v>=75?'#1b5e20':v>=70?'#e65100':'#b71c1c';
+  const scoreBg=(v)=>v===null?'#f5f5f5':v>=75?'#e8f5e9':v>=70?'#fff8e1':'#ffebee';
+
+  // Collect active students
+  const rows=[];
+  D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+    (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
+      const overall=calcFinal(s,g.level);
+      const units=(s.units||[]).filter(v=>v!=null&&v!=='').map(Number);
+      const ats=(s.achievements||[]).filter(v=>v!=null&&v!=='').map(Number);
+      const avgU=units.length?units.reduce((a,b)=>a+b,0)/units.length:null;
+      const avgA=ats.length?ats.reduce((a,b)=>a+b,0)/ats.length:null;
+      rows.push({s,g,tc,overall,avgU,avgA,isArchive:false,tcName:tc.name});
+    });
+  }));
+
+  // Collect archived students if enabled
+  if(showArchive){
+    (D.archives||[]).forEach(arch=>{
+      (arch.snapshot||[]).forEach(tc=>(tc.groups||[]).forEach(g=>{
+        (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
+          const overall=calcFinal(s,g.level);
+          const units=(s.units||[]).filter(v=>v!=null&&v!=='').map(Number);
+          const ats=(s.achievements||[]).filter(v=>v!=null&&v!=='').map(Number);
+          const avgU=units.length?units.reduce((a,b)=>a+b,0)/units.length:null;
+          const avgA=ats.length?ats.reduce((a,b)=>a+b,0)/ats.length:null;
+          rows.push({s,g,tc,overall,avgU,avgA,isArchive:true,archLabel:arch.label,tcName:tc.name});
+        });
+      }));
+    });
+  }
+
+  // Filter by level
+  const filtered=levelFilter==='all'?rows:rows.filter(r=>r.g.level===levelFilter);
+
+  // Sort
+  const sorted=[...filtered].sort((a,b)=>{
+    const va=a[tab]??-1, vb=b[tab]??-1;
+    return vb-va;
+  });
+
+  // Teacher stats (active only)
+  const teacherMap={};
+  D.teachers.forEach(tc=>{
+    const sts=[];
+    (tc.groups||[]).forEach(g=>(g.students||[]).filter(s=>s&&s.name).forEach(s=>{
+      const ov=calcFinal(s,g.level);
+      if(ov!==null) sts.push(ov);
+    }));
+    if(sts.length) teacherMap[tc.id]={name:tc.name,avg:sts.reduce((a,b)=>a+b,0)/sts.length,count:sts.length};
+  });
+  const teacherRank=Object.values(teacherMap).sort((a,b)=>b.avg-a.avg);
+
+  const LEVELS=[
+    {v:'all',l:'Все уровни'},
+    {v:'beginner',l:'Beginner'},
+    {v:'elementary',l:'Elementary'},
+    {v:'pre-intermediate',l:'Pre-Int'},
+    {v:'intermediate',l:'Intermediate'},
+    {v:'upper-intermediate',l:'Upper Int'},
+  ];
+
+  const TABS=[
+    {k:'overall',l:'🏆 Overall'},
+    {k:'avgU',l:'📝 Unit Tests'},
+    {k:'avgA',l:'✅ Achievement'},
+  ];
+
+  el.innerHTML=`
+    <div class="ph" style="margin-bottom:16px">
+      <div><div class="pt">🏆 Рейтинг</div><div class="ps">${filtered.length} студентов</div></div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#4361ee;background:#eef2ff;padding:8px 16px;border-radius:10px;border:1.5px solid #c5cae9">
+        <input type="checkbox" ${showArchive?'checked':''} onchange="window._ratingArchive=this.checked;renderRating(document.getElementById('main'))" style="width:16px;height:16px;accent-color:#4361ee">
+        Включить архив
+      </label>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title" style="margin-bottom:14px">👤 Рейтинг преподавателей</div>
+      ${teacherRank.map((t,i)=>`
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0">
+          <div style="font-size:${i<3?'22':'16'}px;width:32px;text-align:center">${medal(i)}</div>
+          <div class="t-av" style="width:36px;height:36px;font-size:13px;border-radius:9px;flex-shrink:0">${ini(t.name)}</div>
+          <div style="flex:1"><div style="font-weight:600;font-size:14px">${t.name}</div>
+            <div style="font-size:12px;color:#888">${t.count} студентов</div></div>
+          <div style="background:${scoreBg(t.avg)};color:${scoreColor(t.avg)};padding:5px 14px;border-radius:10px;font-weight:800;font-size:16px">${t.avg.toFixed(1)}</div>
+        </div>`).join('')||'<div style="color:#bbb;font-size:13px;padding:10px 0">Нет данных</div>'}
+    </div>
+
+    <div class="card">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        ${TABS.map(t=>`<button onclick="window._ratingTab='${t.k}';renderRating(document.getElementById('main'))"
+          style="padding:7px 16px;border-radius:20px;border:1.5px solid ${tab===t.k?'#4361ee':'#e0e4f0'};background:${tab===t.k?'#eef2ff':'white'};color:${tab===t.k?'#4361ee':'#666'};font-size:13px;font-weight:${tab===t.k?700:500};cursor:pointer">${t.l}</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+        ${LEVELS.map(lv=>`<button onclick="window._ratingLevel='${lv.v}';renderRating(document.getElementById('main'))"
+          style="padding:4px 12px;border-radius:20px;border:1.5px solid ${levelFilter===lv.v?'#4361ee':'#e0e4f0'};background:${levelFilter===lv.v?'#eef2ff':'white'};color:${levelFilter===lv.v?'#4361ee':'#666'};font-size:12px;cursor:pointer">${lv.l}</button>`).join('')}
+      </div>
+      <div class="card-title" style="margin-bottom:12px">👨‍🎓 Студенты — ${TABS.find(t=>t.k===tab)?.l}</div>
+      ${sorted.filter(r=>r[tab]!==null).map((r,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f0f0">
+          <div style="font-size:${i<3?'22':'15'}px;width:32px;text-align:center;font-weight:700">${medal(i)}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">
+              ${r.s.name}
+              ${r.isArchive?`<span style="font-size:10px;background:#fff3e0;color:#e65100;padding:1px 6px;border-radius:8px">📦 ${r.archLabel}</span>`:''}
+            </div>
+            <div style="font-size:11px;color:#888">${r.tcName} · ${r.g.day} ${r.g.time} · <span class="lp lv-${lvc(r.g.level)}" style="padding:1px 6px;font-size:10px">${lvl(r.g.level)}</span></div>
+          </div>
+          <div style="text-align:right">
+            <div style="background:${scoreBg(r[tab])};color:${scoreColor(r[tab])};padding:4px 12px;border-radius:8px;font-weight:800;font-size:15px">${r[tab].toFixed(1)}</div>
+            ${tab!=='overall'&&r.overall!==null?`<div style="font-size:11px;color:#888;margin-top:2px">Overall: ${r.overall.toFixed(1)}</div>`:''}
+          </div>
+        </div>`).join('')||'<div style="text-align:center;padding:40px;color:#bbb">Нет данных</div>'}
+    </div>`;
+}
+
 function confirmDelT(id){
   const t=D.teachers.find(x=>x.id===id);if(!t) return;
   const gc=(t.groups||[]).length;
@@ -2124,9 +2427,28 @@ function toast(msg,type=''){document.querySelector('.toast')?.remove();const el=
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
 function ini(n){return(n||'').split(' ').slice(0,2).map(w=>w[0]?.toUpperCase()).join('');}
 function fmt(v){const n=Number(v);return n%1===0?n:n.toFixed(1);}
-function lvc(l){return(l||'').replace(/\s+/g,'-').toLowerCase();}
-function lvl(l){return{beginner:'Beginner',elementary:'Elementary','pre-intermediate':'Pre-Int',intermediate:'Intermediate','upper-intermediate':'Upper Int'}[l]||l;}
-function newStudent(name){return{id:uid(),name,units:Array(12).fill(null),homework:Array(5).fill(null),achievements:Array(5).fill(null),presentation:null,speaking:null,final:null,retake:null,startUnit:1,startAT:1};}
+function lvc(l){if(RUS_LEVELS&&RUS_LEVELS.includes(l))return 'rus';return(l||'').replace(/\s+/g,'-').toLowerCase();}
+function lvl(l){return{
+  beginner:'Beginner',elementary:'Elementary','pre-intermediate':'Pre-Int',
+  intermediate:'Intermediate','upper-intermediate':'Upper Int',
+  'rus-1':'РЯ Ур.1','rus-2':'РЯ Ур.2','rus-3':'РЯ Ур.3','rus-4':'РЯ Ур.4'
+}[l]||l;}
+function isRus(l){return RUS_LEVELS.includes(l);}
+function newStudent(name,level){
+  if(isRus&&isRus(level)){
+    const cfg=RUS_CFG[level]||RUS_CFG['rus-1'];
+    return{id:uid(),name,
+      conversations:Array(cfg.conv).fill(null),
+      homework:Array(cfg.hw).fill(null),
+      vocabulary:Array(cfg.vocab).fill(null),
+      presentations:Array(cfg.ppt).fill(null),
+      finalConversation:null,
+      finalTest:null,
+      startConv:1
+    };
+  }
+  return{id:uid(),name,units:Array(12).fill(null),homework:Array(5).fill(null),achievements:Array(5).fill(null),presentation:null,speaking:null,final:null,retake:null,startUnit:1,startAT:1};
+}
 
 
 // ── Translations ──────────────────────────────────────────────────────────
@@ -2304,12 +2626,17 @@ document.addEventListener('click',e=>{
   }
 });
 function updateLangBtn(l){
-  const flags={ru:'🇷🇺',en:'🇬🇧'};
+  const flagImgs={
+    ru:'https://flagcdn.com/24x18/ru.png',
+    en:'https://flagcdn.com/24x18/gb.png'
+  };
   const labels={ru:'RU',en:'EN'};
   const flag=document.getElementById('lang-cur-flag');
   const txt=document.getElementById('lang-cur-text');
-  if(flag) flag.textContent=flags[l]||'🌐';
-  if(txt) txt.textContent=labels[l]||l.toUpperCase();
+  if(flag){
+    flag.innerHTML=`<img src="${flagImgs[l]||''}" style="width:22px;height:16px;border-radius:2px;object-fit:cover;vertical-align:middle" onerror="this.style.display='none'">`;
+  }
+  if(txt) txt.textContent=' '+( labels[l]||l.toUpperCase());
 }
 function toggleTheme(){
   const isDark=document.body.classList.toggle('dark');
@@ -2339,7 +2666,20 @@ const DPIN='1234';
 const FIREBASE_DEFAULT='https://ongoingassessment-262b7-default-rtdb.firebaseio.com';
 let FIREBASE_URL=localStorage.getItem('firebase_url')||FIREBASE_DEFAULT;
 const TIMES=['09:00','10:30','14:00','15:30','17:00','18:30'];
-const LEVELS=[{v:'beginner',l:'Beginner'},{v:'elementary',l:'Elementary'},{v:'pre-intermediate',l:'Pre-Intermediate'},{v:'intermediate',l:'Intermediate'},{v:'upper-intermediate',l:'Upper Intermediate'}];
+const LEVELS=[
+  {v:'beginner',l:'Beginner'},{v:'elementary',l:'Elementary'},
+  {v:'pre-intermediate',l:'Pre-Intermediate'},{v:'intermediate',l:'Intermediate'},
+  {v:'upper-intermediate',l:'Upper Intermediate'},
+  {v:'rus-1',l:'Русский — Уровень 1'},{v:'rus-2',l:'Русский — Уровень 2'},
+  {v:'rus-3',l:'Русский — Уровень 3'},{v:'rus-4',l:'Русский — Уровень 4'}
+];
+const RUS_LEVELS=['rus-1','rus-2','rus-3','rus-4'];
+const RUS_CFG={
+  'rus-1':{conv:9,hw:9,vocab:9,ppt:1,hasFinalTest:true},
+  'rus-2':{conv:10,hw:10,vocab:10,ppt:1,hasFinalTest:false},
+  'rus-3':{conv:6,hw:6,vocab:6,ppt:2,hasFinalTest:false},
+  'rus-4':{conv:9,hw:9,vocab:9,ppt:1,hasFinalTest:false}
+};
 
 let D={teachers:[],students:[],accounts:[],archives:[],settings:{pin:DPIN}};
 let view='home',selT=null,selG=null,selArch=null,selStu=null,curPage=null;
@@ -2432,9 +2772,17 @@ function fixFirebaseArrays(obj){
       g.students=toList(g.students);
       g.students.forEach(s=>{
         if(!s) return;
-        s.units=toArr(s.units,12);
-        s.homework=toArr(s.homework,5);
-        s.achievements=toArr(s.achievements,5);
+        if(RUS_LEVELS&&RUS_LEVELS.includes(g.level)){
+          const cfg=(RUS_CFG&&RUS_CFG[g.level])||{conv:9,hw:9,vocab:9,ppt:1};
+          s.conversations=toArr(s.conversations,cfg.conv);
+          s.homework=toArr(s.homework,cfg.hw);
+          s.vocabulary=toArr(s.vocabulary,cfg.vocab);
+          s.presentations=toArr(s.presentations,cfg.ppt);
+        } else {
+          s.units=toArr(s.units,12);
+          s.homework=toArr(s.homework,5);
+          s.achievements=toArr(s.achievements,5);
+        }
       });
     });
   });
@@ -2530,7 +2878,7 @@ function doLogin(){
       return;
     }
 
-    // Admin check
+    // Admin check - main admin
     const adminLogin=(D.settings?.adminLogin||'admin').toLowerCase();
     const adminPin=D.settings?.pin||DPIN;
     if(login===adminLogin||login==='admin'){
@@ -2538,6 +2886,14 @@ function doLogin(){
         curUser={role:'admin',name:D.settings?.adminName||'Администратор'};
         startApp();return;
       }
+    }
+    // Admin check - additional admin accounts
+    const admAcc=(D.accounts||[]).find(a=>
+      a.role==='admin'&&(a.login||'').toLowerCase()===login&&a.password===pass
+    );
+    if(admAcc){
+      curUser={role:'admin',name:admAcc.name||login,accountId:admAcc.id};
+      startApp();return;
     }
     // Teacher - check both exact and lowercase login match
     const tAcc=(D.accounts||[]).find(a=>
