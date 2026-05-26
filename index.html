@@ -585,10 +585,11 @@ function renderRusRow(s,num,g,ed){
   const namecell=ed
     ?`<input class="ni" type="text" value="${s?s.name:''}" placeholder="Введите имя..." onblur="nameBlur('${sid}',${num-1},this)" onkeydown="nameKey(event,'${sid}',${num-1},this)" onfocus="this.select()">`
     :(s?.name?`<span class="name-link" onclick="clickStudent('${sid}')">${s.name}</span>`:'<span style="color:#ddd">—</span>');
-  const convs=s?(s.conversations||Array(cfg.conv).fill(null)):Array(cfg.conv).fill(null);
-  const hws=s?(s.homework||Array(cfg.hw).fill(null)):Array(cfg.hw).fill(null);
-  const vocabs=s?(s.vocabulary||Array(cfg.vocab).fill(null)):Array(cfg.vocab).fill(null);
-  const ppts=s?(s.presentations||Array(cfg.ppt).fill(null)):Array(cfg.ppt).fill(null);
+  // Always use exact size arrays to prevent misalignment
+  const convs=Array(cfg.conv).fill(null).map((_,i)=>(s?.conversations||[])[i]??null);
+  const hws=Array(cfg.hw).fill(null).map((_,i)=>(s?.homework||[])[i]??null);
+  const vocabs=Array(cfg.vocab).fill(null).map((_,i)=>(s?.vocabulary||[])[i]??null);
+  const ppts=Array(cfg.ppt).fill(null).map((_,i)=>(s?.presentations||[])[i]??null);
   return `<tr class="${empty?'empty-row':''}">
     <td class="nc">${num}</td>
     <td class="nmc">${namecell}</td>
@@ -646,6 +647,7 @@ function renderRusGroup(el,g,t,ed,archMode){
           <button class="btn btn-grn btn-sm" onclick="showAddStudentToGroup()">+ Студент</button>
           <button class="btn btn-sec btn-sm" onclick="showImport()">📋 Вставить</button>`:''}
         <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">Excel</button>
+        ${!archMode&&ed?`<button class="btn btn-grn btn-sm" onclick="showUploadExcel()">⬆ Загрузить Excel</button>`:''}
       </div>
     </div>
     <div class="tw"><table>
@@ -664,8 +666,8 @@ function renderRusGroup(el,g,t,ed,archMode){
         </tr>
         <tr>
           ${Array(cfg.conv).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>Р${i+1}</th>`).join('')}
-          ${Array(cfg.hw).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>ДЗ${i+1}</th>`).join('')}
-          ${Array(cfg.vocab).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>С${i+1}</th>`).join('')}
+          ${Array(cfg.hw).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>Д${i+1}</th>`).join('')}
+          ${Array(cfg.vocab).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>Сл${i+1}</th>`).join('')}
           ${Array(cfg.ppt).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>П${i+1}</th>`).join('')}
         </tr>
       </thead>
@@ -1599,19 +1601,34 @@ function doUploadExcel(){
   const col=name=>hdr.findIndex(h=>String(h).trim().toLowerCase()===name.toLowerCase());
   const getNum=(row,name)=>{const i=col(name);if(i<0) return null;const v=row[i];return v!==''&&v!==null&&v!==undefined?parseFloat(v):null;};
   let updated=0;
+  const isRusGrp=RUS_LEVELS.includes(g.level);
+  const rusCfg=isRusGrp?(RUS_CFG[g.level]||RUS_CFG['rus-1']):null;
   rows.forEach(row=>{
     const name=String(row[nameCol]||'').trim();if(!name) return;
     const s=(g.students||[]).find(x=>x.name===name);if(!s) return;
-    if(!s.units) s.units=Array(12).fill(null);
-    if(!s.homework) s.homework=Array(5).fill(null);
-    if(!s.achievements) s.achievements=Array(5).fill(null);
-    for(let i=1;i<=12;i++){const v=getNum(row,`U${i}`);if(v!==null) s.units[i-1]=v;}
-    for(let i=1;i<=5;i++){const v=getNum(row,`HW${i}`);if(v!==null) s.homework[i-1]=v;}
-    for(let i=1;i<=5;i++){const v=getNum(row,`AT${i}`);if(v!==null) s.achievements[i-1]=v;}
-    const ppt=getNum(row,'PPT');if(ppt!==null) s.presentation=ppt;
-    const spt=getNum(row,'SPT');if(spt!==null) s.speaking=spt;
-    const fin=getNum(row,'Final');if(fin!==null) s.final=fin;
-    const ret=getNum(row,'Retake');if(ret!==null) s.retake=ret;
+    if(isRusGrp){
+      if(!s.conversations) s.conversations=Array(rusCfg.conv).fill(null);
+      if(!s.homework) s.homework=Array(rusCfg.hw).fill(null);
+      if(!s.vocabulary) s.vocabulary=Array(rusCfg.vocab).fill(null);
+      if(!s.presentations) s.presentations=Array(rusCfg.ppt).fill(null);
+      for(let i=1;i<=rusCfg.conv;i++){const v=getNum(row,`Р${i}`);if(v!==null) s.conversations[i-1]=v;}
+      for(let i=1;i<=rusCfg.hw;i++){const v=getNum(row,`ДЗ${i}`);if(v!==null) s.homework[i-1]=v;}
+      for(let i=1;i<=rusCfg.vocab;i++){const v=getNum(row,`Словарь${i}`);if(v!==null) s.vocabulary[i-1]=v;}
+      for(let i=1;i<=rusCfg.ppt;i++){const v=getNum(row,`Презентация${i}`);if(v!==null) s.presentations[i-1]=v;}
+      const fc=getNum(row,'Зак.разговорка');if(fc!==null) s.finalConversation=fc;
+      if(rusCfg.hasFinalTest){const ft=getNum(row,'Зак.тест');if(ft!==null) s.finalTest=ft;}
+    } else {
+      if(!s.units) s.units=Array(12).fill(null);
+      if(!s.homework) s.homework=Array(5).fill(null);
+      if(!s.achievements) s.achievements=Array(5).fill(null);
+      for(let i=1;i<=12;i++){const v=getNum(row,`U${i}`);if(v!==null) s.units[i-1]=v;}
+      for(let i=1;i<=5;i++){const v=getNum(row,`HW${i}`);if(v!==null) s.homework[i-1]=v;}
+      for(let i=1;i<=5;i++){const v=getNum(row,`AT${i}`);if(v!==null) s.achievements[i-1]=v;}
+      const ppt=getNum(row,'PPT');if(ppt!==null) s.presentation=ppt;
+      const spt=getNum(row,'SPT');if(spt!==null) s.speaking=spt;
+      const fin=getNum(row,'Final');if(fin!==null) s.final=fin;
+      const ret=getNum(row,'Retake');if(ret!==null) s.retake=ret;
+    }
     updated++;
   });
   _xlData=null;
@@ -1620,6 +1637,27 @@ function doUploadExcel(){
 }
 
 function sheetData(g){
+  if(RUS_LEVELS.includes(g.level)){
+    const cfg=RUS_CFG[g.level]||RUS_CFG['rus-1'];
+    const convH=Array(cfg.conv).fill(0).map((_,i)=>`Р${i+1}`);
+    const hwH=Array(cfg.hw).fill(0).map((_,i)=>`ДЗ${i+1}`);
+    const vocH=Array(cfg.vocab).fill(0).map((_,i)=>`Словарь${i+1}`);
+    const pptH=Array(cfg.ppt).fill(0).map((_,i)=>`Презентация${i+1}`);
+    const h=['#','Студент',...convH,...hwH,...vocH,...pptH,'Зак.разговорка',...(cfg.hasFinalTest?['Зак.тест']:[]),'Overall'];
+    const rows=(g.students||[]).filter(s=>s.name).map((s,i)=>{
+      const ov=calc(s,g.level);
+      return [i+1,s.name,
+        ...(s.conversations||Array(cfg.conv).fill(null)).map(v=>v??''),
+        ...(s.homework||Array(cfg.hw).fill(null)).map(v=>v??''),
+        ...(s.vocabulary||Array(cfg.vocab).fill(null)).map(v=>v??''),
+        ...(s.presentations||Array(cfg.ppt).fill(null)).map(v=>v??''),
+        s.finalConversation??'',
+        ...(cfg.hasFinalTest?[s.finalTest??'']:[]),
+        ov!==null?parseFloat(ov.toFixed(1)):''
+      ];
+    });
+    return [h,...rows];
+  }
   const h=['#','Студент','U1','U2','U3','U4','U5','U6','U7','U8','U9','U10','U11','U12','HW1','HW2','HW3','HW4','HW5','AT1','AT2','AT3','AT4','AT5','PPT','SPT','Final','Overall','Retake'];
   const rows=(g.students||[]).filter(s=>s.name).map((s,i)=>{
     const ov=calc(s,g.level);
