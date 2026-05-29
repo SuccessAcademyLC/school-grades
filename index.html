@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780043029 -->
+<!DOCTYPE html><!-- build:1780043216 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780043029';
+  const APP_VERSION='1780043216';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -466,11 +466,7 @@ setTimeout(()=>{applyI18n();updateLangBtn(curLang);},200);
 
 // ── Render ────────────────────────────────────────────────────────────────
 function isAdmin(){return curUser?.role==='admin';}
-function canEdit(tid){
-  if(isAdmin()) return true;
-  if(curUser?.role==='teacher') return curUser.teacherId===tid;
-  return false;
-}
+function canEdit(tid){return isAdmin();}
 
 function renderAll(){renderSidebar();renderMain();}
 
@@ -858,8 +854,8 @@ function srow(s,num,g,ed,archMode){
       ${ed?`<button class="ra" onclick="showSetStart('${sid}')" title="Начало с юнита" style="font-size:11px;padding:2px 6px">▶U${(s&&s.startUnit)||1}</button>
       <button class="ra ra-move" onclick="showMoveStudent('${sid}')" title="Перенести">↗</button>
       <button class="ra ra-arch" onclick="archiveStudent('${sid}')" title="В архив">📦</button>
-      ${isAdmin()?`<button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>`:''}`:``}
-      <button class="ra" onclick="showHideStudent('${sid}')" title="${s&&s.hidden?'Показать':'Скрыть студента'}" style="font-size:12px;${s&&s.hidden?'color:#e65100;border-color:#ffb74d;background:#fff3e0':''}">👁</button>
+      <button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>`:''}
+      ${(ed||curUser?.role==='teacher')?`<button class="ra" onclick="showHideStudent('${sid}')" title="${s&&s.hidden?'Показать':'Скрыть студента'}" style="font-size:12px;${s&&s.hidden?'color:#e65100;border-color:#ffb74d;background:#fff3e0':''}">👁</button>`:''}
     </div></td>`:'<td></td>'}
   </tr>`;
 }
