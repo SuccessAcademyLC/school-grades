@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1779776234 -->
+<!DOCTYPE html><!-- build:1780031657 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1779776234';
+  const APP_VERSION='1780031657';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -490,6 +490,7 @@ function renderMain(){
   const el=document.getElementById('main');
   try{
     if(curUser?.role==='supporter'){renderSupporter(el);return;}
+    if(curUser?.role==='student'){renderStudentView(el);return;}
     if(curPage==='accounts') renderAccounts(el);
     else if(curPage==='students') renderStudentsPage(el);
     else if(curPage==='rating') renderRating(el);
@@ -516,7 +517,22 @@ function renderHome(el){
   const ts=teachers.reduce((s,t)=>s+(t.groups||[]).reduce((a,g)=>a+(g.students||[]).filter(s=>s.name).length,0),0);
   let sum=0,cnt=0;
   teachers.forEach(t=>(t.groups||[]).forEach(g=>(g.students||[]).forEach(s=>{const o=calcFinal(s,g.level);if(o!==null){sum+=o;cnt++;}})));
+  // Collect hidden students for admin notification
+  const hiddenAlert=[];
+  if(isAdmin()){
+    teachers.forEach(tc=>(tc.groups||[]).forEach(g=>(g.students||[]).forEach(s=>{
+      if(s.hidden) hiddenAlert.push({s,g,tc});
+    })));
+  }
   el.innerHTML=`
+    ${hiddenAlert.length?`<div style="background:#fff3e0;border:1.5px solid #ffb74d;border-radius:12px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="font-size:20px">👁</div>
+      <div style="flex:1">
+        <div style="font-weight:700;color:#e65100;font-size:14px">${hiddenAlert.length} студентов скрыто преподавателями</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">${hiddenAlert.map(({s,tc,g})=>`<b>${s.name}</b> (${tc.name}, ${g.day} ${g.time}) — ${s.hideReason||'?'}`).join(' · ')}</div>
+      </div>
+      <button onclick="selT='${hiddenAlert[0]?.tc?.id}';selG='${hiddenAlert[0]?.g?.id}';view='group';window._showHidden=hiddenAlert&&hiddenAlert[0]?.g?.id;renderAll()" style="padding:6px 14px;border-radius:8px;background:#e65100;color:white;border:none;font-size:12px;font-weight:600;cursor:pointer">Просмотреть</button>
+    </div>`:''}
     <div class="stats-row">
       <div class="stat-card"><div class="stat-val">${tt}</div><div class="stat-lbl">${tr('teachers')}</div></div>
       <div class="stat-card"><div class="stat-val">${tg}</div><div class="stat-lbl">${tr('groups')}</div></div>
@@ -702,7 +718,11 @@ function renderGroup(el,archMode,archSnap){
     return 0;
   });
   // Empty rows at end only in edit mode
-  const rows=ed&&sorted.length===0?[null]:[...sorted];
+  // Separate hidden students
+  const hiddenSts=sorted.filter(s=>s.hidden);
+  const visibleSts=sorted.filter(s=>!s.hidden);
+  const showHidden=window._showHidden&&window._showHidden===selG;
+  const rows=ed&&visibleSts.length===0?[null]:[...visibleSts];
   const title=`${g.day} ${g.time} — ${lvl(g.level)}`;
   el.innerHTML=`
     <div class="bc">
@@ -761,7 +781,28 @@ function renderGroup(el,archMode,archSnap){
           ${Array(27+1).fill('<td></td>').join('')}
           <td></td></tr>`:''}
       </tbody>
-    </table></div>`;
+    </table></div>
+    ${hiddenSts.length?`<div style="margin-top:12px">
+      <button onclick="window._showHidden=window._showHidden==='${selG}'?null:'${selG}';renderGroup(document.getElementById('main'))"
+        style="padding:6px 14px;border-radius:8px;border:1.5px solid #ffb74d;background:#fff3e0;color:#e65100;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+        👁 ${showHidden?'Скрыть':'Показать'} скрытых студентов (${hiddenSts.length})
+      </button>
+      ${showHidden?`<div style="margin-top:10px;background:#fff8f0;border:1.5px solid #ffb74d;border-radius:12px;overflow:hidden">
+        <div style="padding:10px 16px;background:#fff3e0;font-size:12px;font-weight:700;color:#e65100">👁 Скрытые студенты</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          ${hiddenSts.map(s=>`<tr style="border-bottom:1px solid #ffe0b2">
+            <td style="padding:10px 16px;font-weight:600">${s.name}</td>
+            <td style="padding:10px 16px;color:#888;font-size:12px">${s.hideReason||'Причина не указана'}</td>
+            <td style="padding:10px 16px">
+              ${isAdmin()?`<div style="display:flex;gap:6px">
+                <button onclick="unhideStudent('${s.id}')" style="padding:4px 10px;border-radius:6px;background:#e8f5e9;color:#2b9348;border:1px solid #a5d6a7;font-size:12px;cursor:pointer">Показать</button>
+                <button onclick="archiveStudent('${s.id}')" style="padding:4px 10px;border-radius:6px;background:#fff3e0;color:#e65100;border:1px solid #ffb74d;font-size:12px;cursor:pointer">📦 В архив</button>
+              </div>`:'<span style="font-size:11px;color:#bbb">Только админ</span>'}
+            </td>
+          </tr>`).join('')}
+        </table>
+      </div>`:''}
+    </div>`:''}`;
 }
 
 function srow(s,num,g,ed,archMode){
@@ -797,7 +838,8 @@ function srow(s,num,g,ed,archMode){
       <button class="ra" onclick="showSetStart('${sid}')" title="Начало с юнита" style="font-size:11px;padding:2px 6px">▶U${(s&&s.startUnit)||1}</button>
       <button class="ra ra-move" onclick="showMoveStudent('${sid}')" title="Перенести">↗</button>
       <button class="ra ra-arch" onclick="archiveStudent('${sid}')" title="В архив">📦</button>
-      <button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>
+      ${isAdmin()?`<button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>`:''}
+      <button class="ra" onclick="showHideStudent('${sid}')" title="${s&&s.hidden?'Показать':'Скрыть студента'}" style="font-size:12px;${s&&s.hidden?'color:#e65100;border-color:#ffb74d;background:#fff3e0':''}">👁</button>
     </div></td>`:(ed?'<td></td>':'')}
   </tr>`;
 }
@@ -1064,8 +1106,9 @@ function renderStudentProfile(el){
           </div>
         </div>
       </div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-pri btn-sm" onclick="showAssignToGroup('${stu.id}')">↗ В группу</button>
+        ${isAdmin()?`<button class="btn btn-grn btn-sm" onclick="showOpenStudentAccount('${stu.id}','${stu.name}')">🔑 Открыть доступ</button>`:''}
         ${isAdmin()?`<select class="fs" style="padding:5px 10px;font-size:12px;width:auto" onchange="changeStudentStatus('${stu.id}',this.value)">
           <option value="active" ${stu.status==='active'?'selected':''}>Активен</option>
           <option value="archived" ${stu.status==='archived'?'selected':''}>Архив</option>
@@ -1091,6 +1134,56 @@ function renderStudentProfile(el){
         }).join('')}
     </div>`;
 }
+function showOpenStudentAccount(stuId,stuName){
+  const existing=(D.accounts||[]).find(a=>a.role==='student'&&a.studentId===stuId);
+  const suggestLogin=stuName.split(' ')[0].toLowerCase().replace(/[^a-zа-я0-9]/g,'');
+  openModal(`<div class="modal-title">🔑 Открыть доступ студенту</div>
+    <div class="modal-desc">Студент <b>${stuName}</b> сможет войти и просматривать свои оценки.</div>
+    ${existing?`<div style="background:#e8f5e9;border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:#1b5e20">
+      ✅ Аккаунт уже существует · Логин: <b>${existing.login}</b>
+    </div>`:''}
+    <div class="fg"><label class="fl">Логин</label>
+      <input type="text" class="fi" id="stu-login" value="${existing?existing.login:suggestLogin}" placeholder="например: ivan123">
+    </div>
+    <div class="fg"><label class="fl">Пароль</label>
+      <input type="text" class="fi" id="stu-pass" value="${existing?existing.password:''}" placeholder="минимум 4 символа">
+      <div style="margin-top:6px;display:flex;gap:6px">
+        <button onclick="document.getElementById('stu-pass').value=Math.random().toString(36).slice(2,8)" style="padding:4px 10px;border-radius:6px;border:1px solid #e0e0e0;background:white;font-size:11px;cursor:pointer">🎲 Сгенерировать</button>
+      </div>
+    </div>
+    <div style="background:#eef2ff;border-radius:10px;padding:10px 14px;font-size:12px;color:#4361ee;margin-bottom:4px">
+      💡 Передайте логин и пароль студенту — он сможет войти на сайт и видеть только свои оценки
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      ${existing?`<button class="btn btn-dan btn-sm" onclick="closeStudentAccount('${stuId}')">Закрыть доступ</button>`:''}
+      <button class="btn btn-grn" onclick="saveStudentAccount('${stuId}','${stuName}')">🔑 ${existing?'Обновить':'Открыть доступ'}</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('stu-pass')?.focus(),80);
+}
+
+function saveStudentAccount(stuId,stuName){
+  const login=document.getElementById('stu-login')?.value?.trim();
+  const pass=document.getElementById('stu-pass')?.value?.trim();
+  if(!login||!pass){toast('Заполните все поля','error');return;}
+  if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
+  if(!D.accounts) D.accounts=[];
+  // Check login not taken by another account
+  const conflict=(D.accounts||[]).find(a=>a.login===login&&a.studentId!==stuId);
+  if(conflict){toast('Логин уже занят','error');return;}
+  // Remove old account if exists
+  D.accounts=D.accounts.filter(a=>!(a.role==='student'&&a.studentId===stuId));
+  D.accounts.push({id:uid(),role:'student',studentId:stuId,studentName:stuName,login,password:pass});
+  closeModal();sched();
+  toast(`✅ Доступ открыт! Логин: ${login} · Пароль: ${pass}`,'success');
+}
+
+function closeStudentAccount(stuId){
+  if(!confirm('Закрыть доступ студенту?')) return;
+  D.accounts=(D.accounts||[]).filter(a=>!(a.role==='student'&&a.studentId===stuId));
+  closeModal();sched();toast('Доступ закрыт','success');
+}
+
 function changeStudentStatus(sid,status){
   const s=D.students.find(x=>x.id===sid);if(s) s.status=status;sched();toast('Статус обновлён','success');
 }
@@ -1910,6 +2003,90 @@ function getDebts(s){
       </div>`).join('')}`;
 }
 
+function renderStudentView(el){
+  // Find student data
+  let s=null,g=null,tc=null;
+  D.teachers.forEach(t=>(t.groups||[]).forEach(gr=>{
+    const found=(gr.students||[]).find(x=>x.id===curUser.studentId||x.name===curUser.name);
+    if(found){s=found;g=gr;tc=t;}
+  }));
+  if(!s){el.innerHTML='<div class="empty"><h3>Данные не найдены</h3></div>';return;}
+
+  const isRusGrp=RUS_LEVELS.includes(g.level);
+  const ov=calcFinal(s,g.level);
+  const ovc=ov===null?'on':ov>=75?'og':ov>=70?'oy':'or';
+  const scoreColor=ov===null?'#bbb':ov>=75?'#1b5e20':ov>=70?'#e65100':'#b71c1c';
+  const scoreBg=ov===null?'#f5f5f5':ov>=75?'#e8f5e9':ov>=70?'#fff8e1':'#ffebee';
+
+  const gradeRow=(label,arr,pct)=>{
+    const vals=(arr||[]).filter(v=>v!=null&&v!=='').map(Number);
+    const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+    const filled=vals.length;
+    const total=arr?.length||0;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f0">
+      <div style="width:160px;font-size:13px;font-weight:600;color:#555">${label} <span style="font-size:11px;color:#888;font-weight:400">(${pct}%)</span></div>
+      <div style="flex:1;display:flex;gap:4px;flex-wrap:wrap">
+        ${(arr||[]).map((v,i)=>`<div style="width:36px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:${v!=null&&v!==''?(Number(v)>=75?'#e8f5e9':Number(v)>=70?'#fff8e1':'#ffebee'):'#f5f5f5'};color:${v!=null&&v!==''?(Number(v)>=75?'#1b5e20':Number(v)>=70?'#e65100':'#b71c1c'):'#ccc'};border:1px solid ${v!=null&&v!==''?'transparent':'#e8eaf0'}">${v!=null&&v!==''?fmt(v):'—'}</div>`).join('')}
+      </div>
+      <div style="text-align:right;min-width:60px">
+        ${avg!==null?`<div style="font-weight:800;font-size:15px;color:${avg>=75?'#1b5e20':avg>=70?'#e65100':'#b71c1c'}">${avg.toFixed(1)}</div><div style="font-size:11px;color:#888">${filled}/${total} сдано</div>`:'<div style="color:#ccc">—</div>'}
+      </div>
+    </div>`;
+  };
+
+  const singleGrade=(label,val,pct)=>{
+    const v=val!=null&&val!==''?Number(val):null;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f0">
+      <div style="width:160px;font-size:13px;font-weight:600;color:#555">${label} <span style="font-size:11px;color:#888;font-weight:400">(${pct}%)</span></div>
+      <div style="flex:1"></div>
+      <div style="text-align:right;min-width:60px">
+        ${v!==null?`<div style="font-weight:800;font-size:18px;color:${v>=75?'#1b5e20':v>=70?'#e65100':'#b71c1c'}">${fmt(v)}</div>`:'<div style="color:#ccc;font-size:15px">—</div>'}
+      </div>
+    </div>`;
+  };
+
+  const isE=['beginner','elementary'].includes(g.level);
+
+  el.innerHTML=`
+    <div style="max-width:700px;margin:0 auto">
+      <!-- Header card -->
+      <div class="card" style="margin-bottom:16px;text-align:center;padding:32px 24px">
+        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#4361ee,#7209b7);color:white;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;margin:0 auto 16px">${ini(s.name)}</div>
+        <div style="font-size:22px;font-weight:800;color:#16213e;margin-bottom:4px">${s.name}</div>
+        <div style="font-size:13px;color:#888">${tc.name} · ${g.day} ${g.time} · <span class="lp lv-${lvc(g.level)}">${lvl(g.level)}</span></div>
+        <div style="margin-top:20px;display:inline-block;background:${scoreBg};color:${scoreColor};padding:12px 32px;border-radius:16px;font-size:32px;font-weight:900">${ov!==null?ov.toFixed(1):'—'}</div>
+        <div style="font-size:12px;color:#888;margin-top:6px">Overall</div>
+        ${ov!==null?`<div style="margin-top:8px;font-size:13px;font-weight:600;color:${scoreColor}">${ov>=75?'✅ Сдан':ov>=70?'⚠️ Пограничный результат':'❌ Не сдан'}</div>`:''}
+      </div>
+
+      <!-- Grades card -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:4px">📊 Мои результаты</div>
+        <div style="font-size:12px;color:#888;margin-bottom:16px">Нажмите на оценку чтобы увидеть детали</div>
+        ${isRusGrp?`
+          ${gradeRow('Разговорки',s.conversations,15)}
+          ${gradeRow('Домашнее задание',s.homework,g.level==='rus-1'?10:12)}
+          ${gradeRow('Словарь',s.vocabulary,g.level==='rus-1'?15:13)}
+          ${gradeRow('Презентация',s.presentations,20)}
+          ${singleGrade('Зак. разговорка',s.finalConversation,g.level==='rus-1'?25:40)}
+          ${g.level==='rus-1'?singleGrade('Зак. тест',s.finalTest,15):''}
+        `:`
+          ${gradeRow('Unit Tests',s.units,10)}
+          ${gradeRow('Homework',s.homework,10)}
+          ${gradeRow('Achievement Tests',s.achievements,15)}
+          ${singleGrade('Presentation',s.presentation,20)}
+          ${singleGrade('Speaking',s.speaking,isE?15:25)}
+          ${singleGrade('Final Test',s.final,isE?30:20)}
+          ${s.retake?`<div style="padding:12px 0;font-size:13px;color:#e65100;font-weight:600">+${fmt(s.retake)} Retake бонус</div>`:''}
+        `}
+      </div>
+
+      <div style="text-align:center;margin-top:12px;font-size:12px;color:#bbb">
+        Success Academy · Данные обновляются в реальном времени
+      </div>
+    </div>`;
+}
+
 function renderRating(el){
   const tab=window._ratingTab||'overall';
   const levelFilter=window._ratingLevel||'all';
@@ -2058,6 +2235,65 @@ function renderRating(el){
     </div>`;
 }
 
+
+function showHideStudent(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=g?.students?.find(x=>x.id===sid);
+  if(!s) return;
+  if(s.hidden){
+    // Already hidden - toggle back
+    unhideStudent(sid);return;
+  }
+  openModal(`<div class="modal-title">👁 Скрыть студента</div>
+    <div class="modal-desc">Студент <b>${s.name}</b> будет скрыт из таблицы. Оценки сохранятся. Администратор увидит причину и сможет архивировать студента.</div>
+    <div class="fg"><label class="fl">Причина скрытия</label>
+      <select class="fs" id="hide-reason-sel" onchange="if(this.value==='other')document.getElementById('hide-reason-other').style.display='block';else document.getElementById('hide-reason-other').style.display='none'">
+        <option value="Перестал ходить">Перестал ходить</option>
+        <option value="Переехал">Переехал</option>
+        <option value="Финансовые трудности">Финансовые трудности</option>
+        <option value="Болезнь">Болезнь</option>
+        <option value="Нет времени">Нет времени</option>
+        <option value="other">Другое...</option>
+      </select>
+    </div>
+    <div class="fg" id="hide-reason-other" style="display:none">
+      <label class="fl">Укажите причину</label>
+      <input type="text" class="fi" id="hide-reason-text" placeholder="Введите причину...">
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-ora" onclick="doHideStudent('${sid}')">👁 Скрыть</button>
+    </div>`);
+}
+
+function doHideStudent(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=g?.students?.find(x=>x.id===sid);
+  if(!s) return;
+  const sel=document.getElementById('hide-reason-sel')?.value;
+  const other=document.getElementById('hide-reason-text')?.value?.trim();
+  s.hidden=true;
+  s.hideReason=sel==='other'?(other||'Другое'):sel;
+  s.hiddenAt=new Date().toISOString();
+  s.hiddenBy=curUser?.name||'Преподаватель';
+  closeModal();
+  renderGroup(document.getElementById('main'));
+  sched();
+  toast(`${s.name} скрыт. Администратор будет уведомлён.`,'success');
+}
+
+function unhideStudent(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=g?.students?.find(x=>x.id===sid);
+  if(!s) return;
+  delete s.hidden;delete s.hideReason;delete s.hiddenAt;delete s.hiddenBy;
+  renderGroup(document.getElementById('main'));
+  sched();
+  toast(`${s.name} восстановлен`,'success');
+}
 
 function confirmDelT(id){
   const t=D.teachers.find(x=>x.id===id);if(!t) return;
@@ -2963,6 +3199,30 @@ function doLogin(){
       curUser={role:'admin',name:admAcc.name||login,accountId:admAcc.id};
       startApp();return;
     }
+    // Student login
+    const stuAcc=(D.accounts||[]).find(a=>
+      a.role==='student'&&(a.login||'').toLowerCase()===login&&a.password===pass
+    );
+    if(stuAcc){
+      // Find student data
+      let stuData=null,stuGroup=null,stuTeacher=null;
+      D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+        const s=(g.students||[]).find(x=>x.id===stuAcc.studentId||x.name===stuAcc.studentName);
+        if(s){stuData=s;stuGroup=g;stuTeacher=tc;}
+      }));
+      // Check if student has any grades
+      const hasGrades=stuData&&(
+        (stuData.units||[]).some(v=>v!=null&&v!=='')||
+        (stuData.conversations||[]).some(v=>v!=null&&v!=='')||
+        stuData.presentation!=null||stuData.finalConversation!=null
+      );
+      if(!hasGrades){
+        showLoginErr('Результаты ещё не добавлены. Обратитесь к преподавателю.');return;
+      }
+      curUser={role:'student',name:stuAcc.studentName,accountId:stuAcc.id,
+               studentId:stuAcc.studentId,groupId:stuGroup?.id,teacherId:stuTeacher?.id};
+      startApp();return;
+    }
     // Teacher - check both exact and lowercase login match
     const tAcc=(D.accounts||[]).find(a=>
       (a.login||'').toLowerCase()===login && a.password===pass && a.role!=='supporter'
@@ -3008,12 +3268,16 @@ function startApp(){
   const isAdm=curUser.role==='admin';
   const isSup=curUser.role==='supporter';
   const isTch=curUser.role==='teacher';
+  const isStu=curUser.role==='student';
   // Show/hide bars
   document.getElementById('adm-bar').style.display=isAdm?'flex':'none';
   document.getElementById('tch-bar').style.display=isTch?'flex':'none';
   const supBar=document.getElementById('sup-bar');
   if(supBar) supBar.style.display=isSup?'flex':'none';
   if(isTch) document.getElementById('tch-bar-name').textContent='👤 '+curUser.name;
+  // Hide sidebar for students
+  const sidebar=document.getElementById('sidebar');
+  if(sidebar) sidebar.style.display=isStu?'none':'flex';
   // Who pill
   const pill=document.getElementById('who-pill');
   const avCls=isAdm?'wa-admin':isSup?'wa-supporter':'wa-teacher';
