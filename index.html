@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780037714 -->
+<!DOCTYPE html><!-- build:1780043029 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780037714';
+  const APP_VERSION='1780043029';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -466,7 +466,11 @@ setTimeout(()=>{applyI18n();updateLangBtn(curLang);},200);
 
 // ── Render ────────────────────────────────────────────────────────────────
 function isAdmin(){return curUser?.role==='admin';}
-function canEdit(tid){return isAdmin();}
+function canEdit(tid){
+  if(isAdmin()) return true;
+  if(curUser?.role==='teacher') return curUser.teacherId===tid;
+  return false;
+}
 
 function renderAll(){renderSidebar();renderMain();}
 
@@ -525,13 +529,29 @@ function renderHome(el){
     })));
   }
   el.innerHTML=`
-    ${hiddenAlert.length?`<div style="background:#fff3e0;border:1.5px solid #ffb74d;border-radius:12px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <div style="font-size:20px">👁</div>
-      <div style="flex:1">
-        <div style="font-weight:700;color:#e65100;font-size:14px">${hiddenAlert.length} студентов скрыто преподавателями</div>
-        <div style="font-size:12px;color:#888;margin-top:4px">${hiddenAlert.map(({s,tc,g})=>`<b>${s.name}</b> (${tc.name}, ${g.day} ${g.time}) — ${s.hideReason||'?'}`).join(' · ')}</div>
+    ${hiddenAlert.length?`<div style="background:#fff3e0;border:1.5px solid #ffb74d;border-radius:12px;padding:16px 20px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="font-size:22px">👁</div>
+        <div>
+          <div style="font-weight:700;color:#e65100;font-size:15px">${hiddenAlert.length} студентов скрыто преподавателями</div>
+          <div style="font-size:12px;color:#888;margin-top:2px">Требуется ваше действие — архивировать или восстановить</div>
+        </div>
       </div>
-      <button onclick="selT='${hiddenAlert[0]?.tc?.id}';selG='${hiddenAlert[0]?.g?.id}';view='group';window._showHidden=hiddenAlert&&hiddenAlert[0]?.g?.id;renderAll()" style="padding:6px 14px;border-radius:8px;background:#e65100;color:white;border:none;font-size:12px;font-weight:600;cursor:pointer">Просмотреть</button>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${hiddenAlert.map(({s,tc,g})=>`
+        <div style="background:white;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid #ffe0b2">
+          <div class="t-av" style="width:36px;height:36px;font-size:13px;border-radius:9px;background:linear-gradient(135deg,#e65100,#bf360c);flex-shrink:0">${ini(s.name)}</div>
+          <div style="flex:1;min-width:150px">
+            <div style="font-weight:700;font-size:14px">${s.name}</div>
+            <div style="font-size:12px;color:#888;margin-top:2px">${tc.name} · ${g.day} ${g.time} · ${lvl(g.level)}</div>
+            <div style="font-size:12px;color:#e65100;margin-top:2px">📌 ${s.hideReason||'Причина не указана'} · Скрыл: ${s.hiddenBy||'Преподаватель'}</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button onclick="adminArchiveHidden('${s.id}','${tc.id}','${g.id}')" style="padding:6px 14px;border-radius:8px;background:#e65100;color:white;border:none;font-size:12px;font-weight:600;cursor:pointer">📦 В архив</button>
+            <button onclick="adminRestoreHidden('${s.id}','${tc.id}','${g.id}')" style="padding:6px 14px;border-radius:8px;background:white;color:#1a1a1a;border:1px solid #e0e0e0;font-size:12px;font-weight:600;cursor:pointer">↩ Восстановить</button>
+          </div>
+        </div>`).join('')}
+      </div>
     </div>`:''}
     <div class="stats-row">
       <div class="stat-card"><div class="stat-val">${tt}</div><div class="stat-lbl">${tr('teachers')}</div></div>
@@ -766,7 +786,7 @@ function renderGroup(el,archMode,archSnap){
           <th class="gh" rowspan="2">${isE?'Final (30%)':'Final (20%)'}</th>
           <th class="gh" rowspan="2">Overall</th>
           <th class="gh" rowspan="2" style="background:#fff3e0!important;color:#e65100!important;min-width:60px">Retake</th>
-          ${ed?'<th rowspan="2" style="min-width:80px"></th>':''}
+          <th rowspan="2" style="min-width:60px"></th>
         </tr>
         <tr>
           ${[1,2,3,4,5,6,7,8,9,10,11,12].map((n,i)=>`<th${i===0?' class="gb"':''}>U${n}</th>`).join('')}
@@ -834,13 +854,13 @@ function srow(s,num,g,ed,archMode){
     <td>${gcell(s?.final,'final')}</td>
     <td><span class="ob ${ovc}" data-ov="${sid}">${finalOv!==null?finalOv.toFixed(1):'—'}</span></td>
     <td style="background:#fffbf5">${ed&&s?`<input class="gi" type="text" inputmode="decimal" value="${s.retake||''}" oninput="gch('${sid}','retake',null,this.value)" placeholder="">`:(s?.retake&&s.retake>0?`<span style="color:#e65100;font-weight:700">+${fmt(s.retake)}</span>`:'<span style="color:#ddd">—</span>')}</td>
-    ${ed&&!empty?`<td><div class="row-acts">
-      <button class="ra" onclick="showSetStart('${sid}')" title="Начало с юнита" style="font-size:11px;padding:2px 6px">▶U${(s&&s.startUnit)||1}</button>
+    ${!empty?`<td><div class="row-acts">
+      ${ed?`<button class="ra" onclick="showSetStart('${sid}')" title="Начало с юнита" style="font-size:11px;padding:2px 6px">▶U${(s&&s.startUnit)||1}</button>
       <button class="ra ra-move" onclick="showMoveStudent('${sid}')" title="Перенести">↗</button>
       <button class="ra ra-arch" onclick="archiveStudent('${sid}')" title="В архив">📦</button>
-      ${isAdmin()?`<button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>`:''}
+      ${isAdmin()?`<button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>`:''}`:``}
       <button class="ra" onclick="showHideStudent('${sid}')" title="${s&&s.hidden?'Показать':'Скрыть студента'}" style="font-size:12px;${s&&s.hidden?'color:#e65100;border-color:#ffb74d;background:#fff3e0':''}">👁</button>
-    </div></td>`:(ed?'<td></td>':'')}
+    </div></td>`:'<td></td>'}
   </tr>`;
 }
 
@@ -2235,6 +2255,33 @@ function renderRating(el){
     </div>`;
 }
 
+
+function adminArchiveHidden(sid,tid,gid){
+  const tc=D.teachers.find(x=>x.id===tid);
+  const g=(tc?.groups||[]).find(x=>x.id===gid);
+  const s=g?.students?.find(x=>x.id===sid);
+  if(!s) return;
+  if(!confirm(`Архивировать ${s.name}? Оценки сохранятся в архиве группы.`)) return;
+  if(!g.archived_students) g.archived_students=[];
+  g.archived_students.push({...s,archived_at:new Date().toISOString()});
+  g.students=g.students.filter(x=>x.id!==sid);
+  const gs=D.students.find(x=>x.id===sid||x.name===s.name);
+  if(gs) gs.status='archived';
+  renderHome(document.getElementById('main'));
+  sched();
+  toast(`${s.name} архивирован ✓`,'success');
+}
+
+function adminRestoreHidden(sid,tid,gid){
+  const tc=D.teachers.find(x=>x.id===tid);
+  const g=(tc?.groups||[]).find(x=>x.id===gid);
+  const s=g?.students?.find(x=>x.id===sid);
+  if(!s) return;
+  delete s.hidden;delete s.hideReason;delete s.hiddenAt;delete s.hiddenBy;
+  renderHome(document.getElementById('main'));
+  sched();
+  toast(`${s.name} восстановлен ✓`,'success');
+}
 
 function showHideStudent(sid){
   const t=D.teachers.find(x=>x.id===selT);
