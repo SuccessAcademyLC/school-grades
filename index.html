@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780145186 -->
+<!DOCTYPE html><!-- build:1780145399 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780145186';
+  const APP_VERSION='1780145399';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1073,21 +1073,12 @@ async function syncToSheets(){
     return;
   }
   try{
-    // Use XHR which follows 302 redirects
+    // Open each row in new tab - 100% reliable
     for(const row of rows){
-      await new Promise(resolve=>{
-        const params=new URLSearchParams({data:JSON.stringify(row)});
-        const url=SHEETS_WEBHOOK+'?'+params.toString();
-        const xhr=new XMLHttpRequest();
-        xhr.open('GET',url,true);
-        xhr.withCredentials=false;
-        xhr.onload=()=>resolve(true);
-        xhr.onerror=()=>resolve(true);
-        xhr.ontimeout=()=>resolve(true);
-        xhr.timeout=8000;
-        xhr.send();
-      });
-      await new Promise(r=>setTimeout(r,300));
+      const params=new URLSearchParams({data:JSON.stringify(row)});
+      const url=SHEETS_WEBHOOK+'?'+params.toString();
+      window.open(url,'_blank');
+      await new Promise(r=>setTimeout(r,1000));
     }
     const pill=document.getElementById('sheets-pill');
     if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
