@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780144139 -->
+<!DOCTYPE html><!-- build:1780144441 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780144139';
+  const APP_VERSION='1780144441';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -459,7 +459,7 @@ function applyTheme(){
 // Apply i18n and theme immediately
 const DPIN='1234';
 const SHEETS_WEBHOOK='https://script.google.com/macros/s/AKfycbxZgmqmKZudaFSjK-XAg1pf4kMQe0xwpEPGr_4HoGShuU3Tg91cb2AjgxjmIvxD5Sil/exec';
-const SHEETS_DELAY=10*1000; // 10 seconds (testing mode)
+const SHEETS_DELAY=1000; // 1 second
 // Firebase Realtime Database - default URL
 const FIREBASE_DEFAULT='https://ongoingassessment-262b7-default-rtdb.firebaseio.com';
 let FIREBASE_URL=localStorage.getItem('firebase_url')||FIREBASE_DEFAULT;
@@ -1029,7 +1029,7 @@ function scheduleSheets(){
   _sheetsTimer=setTimeout(syncToSheets, SHEETS_DELAY);
   // Show indicator
   const pill=document.getElementById('sheets-pill');
-  if(pill){pill.style.display='flex';pill.textContent='📊 Отправка через 10 сек...';}
+  if(pill){pill.style.display='flex';pill.textContent='📊 Отправка...';}
 }
 
 async function syncToSheets(){
@@ -3349,6 +3349,8 @@ function sched(){
   if(up) up.style.display='flex';
   clearTimeout(saveTimer);
   saveTimer=setTimeout(saveNow,3000);
+  // Schedule Google Sheets sync
+  scheduleSheets();
 }
 function saveNow(){saveData();}
 
