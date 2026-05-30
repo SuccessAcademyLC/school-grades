@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780145399 -->
+<!DOCTYPE html><!-- build:1780147861 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780145399';
+  const APP_VERSION='1780147861';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1036,18 +1036,19 @@ async function syncToSheets(){
   const rows=[];
   D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
     const tName=tc.name;
-    const gName=`${g.level.charAt(0).toUpperCase()+g.level.slice(1)} ${g.day} ${g.time}`;
+    const gName=`${lvl(g.level)} ${g.day} ${g.time}`;
     // Unit Tests
     if(['beginner','elementary'].includes(g.level)){
       (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
         (s.units||[]).forEach((v,i)=>{
-          if(v!=null&&v!==''&&Number(v)<=59.999){
+          const score=Number(v);
+          if(v!=null&&v!==''&&score>0&&score<=59.999){
             rows.push({
               student:s.name, group:gName, teacher:tName,
               test:`Unit Test ${i+1}`,
               grammar:s.units_grammar?.[i]??'',
               vocabulary:s.units_vocab?.[i]??'',
-              score:Number(v).toFixed(1)
+              score:score.toFixed(1)
             });
           }
         });
@@ -1056,12 +1057,13 @@ async function syncToSheets(){
     // Achievement Tests (all levels)
     (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
       (s.achievements||[]).forEach((v,i)=>{
-        if(v!=null&&v!==''&&Number(v)<=59.999){
+        const score=Number(v);
+        if(v!=null&&v!==''&&score>0&&score<=59.999){
           rows.push({
             student:s.name, group:gName, teacher:tName,
             test:`Achievement Test ${i+1}`,
             grammar:'', vocabulary:'',
-            score:Number(v).toFixed(1)
+            score:score.toFixed(1)
           });
         }
       });
@@ -1073,12 +1075,12 @@ async function syncToSheets(){
     return;
   }
   try{
-    // Open each row in new tab - 100% reliable
+    // Silent fetch - data confirmed working
     for(const row of rows){
       const params=new URLSearchParams({data:JSON.stringify(row)});
       const url=SHEETS_WEBHOOK+'?'+params.toString();
-      window.open(url,'_blank');
-      await new Promise(r=>setTimeout(r,1000));
+      fetch(url,{mode:'no-cors'}).catch(()=>{});
+      await new Promise(r=>setTimeout(r,300));
     }
     const pill=document.getElementById('sheets-pill');
     if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
