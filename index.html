@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780141835 -->
+<!DOCTYPE html><!-- build:1780142145 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780141835';
+  const APP_VERSION='1780142145';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1073,19 +1073,25 @@ async function syncToSheets(){
     return;
   }
   try{
-    // Script tag injection - bypasses CORS completely for Google Apps Script
-    const payload=encodeURIComponent(JSON.stringify({rows,sheetName:'Results'}));
-    const url=`${SHEETS_WEBHOOK}?payload=${payload}&callback=sheetsCallback`;
-    window.sheetsCallback=function(resp){
-      delete window.sheetsCallback;
-      const el=document.getElementById('sheets-script-tag');
-      if(el) el.remove();
-    };
-    const script=document.createElement('script');
-    script.id='sheets-script-tag';
-    script.src=url;
-    script.onerror=function(){delete window.sheetsCallback;this.remove();};
-    document.head.appendChild(script);
+    // Send each row as individual GET request with separate params (most reliable)
+    for(const row of rows){
+      const params=new URLSearchParams({
+        student: row.student,
+        group:   row.group,
+        teacher: row.teacher,
+        test:    row.test,
+        grammar: row.grammar||'',
+        vocab:   row.vocabulary||'',
+        score:   row.score
+      });
+      const script=document.createElement('script');
+      script.src=`${SHEETS_WEBHOOK}?${params.toString()}`;
+      script.onload=function(){this.remove();};
+      script.onerror=function(){this.remove();};
+      document.head.appendChild(script);
+      // Small delay between rows
+      await new Promise(r=>setTimeout(r,300));
+    }
     const pill=document.getElementById('sheets-pill');
     if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
     toast(`📊 ${rows.length} записей отправлено в Google Sheets`,'success');
