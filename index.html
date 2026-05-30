@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780144441 -->
+<!DOCTYPE html><!-- build:1780145186 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780144441';
+  const APP_VERSION='1780145186';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1073,18 +1073,21 @@ async function syncToSheets(){
     return;
   }
   try{
-    // Use Image() - only reliable CORS bypass for Google Apps Script
+    // Use XHR which follows 302 redirects
     for(const row of rows){
       await new Promise(resolve=>{
         const params=new URLSearchParams({data:JSON.stringify(row)});
         const url=SHEETS_WEBHOOK+'?'+params.toString();
-        const img=new Image();
-        img.onload=()=>resolve(true);
-        img.onerror=()=>resolve(true); // Apps Script always returns onerror (not an image) - that's ok
-        img.src=url;
-        setTimeout(()=>resolve(true),8000);
+        const xhr=new XMLHttpRequest();
+        xhr.open('GET',url,true);
+        xhr.withCredentials=false;
+        xhr.onload=()=>resolve(true);
+        xhr.onerror=()=>resolve(true);
+        xhr.ontimeout=()=>resolve(true);
+        xhr.timeout=8000;
+        xhr.send();
       });
-      await new Promise(r=>setTimeout(r,200));
+      await new Promise(r=>setTimeout(r,300));
     }
     const pill=document.getElementById('sheets-pill');
     if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
