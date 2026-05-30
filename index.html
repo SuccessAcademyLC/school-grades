@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780142145 -->
+<!DOCTYPE html><!-- build:1780144139 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780142145';
+  const APP_VERSION='1780144139';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1073,24 +1073,18 @@ async function syncToSheets(){
     return;
   }
   try{
-    // Send each row as individual GET request with separate params (most reliable)
+    // Use Image() - only reliable CORS bypass for Google Apps Script
     for(const row of rows){
-      const params=new URLSearchParams({
-        student: row.student,
-        group:   row.group,
-        teacher: row.teacher,
-        test:    row.test,
-        grammar: row.grammar||'',
-        vocab:   row.vocabulary||'',
-        score:   row.score
+      await new Promise(resolve=>{
+        const params=new URLSearchParams({data:JSON.stringify(row)});
+        const url=SHEETS_WEBHOOK+'?'+params.toString();
+        const img=new Image();
+        img.onload=()=>resolve(true);
+        img.onerror=()=>resolve(true); // Apps Script always returns onerror (not an image) - that's ok
+        img.src=url;
+        setTimeout(()=>resolve(true),8000);
       });
-      const script=document.createElement('script');
-      script.src=`${SHEETS_WEBHOOK}?${params.toString()}`;
-      script.onload=function(){this.remove();};
-      script.onerror=function(){this.remove();};
-      document.head.appendChild(script);
-      // Small delay between rows
-      await new Promise(r=>setTimeout(r,300));
+      await new Promise(r=>setTimeout(r,200));
     }
     const pill=document.getElementById('sheets-pill');
     if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
