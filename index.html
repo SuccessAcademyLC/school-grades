@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780139918 -->
+<!DOCTYPE html><!-- build:1780140251 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780139918';
+  const APP_VERSION='1780140251';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1066,13 +1066,23 @@ async function syncToSheets(){
     return;
   }
   try{
-    // Use no-cors for Google Apps Script (CORS limitation)
-    await fetch(SHEETS_WEBHOOK,{
-      method:'POST',
-      mode:'no-cors',
-      headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({rows,sheetName:'Results'})
-    });
+    // Google Apps Script requires form submission approach
+    const form=document.createElement('form');
+    form.method='POST';
+    form.action=SHEETS_WEBHOOK;
+    form.target='sheets-iframe';
+    form.style.display='none';
+    const input=document.createElement('input');
+    input.type='hidden';
+    input.name='payload';
+    input.value=JSON.stringify({rows,sheetName:'Results'});
+    form.appendChild(input);
+    // Create hidden iframe to receive response
+    let iframe=document.getElementById('sheets-iframe');
+    if(!iframe){iframe=document.createElement('iframe');iframe.id='sheets-iframe';iframe.name='sheets-iframe';iframe.style.display='none';document.body.appendChild(iframe);}
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
     const pill=document.getElementById('sheets-pill');
     if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
     toast(`📊 ${rows.length} записей отправлено в Google Sheets`,'success');
