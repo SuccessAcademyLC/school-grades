@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780043216 -->
+<!DOCTYPE html><!-- build:1780136919 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780043216';
+  const APP_VERSION='1780136919';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -307,6 +307,7 @@ body.dark .tg-link{background:#0d2a3a;border-color:#0055aa;color:#64b5f6}
   <div class="logo" onclick="goHome()" id="app-logo"><img id="logo-img" src="" style="height:36px;border-radius:8px;display:none"><div id="logo-text" style="display:flex;align-items:center;gap:10px"><div class="logo-badge">SA</div><span>Success Academy</span></div></div>
   <div class="hdr-right">
     <div id="saving-pill" style="display:none" class="saving-pill"><div class="spin"></div> Сохранение...</div>
+    <div id="sheets-pill" style="display:none;background:rgba(66,133,244,.15);border:1px solid #4285f4;color:#4285f4;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600"></div>
     <div id="unsaved-pill" style="display:none;background:rgba(233,69,96,.2);border:1px solid #e94560;color:#e94560;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600">● Не сохранено</div>
     <div class="who-pill" id="who-pill" onclick="showProfile()" style="cursor:pointer" title="Мой профиль"></div>
     <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" title="Тема" style="border-color:rgba(255,255,255,.25);color:white">🌙</button>
@@ -825,6 +826,7 @@ function srow(s,num,g,ed,archMode){
   const empty=!s||!s.name;
   const sid=s?s.id:'';
   const ov=s?calc(s,g.level):null;
+  const isDoubleUnit=['beginner','elementary'].includes(g.level)&&ed;
   const retake=s?.retake!=null&&s?.retake!==''?Number(s.retake):null;
   const finalOv=ov!==null?(ov+(retake||0)):(retake!==null?retake:null);
   const ovc=finalOv===null?'on':finalOv>=75?'og':finalOv>=70?'oy':'or';
@@ -842,7 +844,17 @@ function srow(s,num,g,ed,archMode){
   return `<tr class="${empty?'empty-row':''}">
     <td class="nc">${num}</td>
     <td class="nmc">${namecell}</td>
-    ${us.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'units',i)}</td>`).join('')}
+    ${us.map((v,i)=>{
+      if(isDoubleUnit){
+        const gr=s?.units_grammar?.[i]??null;
+        const vc=s?.units_vocab?.[i]??null;
+        const score=v!=null&&v!==''?v:'';
+        const color=score===''?'#ddd':Number(score)>=75?'#1b5e20':Number(score)>=70?'#e65100':'#b71c1c';
+        const bg=score===''?'transparent':Number(score)>=75?'#e8f5e9':Number(score)>=70?'#fff8e1':'#ffebee';
+        return `<td${i===0?' class="gb"':''}><div onclick="showUnitPopup('${sid}',${i},'${g.level}')" style="width:42px;min-height:26px;border:1.5px solid #e8eaf0;border-radius:5px;padding:3px 4px;text-align:center;font-size:12.5px;cursor:pointer;background:${bg};color:${color};font-weight:${score!==''?700:400}">${score!==''?fmt(score):'—'}</div></td>`;
+      }
+      return `<td${i===0?' class="gb"':''}>${gcell(v,'units',i)}</td>`;
+    }).join('')}
     ${hw.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'homework',i)}</td>`).join('')}
     ${at.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'achievements',i)}</td>`).join('')}
     <td class="gb">${gcell(s?.presentation,'presentation')}</td>
@@ -919,6 +931,154 @@ function gch(sid,field,idx,val){
   if(badge){badge.textContent=fv!==null?fv.toFixed(1):'—';badge.className='ob '+(fv===null?'on':fv>=75?'og':fv>=70?'oy':'or');}
   sched();
 }
+function showUnitPopup(sid,idx,level){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=(g?.students||[]).find(x=>x.id===sid);
+  if(!s) return;
+  const gr=s.units_grammar?.[idx]??'';
+  const vc=s.units_vocab?.[idx]??'';
+  const cur=s.units?.[idx]??'';
+  openModal(`<div class="modal-title">📝 Unit Test ${idx+1}</div>
+    <div class="modal-desc" style="margin-bottom:16px">
+      Введите результаты. Итог = (Грамматика÷50×70) + (Словарь÷50×30)
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="fg" style="margin:0">
+        <label class="fl">Грамматика <span style="color:#888;font-weight:400">(макс. 50)</span></label>
+        <input type="number" class="fi" id="ut-gr" value="${gr}" placeholder="0–50" min="0" max="50" oninput="updateUnitPreview()">
+      </div>
+      <div class="fg" style="margin:0">
+        <label class="fl">Словарь <span style="color:#888;font-weight:400">(макс. 50)</span></label>
+        <input type="number" class="fi" id="ut-vc" value="${vc}" placeholder="0–50" min="0" max="50" oninput="updateUnitPreview()">
+      </div>
+    </div>
+    <div id="ut-preview" style="background:#f8f9fb;border-radius:10px;padding:14px;text-align:center;margin-bottom:4px">
+      <div style="font-size:12px;color:#888;margin-bottom:6px">Итоговый балл</div>
+      <div id="ut-score" style="font-size:32px;font-weight:900;color:#4361ee">${cur!==''?fmt(cur):'—'}</div>
+      <div style="font-size:11px;color:#aaa;margin-top:4px">(Г÷50×70) + (С÷50×30)</div>
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-dan btn-sm" onclick="clearUnitScore('${sid}',${idx})">Очистить</button>
+      <button class="btn btn-pri" onclick="saveUnitScore('${sid}',${idx})">Сохранить</button>
+    </div>`);
+  setTimeout(()=>{document.getElementById('ut-gr')?.focus();updateUnitPreview();},80);
+}
+
+function updateUnitPreview(){
+  const gr=parseFloat(document.getElementById('ut-gr')?.value||0);
+  const vc=parseFloat(document.getElementById('ut-vc')?.value||0);
+  const score=(gr/50*70)+(vc/50*30);
+  const el=document.getElementById('ut-score');
+  if(el){
+    el.textContent=isNaN(score)?'—':score.toFixed(1);
+    el.style.color=score>=75?'#1b5e20':score>=70?'#e65100':'#b71c1c';
+  }
+}
+
+function saveUnitScore(sid,idx){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=(g?.students||[]).find(x=>x.id===sid);
+  if(!s) return;
+  const gr=parseFloat(document.getElementById('ut-gr')?.value);
+  const vc=parseFloat(document.getElementById('ut-vc')?.value);
+  if(isNaN(gr)&&isNaN(vc)){closeModal();return;}
+  if(!s.units) s.units=Array(12).fill(null);
+  if(!s.units_grammar) s.units_grammar=Array(12).fill(null);
+  if(!s.units_vocab) s.units_vocab=Array(12).fill(null);
+  const grVal=isNaN(gr)?null:Math.min(50,Math.max(0,gr));
+  const vcVal=isNaN(vc)?null:Math.min(50,Math.max(0,vc));
+  s.units_grammar[idx]=grVal;
+  s.units_vocab[idx]=vcVal;
+  // Calculate combined score
+  const score=((grVal||0)/50*70)+((vcVal||0)/50*30);
+  s.units[idx]=parseFloat(score.toFixed(2));
+  closeModal();
+  renderGroup(document.getElementById('main'));
+  sched();
+  // Schedule Google Sheets sync after 10 min
+  scheduleSheets();
+}
+
+function clearUnitScore(sid,idx){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=(g?.students||[]).find(x=>x.id===sid);
+  if(!s) return;
+  if(s.units) s.units[idx]=null;
+  if(s.units_grammar) s.units_grammar[idx]=null;
+  if(s.units_vocab) s.units_vocab[idx]=null;
+  closeModal();
+  renderGroup(document.getElementById('main'));
+  sched();
+}
+
+// Google Sheets sync
+let _sheetsTimer=null;
+function scheduleSheets(){
+  clearTimeout(_sheetsTimer);
+  _sheetsTimer=setTimeout(syncToSheets, SHEETS_DELAY);
+  // Show indicator
+  const pill=document.getElementById('sheets-pill');
+  if(pill){pill.style.display='flex';pill.textContent='📊 Отправка через 10 мин...';}
+}
+
+async function syncToSheets(){
+  const rows=[];
+  D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+    const tName=tc.name;
+    const gName=`${g.level.charAt(0).toUpperCase()+g.level.slice(1)} ${g.day} ${g.time}`;
+    // Unit Tests
+    if(['beginner','elementary'].includes(g.level)){
+      (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
+        (s.units||[]).forEach((v,i)=>{
+          if(v!=null&&v!==''&&Number(v)<=59.999){
+            rows.push({
+              student:s.name, group:gName, teacher:tName,
+              test:`Unit Test ${i+1}`,
+              grammar:s.units_grammar?.[i]??'',
+              vocabulary:s.units_vocab?.[i]??'',
+              score:Number(v).toFixed(1)
+            });
+          }
+        });
+      });
+    }
+    // Achievement Tests (all levels)
+    (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
+      (s.achievements||[]).forEach((v,i)=>{
+        if(v!=null&&v!==''&&Number(v)<=59.999){
+          rows.push({
+            student:s.name, group:gName, teacher:tName,
+            test:`Achievement Test ${i+1}`,
+            grammar:'', vocabulary:'',
+            score:Number(v).toFixed(1)
+          });
+        }
+      });
+    });
+  }));
+  if(!rows.length){
+    const pill=document.getElementById('sheets-pill');
+    if(pill) pill.style.display='none';
+    return;
+  }
+  try{
+    await fetch(SHEETS_WEBHOOK,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({rows})
+    });
+    const pill=document.getElementById('sheets-pill');
+    if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
+    toast(`📊 ${rows.length} записей отправлено в Google Sheets`,'success');
+  }catch(e){
+    toast('Ошибка отправки в Google Sheets','error');
+  }
+}
+
 function nameBlur(sid,rowIdx,inp){
   const val=inp.value.trim();
   const t=D.teachers.find(x=>x.id===selT);
@@ -3009,6 +3169,8 @@ setTimeout(()=>{applyI18n();updateLangBtn(curLang);},200);
 
 
 const DPIN='1234';
+const SHEETS_WEBHOOK='https://script.google.com/macros/s/AKfycbyG3_w_Ifr6eZhYcBgnBehmi685Tb0PtZERP756ZT6OW3_PKlmWVIqXjqecNXvn-Iao/exec';
+const SHEETS_DELAY=10*60*1000; // 10 minutes
 // Firebase Realtime Database - default URL
 const FIREBASE_DEFAULT='https://ongoingassessment-262b7-default-rtdb.firebaseio.com';
 let FIREBASE_URL=localStorage.getItem('firebase_url')||FIREBASE_DEFAULT;
@@ -3127,6 +3289,8 @@ function fixFirebaseArrays(obj){
           s.presentations=toArr(s.presentations,cfg.ppt);
         } else {
           s.units=toArr(s.units,12);
+          s.units_grammar=toArr(s.units_grammar,12);
+          s.units_vocab=toArr(s.units_vocab,12);
           s.homework=toArr(s.homework,5);
           s.achievements=toArr(s.achievements,5);
         }
