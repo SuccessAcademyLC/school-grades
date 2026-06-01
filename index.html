@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780313487 -->
+<!DOCTYPE html><!-- build:1780316676 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780313487';
+  const APP_VERSION='1780316676';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -470,6 +470,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   applyI18n();
   updateLangBtn(curLang);
 });
+// Check QR params BEFORE initApp
+(function(){
+  const p=new URLSearchParams(window.location.search);
+  if(p.get('view')==='group'&&p.get('t')&&p.get('g')){
+    window._qrViewMode=true;
+    window._qrT=p.get('t');
+    window._qrG=p.get('g');
+  }
+})();
 initApp();
 setTimeout(()=>{applyI18n();updateLangBtn(curLang);},200);
 
@@ -2529,6 +2538,34 @@ function unhideStudent(sid){
   toast(`${s.name} восстановлен`,'success');
 }
 
+function showQRPublicView(tid, gid){
+  const t=D.teachers.find(x=>x.id===tid);
+  const g=(t?.groups||[]).find(x=>x.id===gid);
+  if(!g){
+    document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,sans-serif;color:#888">
+      <div style="text-align:center"><div style="font-size:48px;margin-bottom:16px">⚠️</div><div>Группа не найдена</div></div>
+    </div>`;
+    return;
+  }
+  // Hide login, show app in read-only mode
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('adm-bar').style.display='none';
+  document.getElementById('tch-bar').style.display='none';
+  const supBar=document.getElementById('sup-bar');
+  if(supBar) supBar.style.display='none';
+  // Hide sidebar
+  const sidebar=document.getElementById('sidebar');
+  if(sidebar) sidebar.style.display='none';
+  // Hide header buttons
+  document.querySelector('.hdr-right').innerHTML=`<div style="font-size:13px;color:rgba(255,255,255,.7)">👁 Режим просмотра</div>`;
+  // Set read-only mode
+  curUser={role:'viewer',name:'Гость'};
+  selT=tid;selG=gid;view='group';
+  applyLogo();
+  renderGroup(document.getElementById('main'),false,D.teachers);
+}
+
 function showGroupQR(gid){
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===gid);
@@ -3449,17 +3486,17 @@ function saveNow(){saveData();}
 // loginTab removed - unified login
 
 async function initApp(){
-  // Handle QR code URL params
-  const params=new URLSearchParams(window.location.search);
-  if(params.get('view')==='group'&&params.get('t')&&params.get('g')){
-    window._qrViewMode=true;
-    window._qrT=params.get('t');
-    window._qrG=params.get('g');
-  }
+
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('app').style.display='none';
   await loadData();
   // Try to restore session
+  // QR public view - no login needed
+  if(window._qrViewMode){
+    showQRPublicView(window._qrT, window._qrG);
+    return;
+  }
+
   const saved=loadSession();
   if(saved){
     // Verify saved session is still valid
