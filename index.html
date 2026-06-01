@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780316676 -->
+<!DOCTYPE html><!-- build:1780316993 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780316676';
+  const APP_VERSION='1780316993';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -484,7 +484,7 @@ setTimeout(()=>{applyI18n();updateLangBtn(curLang);},200);
 
 // ── Render ────────────────────────────────────────────────────────────────
 function isAdmin(){return curUser?.role==='admin';}
-function canEdit(tid){return isAdmin();}
+function canEdit(tid){if(curUser?.role==='viewer') return false;return isAdmin();}
 
 function renderAll(){renderSidebar();renderMain();}
 
@@ -2547,23 +2547,36 @@ function showQRPublicView(tid, gid){
     </div>`;
     return;
   }
-  // Hide login, show app in read-only mode
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('adm-bar').style.display='none';
   document.getElementById('tch-bar').style.display='none';
   const supBar=document.getElementById('sup-bar');
   if(supBar) supBar.style.display='none';
-  // Hide sidebar
   const sidebar=document.getElementById('sidebar');
   if(sidebar) sidebar.style.display='none';
-  // Hide header buttons
   document.querySelector('.hdr-right').innerHTML=`<div style="font-size:13px;color:rgba(255,255,255,.7)">👁 Режим просмотра</div>`;
-  // Set read-only mode
   curUser={role:'viewer',name:'Гость'};
   selT=tid;selG=gid;view='group';
   applyLogo();
+  // Render group and then remove navigation elements
   renderGroup(document.getElementById('main'),false,D.teachers);
+  setTimeout(()=>{
+    // Remove breadcrumb links (prevent navigation)
+    document.querySelectorAll('.bc-l').forEach(el=>{
+      el.style.cursor='default';
+      el.style.color='inherit';
+      el.onclick=null;
+      el.removeAttribute('onclick');
+    });
+    // Remove Excel buttons
+    document.querySelectorAll('.btn-grn,.btn-sec').forEach(btn=>{
+      const txt=btn.textContent||'';
+      if(txt.includes('Excel')||txt.includes('Загрузить')||txt.includes('Вставить')||txt.includes('Студент')||txt.includes('Завершить')||txt.includes('QR')){
+        btn.style.display='none';
+      }
+    });
+  },100);
 }
 
 function showGroupQR(gid){
