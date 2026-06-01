@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780289992 -->
+<!DOCTYPE html><!-- build:1780313487 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780289992';
+  const APP_VERSION='1780313487';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -37,6 +37,7 @@
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f6fb;color:#1a1a1a}
@@ -688,6 +689,7 @@ function renderRusGroup(el,g,t,ed,archMode){
           <button class="btn btn-sec btn-sm" onclick="showImport()">📋 Вставить</button>`:''}
         <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">Excel</button>
         ${!archMode&&ed?`<button class="btn btn-grn btn-sm" onclick="showUploadExcel()">⬆ Загрузить Excel</button>`:''}
+        ${!archMode&&(isAdmin()||curUser?.role==='teacher')?`<button class="btn btn-sec btn-sm" onclick="showGroupQR('${g.id}')" title="QR код группы">📱 QR</button>`:''}
       </div>
     </div>
     <div class="tw"><table>
@@ -771,6 +773,7 @@ function renderGroup(el,archMode,archSnap){
         <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">${tr('excel')}</button>
         ${!archMode?`
         <button class="btn btn-grn btn-sm" onclick="showUploadExcel()">${tr('uploadXl')}</button>`:''}
+        ${!archMode&&(isAdmin()||curUser?.role==='teacher')?`<button class="btn btn-sec btn-sm" onclick="showGroupQR('${g.id}')" title="QR код группы">📱 QR</button>`:''}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -2095,11 +2098,28 @@ function renderSupporter(el){
   toast('Данные обновлены ✓','success');
 }
 
-function getDebts(s){
+function getDebts(s,level){
     const debts=[];
-    // 0 = not taken (debt), any positive number = has result
     const ok=v=>v!==null&&v!==undefined&&v!==''&&Number(v)>0;
-    const startU=(s.startUnit||1)-1;  // 0-indexed start
+
+    // Russian language debt detection
+    if(RUS_LEVELS&&RUS_LEVELS.includes(level)){
+      const cfg=RUS_CFG&&RUS_CFG[level];
+      if(!cfg) return debts;
+      const convs=s.conversations||[];
+      const hws=s.homework||[];
+      const vocabs=s.vocabulary||[];
+      // For each completed conversation - check if HW and Vocab are done
+      for(let i=0;i<cfg.conv;i++){
+        if(ok(convs[i])){
+          if(!ok(hws[i]))   debts.push({key:'hw',label:`ДЗ${i+1}`});
+          if(!ok(vocabs[i])) debts.push({key:'at',label:`Сл${i+1}`});
+        }
+      }
+      return debts;
+    }
+
+    const startU=(s.startUnit||1)-1;
     const startA=(s.startAT||1)-1;
 
     // Unit Tests: debt only if:
@@ -2140,7 +2160,7 @@ function getDebts(s){
   const results=[];
   D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
     (g.students||[]).filter(s=>s.name).forEach(s=>{
-      const allDebts=getDebts(s);
+      const allDebts=getDebts(s,g.level);
       if(!allDebts.length) return;
       const filtered=filter==='all'?allDebts:allDebts.filter(d=>d.key===filter);
       if(!filtered.length) return;
@@ -2507,6 +2527,81 @@ function unhideStudent(sid){
   renderGroup(document.getElementById('main'));
   sched();
   toast(`${s.name} восстановлен`,'success');
+}
+
+function showGroupQR(gid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===gid);
+  if(!g) return;
+  const url=`${window.location.origin}${window.location.pathname}?view=group&t=${selT}&g=${gid}`;
+  const title=`${t.name} — ${g.day} ${g.time} ${lvl(g.level)}`;
+
+  openModal(`<div class="modal-title">📱 QR код группы</div>
+    <div class="modal-desc" style="margin-bottom:16px">${title}</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:16px">
+      <div id="qr-canvas" style="padding:16px;background:white;border-radius:12px;border:1.5px solid #e8eaf0;display:inline-block"></div>
+      <div style="font-size:11px;color:#888;text-align:center;max-width:300px;word-break:break-all">${url}</div>
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Закрыть</button>
+      <button class="btn btn-pri" onclick="downloadQR('${gid}')">⬇️ Скачать JPG</button>
+    </div>`);
+
+  setTimeout(()=>{
+    const el=document.getElementById('qr-canvas');
+    if(!el) return;
+    if(typeof QRCode==='undefined'){
+      el.innerHTML=`<div style="padding:20px;text-align:center;color:#e65100">⚠️ Загрузка QR библиотеки...<br><br><a href="${url}" target="_blank" style="color:#4361ee;font-size:12px">Открыть ссылку</a></div>`;
+      return;
+    }
+    new QRCode(el,{
+      text:url,
+      width:220,height:220,
+      colorDark:'#16213e',colorLight:'#ffffff',
+      correctLevel:QRCode.CorrectLevel.H
+    });
+    window._qrUrl=url;
+    window._qrTitle=title;
+  },200);
+}
+
+function downloadQR(gid){
+  const canvas=document.querySelector('#qr-canvas canvas');
+  if(!canvas){toast('QR не готов','error');return;}
+  // Create download canvas with title
+  const dc=document.createElement('canvas');
+  dc.width=300;dc.height=340;
+  const ctx=dc.getContext('2d');
+  // White background
+  ctx.fillStyle='white';
+  ctx.fillRect(0,0,300,340);
+  // Draw QR
+  ctx.drawImage(canvas,40,60,220,220);
+  // Title text
+  ctx.fillStyle='#16213e';
+  ctx.font='bold 14px Arial';
+  ctx.textAlign='center';
+  const words=(window._qrTitle||'').split(' ');
+  let line='',y=30;
+  words.forEach(w=>{
+    if(ctx.measureText(line+w).width>260){
+      ctx.fillText(line.trim(),150,y);
+      line=w+' ';y+=18;
+    } else line+=w+' ';
+  });
+  ctx.fillText(line.trim(),150,y);
+  // Footer
+  ctx.font='11px Arial';
+  ctx.fillStyle='#888';
+  ctx.fillText('Success Academy',150,310);
+  // Download
+  const link=document.createElement('a');
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===gid);
+  link.download=`QR_${t?.name||''}_${g?.day||''}_${g?.time||''}.jpg`;
+  link.href=dc.toDataURL('image/jpeg',0.95);
+  link.click();
+  toast('QR скачан ✓','success');
 }
 
 function confirmDelT(id){
@@ -3354,6 +3449,13 @@ function saveNow(){saveData();}
 // loginTab removed - unified login
 
 async function initApp(){
+  // Handle QR code URL params
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('view')==='group'&&params.get('t')&&params.get('g')){
+    window._qrViewMode=true;
+    window._qrT=params.get('t');
+    window._qrG=params.get('g');
+  }
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('app').style.display='none';
   await loadData();
