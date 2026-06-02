@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:1780316993 -->
+<!DOCTYPE html><!-- build:1780322297 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780316993';
+  const APP_VERSION='1780322297';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -349,7 +349,7 @@ body.dark .tg-link{background:#0d2a3a;border-color:#0055aa;color:#64b5f6}
 
 <div class="layout">
   <div class="sidebar" id="sidebar">
-    <div class="sb-search"><input type="text" id="sb-q" placeholder="🔍 Поиск..." data-i18n-placeholder="searchPlaceholder" oninput="onSearch(this.value)"></div>
+    <div class="sb-search"><input type="text" id="sb-q" placeholder="🔍 Поиск..." data-i18n-placeholder="searchPlaceholder" oninput="clearTimeout(window._sbTimer);window._sbTimer=setTimeout(()=>onSearch(this.value),400)"></div>
     <div class="sb-nav" id="sb-nav">
       <button class="sb-nav-btn active" onclick="sbTab('teachers',this)">👤</button>
       <button class="sb-nav-btn" onclick="sbTab('archives',this)">🗃</button>
@@ -2046,6 +2046,8 @@ function delArchive(id){if(!confirm('Удалить архив?')) return;D.arch
 
 // ── Search ────────────────────────────────────────────────────────────────
 function onSearch(q){
+  // Preserve focus on mobile
+  const focused=document.activeElement;
   const sr=document.getElementById('sb-sr');
   const nav=document.getElementById('sb-nav');
   const tb=document.getElementById('sb-teachers');
@@ -2064,6 +2066,17 @@ function onSearch(q){
       }
     }));
   });
+  // Restore focus after render
+  setTimeout(()=>{
+    if(focused&&focused.id==='sb-q'){
+      const input=document.getElementById('sb-q');
+      if(input){
+        input.focus();
+        const len=input.value.length;
+        input.setSelectionRange(len,len);
+      }
+    }
+  },50);
   sr.innerHTML=`<div class="sb-hdr">${tr('searchResults')} ${res.length}</div>`+
     (res.length?res.map(r=>`<div class="sr-item" onclick="${r.type==='teacher'?`gotoT('${r.id}')`:`selT='${r.tid}';selG='${r.gid}';view='group';curPage=null;renderAll()`}">
       <div class="t-av ${r.type==='student'?'stu':''}" style="width:30px;height:30px;font-size:11px;border-radius:8px">${ini(r.name)}</div>
