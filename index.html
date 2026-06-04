@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780566952';
+  const APP_VERSION='1780574508';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -358,13 +358,11 @@ body.dark .replace-card{border-color:#2d74da}
 <div class="admin-bar" id="adm-bar" style="display:none">
   <span id="adm-mode-text" data-i18n="adminMode">✅ Режим администратора</span>
   <div class="abar-acts">
-    <button class="btn-ab" onclick="showAddStaff()">Новый сотрудник</button>
     <button class="btn-ab" onclick="gotoPage('accounts')" data-i18n="accounts">Аккаунты</button>
     <button class="btn-ab" onclick="gotoPage('students')" data-i18n="stuBase">База студентов</button>
     <button class="btn-ab" onclick="showCreateArchive()"><span data-i18n="createArchive">🗃 Архив</span></button>
-    <button class="btn-ab" onclick="exportAll()" data-i18n="excel">Excel</button>
+    <button class="btn-ab" onclick="gotoPage('debts')">⚠️ Долги</button>
     <button class="btn-ab" onclick="gotoPage('rating')">🏆 Рейтинг</button>
-    <button class="btn-ab" onclick="openGlobalSearch()" data-i18n="search">🔍 Поиск</button>
     <button class="btn-ab" onclick="showSettings()" data-i18n="settings">⚙️</button>
   </div>
 </div>
@@ -496,6 +494,319 @@ const SHEETS_DELAY=10*60*1000; // 10 minutes
 const FIREBASE_DEFAULT='https://ongoingassessment-262b7-default-rtdb.firebaseio.com';
 let FIREBASE_URL=localStorage.getItem('firebase_url')||FIREBASE_DEFAULT;
 
+// ── Global state ──────────────────────────────────────────────────────────
+const LOCAL_KEY='sa_data_backup';
+let D={teachers:[],students:[],accounts:[],archives:[],settings:{pin:DPIN},duties:{}};
+let dataLoaded=false;
+let view='home',selT=null,selG=null,selArch=null,selStu=null,curPage=null;
+let curUser=null;
+let saveTimer=null,curSbTab='teachers',loginMode='admin';
+let curLang=localStorage.getItem('sa_lang')||'ru';
+
+// ── Core utilities ────────────────────────────────────────────────────────
+function uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
+function ini(n){if(!n)return'?';const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
+function fmt(v){if(v===null||v===undefined||v==='')return'';const n=parseFloat(v);return isNaN(n)?v:Number.isInteger(n)?String(n):n.toFixed(1);}
+function lvl(l){const m={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int','intermediate':'Intermediate','upper-intermediate':'Upper-Int','rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4'};return m[l]||l;}
+function lvc(l){const m={'beginner':'beg','elementary':'elem','pre-intermediate':'pre','intermediate':'int','upper-intermediate':'upp','rus-1':'rus','rus-2':'rus','rus-3':'rus','rus-4':'rus'};return m[l]||'beg';}
+
+// ── i18n ──────────────────────────────────────────────────────────────────
+const LANGS={
+  ru:{
+    teachers:'Преподаватели',groups:'Группы',students:'Студенты',avg:'Средний балл',
+    accounts:'Аккаунты',stuBase:'База студентов',createArchive:'🗃 Архив',
+    excel:'Excel',search:'🔍 Поиск',settings:'⚙️ Настройки',
+    adminMode:'✅ Режим администратора',
+    cancel:'Отмена',saveBtn:'Сохранить',createBtn:'Создать',
+    grpCount:'групп',stuCount:'студентов',stuSuffix:'студентов',grpSuffix:'групп',
+    sorting:'Сортировка:',notFoundSearch:'Ничего не найдено',
+    mwfLabel:'📅 MWF — Пн · Ср · Пт',ttsLabel:'📅 TTS — Вт · Чт · Сб',otherLabel:'📅 Другие',
+    debts:'Должники',allDone:'Все студенты закрыли тесты 🎉',
+    noResult:'Студент не найден',eyeOff:'Оценки скрыты.',
+    filterAll:'Все',finishGrp:'🎓 Завершить группу',addStu:'+ Студент',
+    paste:'📋 Вставить',uploadXl:'⬆ Загрузить Excel',saveOk:'Сохранено ✓',
+    loginTitle:'Система управления оценками',loginAdmin:'🔐 Админ',
+    loginTeacher:'👤 Учитель',loginSupporter:'🤝 Supporter',loginBtn:'Войти',
+    changePin:'Смена PIN-кода',changePass:'Смена пароля',archivesLbl:'Архивы',
+    roleTeacher:'Учитель',roleSupporter:'Supporter',
+    supBarText:'только незакрытые тесты',tchBarText:'только ваши группы',
+    searchPlaceholder:'🔍 Поиск...',
+  },
+  en:{
+    teachers:'Teachers',groups:'Groups',students:'Students',avg:'Average',
+    accounts:'Accounts',stuBase:'Students',createArchive:'🗃 Archive',
+    excel:'Excel',search:'🔍 Search',settings:'⚙️ Settings',
+    adminMode:'✅ Admin mode',
+    cancel:'Cancel',saveBtn:'Save',createBtn:'Create',
+    grpCount:'groups',stuCount:'students',stuSuffix:'students',grpSuffix:'groups',
+    sorting:'Sort:',notFoundSearch:'Not found',
+    mwfLabel:'📅 MWF — Mon · Wed · Fri',ttsLabel:'📅 TTS — Tue · Thu · Sat',otherLabel:'📅 Other',
+    debts:'Debts',allDone:'All students completed all tests 🎉',
+    noResult:'Student not found',eyeOff:'Grades hidden.',
+    filterAll:'All',finishGrp:'🎓 Finish group',addStu:'+ Student',
+    paste:'📋 Paste',uploadXl:'⬆ Upload Excel',saveOk:'Saved ✓',
+    loginTitle:'Grade Management System',loginAdmin:'🔐 Admin',
+    loginTeacher:'👤 Teacher',loginSupporter:'🤝 Supporter',loginBtn:'Login',
+    changePin:'Change PIN',changePass:'Change password',archivesLbl:'Archives',
+    roleTeacher:'Teacher',roleSupporter:'Supporter',
+    supBarText:'only missing tests shown',tchBarText:'only your groups shown',
+    searchPlaceholder:'🔍 Search...',
+  }
+};
+const t=tr;
+function tr(k){try{return(LANGS[curLang]||LANGS.ru)[k]||k;}catch(e){return k;}}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg,type){
+  let el=document.getElementById('toast-el');
+  if(!el){el=document.createElement('div');el.id='toast-el';
+    el.style.cssText='position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;transition:.3s;opacity:0;pointer-events:none;max-width:320px';
+    document.body.appendChild(el);}
+  el.textContent=msg;
+  el.style.background=type==='error'?'#ef233c':type==='success'?'#2b9348':'#333';
+  el.style.color='white';el.style.opacity='1';
+  clearTimeout(el._t);el._t=setTimeout(()=>{el.style.opacity='0';},3000);
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+function openModal(html){
+  const bg=document.getElementById('mbg');
+  const box=document.getElementById('mbox');
+  if(!bg||!box) return;
+  box.innerHTML=html;bg.style.display='flex';
+  setTimeout(()=>box.querySelector('input,select,textarea')?.focus(),80);
+}
+function closeModal(e){
+  if(e&&e.target!==document.getElementById('mbg')) return;
+  const bg=document.getElementById('mbg');
+  if(bg) bg.style.display='none';
+}
+
+// ── loadData / saveData ───────────────────────────────────────────────────
+async function loadData(){
+  let local={};
+  try{local=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');}catch(e){}
+  if(!FIREBASE_URL){
+    if(local.teachers) D=local;
+  } else {
+    try{
+      const r=await fetch(`${FIREBASE_URL}/data.json?t=${Date.now()}`);
+      if(r.ok){
+        const cloud=await r.json()||{};
+        const cloudScore=(cloud.teachers||[]).length*10+(cloud.accounts||[]).length;
+        const lcScore=(local.teachers||[]).length*10+(local.accounts||[]).length;
+        const cloudTime=new Date(cloud._savedAt||0).getTime();
+        const lcTime=new Date(local._localAt||local._savedAt||0).getTime();
+        if(lcScore>cloudScore||(lcScore===cloudScore&&lcTime>cloudTime&&lcScore>0)){
+          D=local;setTimeout(saveData,1000);
+        } else if(cloudScore>0){
+          D=cloud;
+        } else if(local.teachers){
+          D=local;setTimeout(saveData,1000);
+        }
+      } else if(local.teachers){D=local;}
+    }catch(e){
+      if(local.teachers){D=local;toast('Нет соединения. Работаем локально.','error');}
+    }
+  }
+  fixFirebaseArrays(D);
+  if(!D.settings) D.settings={pin:DPIN};
+  if(!D.teachers) D.teachers=[];
+  if(!D.students) D.students=[];
+  if(!D.accounts) D.accounts=[];
+  if(!D.archives) D.archives=[];
+  if(!D.duties) D.duties={};
+  const today=new Date().toISOString().slice(0,10);
+  let expiredClosed=false;
+  (D.accounts||[]).filter(a=>a.role==='supporter').forEach(a=>{
+    (a.replacements||[]).forEach(r=>{if(r.active&&r.dateTo&&r.dateTo<today){r.active=false;expiredClosed=true;}});
+  });
+  if(expiredClosed) setTimeout(saveData,500);
+  dataLoaded=true;
+}
+
+function fixFirebaseArrays(obj){
+  if(!obj||typeof obj!=='object') return;
+  ['teachers','students','accounts','archives'].forEach(k=>{
+    if(obj[k]&&!Array.isArray(obj[k])){
+      obj[k]=Object.values(obj[k]);
+    }
+  });
+  if(obj.teachers) obj.teachers.forEach(t=>{
+    if(t.groups&&!Array.isArray(t.groups)) t.groups=Object.values(t.groups);
+    if(t.groups) t.groups.forEach(g=>{
+      if(g.students&&!Array.isArray(g.students)) g.students=Object.values(g.students);
+    });
+  });
+  if(obj.accounts) obj.accounts.forEach(a=>{
+    ['replacements','mockTests','reports'].forEach(k=>{
+      if(a[k]&&!Array.isArray(a[k])) a[k]=Object.values(a[k]);
+    });
+  });
+}
+
+// ── Groups / navigation helpers ───────────────────────────────────────────
+function showAddGroup(tid){
+  const t=D.teachers.find(x=>x.id===tid);if(!t) return;
+  const isRus=t.lang==='rus';
+  const levels=isRus?['rus-1','rus-2','rus-3','rus-4']:['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+  openModal(`<div class="modal-title">+ Новая группа</div>
+    <div class="fg"><label class="fl">Уровень</label>
+      <select class="fi" id="glvl">${levels.map(l=>`<option value="${l}">${lvl(l)}</option>`).join('')}</select>
+    </div>
+    <div class="fg"><label class="fl">Расписание</label>
+      <div style="display:flex;gap:8px">
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="gday" value="MWF" checked> MWF</label>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="gday" value="TTS"> TTS</label>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Время</label>
+      <select class="fi" id="gtm">${(window.TIMES||['09:00','10:30','14:00','15:30','17:00','18:30']).map(t=>`<option>${t}</option>`).join('')}</select>
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="addGroup('${tid}')">Создать</button></div>`);
+}
+
+function addGroup(tid){
+  const t=D.teachers.find(x=>x.id===tid);if(!t) return;
+  const level=document.getElementById('glvl')?.value;
+  const day=document.querySelector('input[name="gday"]:checked')?.value||'MWF';
+  const time=document.getElementById('gtm')?.value||'09:00';
+  if(!level) return;
+  if(!t.groups) t.groups=[];
+  t.groups.push({id:uid(),level,day,time,students:[]});
+  closeModal();selG=t.groups[t.groups.length-1].id;selT=tid;
+  renderAll();sched();toast('Группа создана ✓','success');
+}
+
+function showGroupQR(gid){
+  const t=D.teachers.find(tc=>(tc.groups||[]).find(g=>g.id===gid));
+  const g=(t?.groups||[]).find(x=>x.id===gid);if(!g||!t) return;
+  const url=`${location.origin}${location.pathname}?view=group&t=${t.id}&g=${gid}`;
+  openModal(`<div class="modal-title">📱 QR-код группы</div>
+    <div style="text-align:center;padding:20px">
+      <div id="qr-container" style="display:inline-block;padding:12px;background:white;border-radius:8px"></div>
+      <div style="margin-top:12px;font-size:12px;color:#888;word-break:break-all">${url}</div>
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Закрыть</button>
+      <button class="btn btn-pri" onclick="navigator.clipboard.writeText('${url}').then(()=>toast('Ссылка скопирована ✓','success'))">📋 Скопировать</button></div>`);
+  setTimeout(()=>{
+    const el=document.getElementById('qr-container');
+    if(el&&window.QRCode) new QRCode(el,{text:url,width:180,height:180});
+  },100);
+}
+
+function showEditG(gid){
+  const t=D.teachers.find(tc=>(tc.groups||[]).find(g=>g.id===gid));
+  const g=(t?.groups||[]).find(x=>x.id===gid);if(!g||!t) return;
+  openModal(`<div class="modal-title">⚙️ Настройки группы</div>
+    <div class="fg"><label class="fl">Время</label>
+      <select class="fi" id="gtm">${(window.TIMES||['09:00','10:30','14:00','15:30','17:00','18:30']).map(tm=>`<option ${g.time===tm?'selected':''}>${tm}</option>`).join('')}</select>
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="editG('${gid}')">Сохранить</button></div>`);
+}
+
+function editG(gid){
+  const t=D.teachers.find(tc=>(tc.groups||[]).find(g=>g.id===gid));
+  const g=(t?.groups||[]).find(x=>x.id===gid);if(!g) return;
+  const time=document.getElementById('gtm')?.value;
+  if(time) g.time=time;
+  closeModal();renderAll();sched();
+}
+
+function confirmDelG(gid){
+  if(!confirm('Удалить группу со всеми студентами?')) return;
+  D.teachers.forEach(t=>{t.groups=(t.groups||[]).filter(g=>g.id!==gid);});
+  if(selG===gid){selG=null;view='teacher';}
+  renderAll();sched();toast('Группа удалена','success');
+}
+
+function confirmDelT(tid){
+  if(!confirm('Удалить преподавателя и все его группы?')) return;
+  D.teachers=D.teachers.filter(t=>t.id!==tid);
+  D.accounts=(D.accounts||[]).filter(a=>a.teacherId!==tid);
+  if(selT===tid){selT=null;view='home';}
+  renderAll();sched();toast('Преподаватель удалён','success');
+}
+
+function showSettings(){
+  openModal(`<div class="modal-title">⚙️ Настройки</div>
+    <div class="fg"><label class="fl">Название организации</label>
+      <input type="text" class="fi" id="org-name" value="${D.settings?.orgName||'Success Academy'}">
+    </div>
+    <div class="fg"><label class="fl">URL Firebase</label>
+      <input type="text" class="fi" id="fb-url" value="${FIREBASE_URL||''}" placeholder="https://...firebaseio.com">
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="applySettings()">Сохранить</button></div>`);
+}
+
+function applySettings(){
+  const orgName=document.getElementById('org-name')?.value?.trim();
+  const fbUrl=(document.getElementById('fb-url')?.value||'').trim().replace(/\/+$/,'');
+  if(orgName) D.settings.orgName=orgName;
+  if(fbUrl){FIREBASE_URL=fbUrl;localStorage.setItem('firebase_url',fbUrl);D.settings.firebaseUrl=fbUrl;}
+  applyLogo();closeModal();toast('Сохранено ✓','success');saveData();
+}
+
+const DEFAULT_LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAmCAYAAAClI5npAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGBITCkuMTQyMzc1MzY3NTY0NjMxMDIxMzUyNjI0MjQ0MzMzNzUxMDUxMzUyNjA0NjQwNDMwNDMwMjYxMTY0NjQyNTIzMDMzNjUxMDMxMDcxMDQxMjI1MzYyMjYzNDkwMjQ2MzM0NDIwNzAwMDMwMzIxMTUzMTcxMTQwMzQxMTQ1MTg0NTE2NTMwMjUwMzMwMzM0MzExMTc1MTgxNTI1MTczMTE0MzQyMzIwMTIzMTUwMzM1MTIwMzIxMzI=';
+const OWNER='SuccessAcademyLC';
+const REPO='school-grades';
+const FILE='index.html';
+
+function applyLogo(){
+  const name=D.settings?.orgName||'Success Academy';
+  const txt=document.getElementById('logo-text');
+  const loginName=document.getElementById('login-org-name');
+  if(txt) txt.innerHTML=`<div class="logo-badge">${name.substring(0,2).toUpperCase()}</div><span>${name}</span>`;
+  if(loginName) loginName.textContent=name;
+}
+
+function showCreateArchive(){
+  openModal(`<div class="modal-title">🗃 Создать архив</div>
+    <div class="fg"><label class="fl">Название</label>
+      <input type="text" class="fi" id="arch-label" placeholder="Например: Семестр 1 2025">
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="createArchive()">Создать</button></div>`);
+  setTimeout(()=>document.getElementById('arch-label')?.focus(),80);
+}
+
+function createArchive(){
+  const label=document.getElementById('arch-label')?.value?.trim();
+  if(!label){toast('Введите название','error');return;}
+  const snap=JSON.parse(JSON.stringify(D.teachers));
+  const date=new Date().toLocaleDateString('ru');
+  if(!D.archives) D.archives=[];
+  D.archives.push({id:uid(),label,date,teachers:snap});
+  closeModal();renderAll();sched();toast('Архив создан ✓','success');
+}
+
+function gotoArch(id){selArch=id;view='archive';curPage=null;renderAll();}
+function renderArchive(el){
+  const arch=D.archives.find(a=>a.id===selArch);
+  if(!arch){goHome();return;}
+  el.innerHTML=`<div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">${arch.label}</span></div>
+    <div class="ph"><div><div class="pt">📦 ${arch.label}</div><div class="ps">${arch.date}</div></div>
+    ${isAdmin()?`<button class="btn btn-dan btn-sm" onclick="delArchive('${arch.id}')">Удалить</button>`:''}
+    </div>
+    <div class="card"><div class="gg">${(arch.teachers||[]).map(t=>`
+      <div class="gc" onclick="selT='${t.id}';selArch='${arch.id}';view='archive';renderAll()">
+        <div class="gc-name">${t.name}</div>
+        <div class="gc-meta"><div><div class="gm-v">${(t.groups||[]).length}</div><div class="gm-l">групп</div></div></div>
+      </div>`).join('')}</div></div>`;
+}
+
+function delArchive(id){
+  if(!confirm('Удалить архив?')) return;
+  D.archives=(D.archives||[]).filter(a=>a.id!==id);
+  selArch=null;view='home';renderAll();sched();toast('Архив удалён','success');
+}
+
+
+
 // Check QR params BEFORE initApp
 (function(){
   const p=new URLSearchParams(window.location.search);
@@ -577,6 +888,7 @@ function renderMain(){
     if(curUser?.role==='student'){renderStudentView(el);return;}
     if(curPage==='duties') renderDutyPage(el);
     else if(curPage==='sup_events') renderSupporterEvents(el);
+    else if(curPage==='debts') renderDebtsPage(el);
     else if(curPage==='accounts') renderAccounts(el);
     else if(curPage==='students') renderStudentsPage(el);
     else if(curPage==='rating') renderRating(el);
@@ -2479,6 +2791,142 @@ function getDebts(s,level){
   }
 
 
+// ── Debts Page ────────────────────────────────────────────────────────────
+function renderDebtsPage(el){
+  const q=(window._debtsQ||'').toLowerCase();
+  const filterType=window._debtsType||'all';
+  const filterTeacher=window._debtsTeacher||'all';
+  const filterLevel=window._debtsLevel||'all';
+  const groupBy=window._debtsGroup||'teacher'; // 'teacher' | 'level' | 'flat'
+
+  const DEBT_COLORS={u:'#e3f2fd:#1565c0:#90caf9',hw:'#f3e5f5:#6a1b9a:#ce93d8',at:'#fff3e0:#e65100:#ffb74d'};
+  const dbg=(key)=>{const p=(DEBT_COLORS[key]||DEBT_COLORS.u).split(':');return `background:${p[0]};color:${p[1]};border:1px solid ${p[2]}`;};
+  const DEBT_LABELS={u:'Unit Tests',hw:'Homework',at:'AT / Словарь'};
+
+  // Collect all debts
+  const allRows=[];
+  D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+    (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
+      const debts=getDebts(s,g.level);
+      if(!debts.length) return;
+      if(filterType!=='all'&&!debts.find(d=>d.key===filterType)) return;
+      if(filterTeacher!=='all'&&tc.id!==filterTeacher) return;
+      if(filterLevel!=='all'&&g.level!==filterLevel) return;
+      if(q&&!s.name.toLowerCase().includes(q)&&!tc.name.toLowerCase().includes(q)) return;
+      const shown=filterType==='all'?debts:debts.filter(d=>d.key===filterType);
+      allRows.push({s,g,tc,debts,shown});
+    });
+  }));
+  allRows.sort((a,b)=>b.shown.length-a.shown.length);
+
+  // Unique teachers and levels for filters
+  const teachers=[...new Map(allRows.map(r=>[r.tc.id,r.tc])).values()].sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+  const levels=[...new Set(allRows.map(r=>r.g.level))].sort();
+
+  // Group rows
+  let groupedHtml='';
+  if(groupBy==='teacher'){
+    const byTeacher={};
+    allRows.forEach(r=>{
+      if(!byTeacher[r.tc.id]) byTeacher[r.tc.id]={tc:r.tc,rows:[]};
+      byTeacher[r.tc.id].rows.push(r);
+    });
+    Object.values(byTeacher).forEach(({tc,rows})=>{
+      groupedHtml+=`<div class="card" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div class="t-av" style="width:36px;height:36px;font-size:13px;border-radius:10px;flex-shrink:0">${ini(tc.name)}</div>
+          <div style="flex:1"><div style="font-size:14px;font-weight:500;color:var(--color-text-primary)">${tc.name}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">${rows.length} студентов с долгами</div></div>
+        </div>
+        ${rows.map(r=>debtRow(r,dbg)).join('')}
+      </div>`;
+    });
+  } else if(groupBy==='level'){
+    const byLevel={};
+    allRows.forEach(r=>{
+      if(!byLevel[r.g.level]) byLevel[r.g.level]=[];
+      byLevel[r.g.level].push(r);
+    });
+    Object.entries(byLevel).forEach(([level,rows])=>{
+      groupedHtml+=`<div class="card" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span class="lp lv-${lvc(level)}">${lvl(level)}</span>
+          <span style="font-size:13px;color:var(--color-text-secondary)">${rows.length} студентов</span>
+        </div>
+        ${rows.map(r=>debtRow(r,dbg)).join('')}
+      </div>`;
+    });
+  } else {
+    groupedHtml=`<div class="card">${allRows.map(r=>debtRow(r,dbg)).join('')}</div>`;
+  }
+
+  el.innerHTML=`
+    <div class="ph">
+      <div><div class="pt">⚠️ Долги студентов</div>
+        <div class="ps">${allRows.length} студентов · ${allRows.reduce((s,r)=>s+r.shown.length,0)} незакрытых тестов</div>
+      </div>
+      <button onclick="refreshDebts()" style="padding:7px 14px;border-radius:8px;border:1.5px solid #e0e4f0;background:var(--color-background-primary);cursor:pointer;font-size:13px;font-weight:500">🔄 Обновить</button>
+    </div>
+
+    <!-- Filters -->
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;align-items:center;gap:6px;background:var(--color-background-secondary);border-radius:8px;padding:5px 10px;flex:1;min-width:160px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" value="${window._debtsQ||''}" placeholder="Поиск по имени..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="clearTimeout(window._debtsT);window._debtsT=setTimeout(()=>{window._debtsQ=this.value;renderMain();},250)">
+        </div>
+        <select class="fs" style="min-width:130px" onchange="window._debtsType=this.value;renderMain()">
+          <option value="all" ${filterType==='all'?'selected':''}>Все типы</option>
+          <option value="u" ${filterType==='u'?'selected':''}>Unit Tests</option>
+          <option value="at" ${filterType==='at'?'selected':''}>AT / Словарь</option>
+          <option value="hw" ${filterType==='hw'?'selected':''}>Homework</option>
+        </select>
+        <select class="fs" style="min-width:130px" onchange="window._debtsTeacher=this.value;renderMain()">
+          <option value="all">Все преподаватели</option>
+          ${teachers.map(t=>`<option value="${t.id}" ${filterTeacher===t.id?'selected':''}>${t.name}</option>`).join('')}
+        </select>
+        <select class="fs" style="min-width:120px" onchange="window._debtsLevel=this.value;renderMain()">
+          <option value="all">Все уровни</option>
+          ${levels.map(l=>`<option value="${l}" ${filterLevel===l?'selected':''}>${lvl(l)}</option>`).join('')}
+        </select>
+        <select class="fs" style="min-width:130px" onchange="window._debtsGroup=this.value;renderMain()">
+          <option value="teacher" ${groupBy==='teacher'?'selected':''}>По преподавателю</option>
+          <option value="level" ${groupBy==='level'?'selected':''}>По уровню</option>
+          <option value="flat" ${groupBy==='flat'?'selected':''}>Списком</option>
+        </select>
+      </div>
+    </div>
+
+    ${!allRows.length?`<div class="card" style="text-align:center;padding:40px">
+      <div style="font-size:32px;margin-bottom:12px">✅</div>
+      <div style="font-size:15px;font-weight:500;color:var(--color-text-primary)">Долгов нет</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-top:6px">Все студенты сдали тесты</div>
+    </div>`:groupedHtml}`;
+}
+
+function debtRow(r,dbg){
+  return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${r.s.name}</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${r.tc.name} · ${r.g.day} ${r.g.time} · <span class="lp lv-${lvc(r.g.level)}" style="font-size:10px;padding:1px 6px">${lvl(r.g.level)}</span></div>
+    </div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:55%">
+      ${r.shown.map(d=>`<span style="font-size:11px;padding:2px 7px;border-radius:10px;${dbg(d.key)};white-space:nowrap">${d.label}</span>`).join('')}
+    </div>
+  </div>`;
+}
+
+async function refreshDebts(){
+  const btn=document.querySelector('[onclick="refreshDebts()"]');
+  if(btn){btn.textContent='⏳ Загрузка...';btn.disabled=true;}
+  await loadData();
+  const now=new Date();
+  window._debtsLastUpdate=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  renderMain();
+  if(btn){btn.textContent='🔄 Обновить';btn.disabled=false;}
+  toast('Данные обновлены ✓','success');
+}
+
 function renderSupporter(el){
   // Collect results
   const results=[];
@@ -2761,6 +3209,16 @@ function renderGroupDebts(g){
 
 // ── Supporter Management ──────────────────────────────────────────────────
 
+const RUS_LEVELS=['rus-1','rus-2','rus-3','rus-4'];
+const RUS_CFG={
+  'rus-1':{conv:9,hw:9,vocab:9,ppt:1,hasFinalTest:true},
+  'rus-2':{conv:10,hw:10,vocab:10,ppt:1,hasFinalTest:false},
+  'rus-3':{conv:6,hw:6,vocab:6,ppt:1,hasFinalTest:false},
+  'rus-4':{conv:8,hw:8,vocab:8,ppt:2,hasFinalTest:false}
+};
+const TIMES=['09:00','10:30','14:00','15:30','17:00','18:30'];
+const LEVELS=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate','rus-1','rus-2','rus-3','rus-4'];
+const LEVEL_ORDER=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
 const SUP_LEVELS_ENG=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
 const SUP_LEVELS_RUS=['rus-1','rus-2','rus-3','rus-4'];
 const SUP_LEVEL_LABELS={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int','intermediate':'Intermediate','upper-intermediate':'Upper-Int','rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4'};
@@ -3411,18 +3869,27 @@ function renderDutyPage(el){
     const mHighlight=filterSup&&duty.morning===filterSup;
     const eHighlight=filterSup&&duty.evening===filterSup;
     const dimmed=filterSup&&!mHighlight&&!eHighlight?'opacity:.35;':'';
-    calHtml+=`<div onclick="showDutyEdit('${dateStr}')" style="border:0.5px solid ${mHighlight||eHighlight?'#4361ee':'var(--color-border-tertiary)'};border-radius:8px;padding:6px 4px;cursor:${canEdit2?'pointer':'default'};min-height:64px;background:${isToday?'var(--color-background-info)':'var(--color-background-primary)'};transition:.15s;${dimmed}">
-      <div style="font-size:12px;font-weight:500;color:${isToday?'#0C447C':'var(--color-text-primary)'};text-align:center;margin-bottom:4px">${d}</div>
+    const isManual=(duty.morning||duty.evening)&&duty._auto===false;
+    calHtml+=`<div onclick="showDutyEdit('${dateStr}')" style="border:${isManual?'1.5px solid #4361ee':mHighlight||eHighlight?'0.5px solid #4361ee':'0.5px solid var(--color-border-tertiary)'};border-radius:8px;padding:6px 4px;cursor:${canEdit2?'pointer':'default'};min-height:64px;background:${isToday?'var(--color-background-info)':'var(--color-background-primary)'};transition:.15s;${dimmed}" title="${isManual?'Назначено вручную':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:12px;font-weight:500;color:${isToday?'#0C447C':'var(--color-text-primary)'}">${d}</span>
+        ${isManual?`<span style="font-size:8px;background:#eef2ff;color:#4361ee;border-radius:3px;padding:0 3px">✎</span>`:''}
+      </div>
       ${mSup?`<div style="font-size:10px;background:${mHighlight?'#639922':'#EAF3DE'};color:${mHighlight?'white':'#27500A'};border-radius:4px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${mSup.name}">☀ ${ini(mSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;margin-bottom:2px;border:1px dashed var(--color-border-tertiary)">☀ —</div>`}
       ${eSup?`<div style="font-size:10px;background:${eHighlight?'#BA7517':'#FAEEDA'};color:${eHighlight?'white':'#633806'};border-radius:4px;padding:1px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${eSup.name}">🌙 ${ini(eSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;border:1px dashed var(--color-border-tertiary)">🌙 —</div>`}
     </div>`;
   }
   calHtml+=`</div>`;
 
+
   el.innerHTML=`
     <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">Расписание дежурств</span></div>
     <div class="ph">
       <div><div class="pt">📅 Расписание дежурств</div><div class="ps">Утро 12:00–13:00 · Вечер 13:00–19:00</div></div>
+      ${isAdmin()?`<div style="display:flex;gap:8px">
+        <button onclick="showDutyQueue()" style="padding:7px 14px;border-radius:8px;border:1.5px solid #4361ee;background:#eef2ff;color:#4361ee;cursor:pointer;font-size:13px;font-weight:500">🔄 Очередь</button>
+        <button onclick="fillMonthFromQueue('${month}')" style="padding:7px 14px;border-radius:8px;border:1.5px solid #27500A;background:#EAF3DE;color:#27500A;cursor:pointer;font-size:13px;font-weight:500">⚡ Заполнить месяц</button>
+      </div>`:''}
     </div>
     <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <select class="fs" style="flex:1;min-width:150px" onchange="window._dutyFilterSup=this.value;renderMain()">
@@ -3431,7 +3898,6 @@ function renderDutyPage(el){
       </select>
       ${filterSup?`<button onclick="window._dutyFilterSup='';renderMain()" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;font-size:13px">✕ Сбросить</button>`:''}
     </div>
-
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <button onclick="window._dutyMonth='${prevStr}';gotoPage('duties')" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;font-size:13px">← </button>
@@ -3442,10 +3908,10 @@ function renderDutyPage(el){
         <span style="font-size:12px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#EAF3DE;border-radius:3px;display:inline-block"></span>☀ Утро (12–13)</span>
         <span style="font-size:12px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#FAEEDA;border-radius:3px;display:inline-block"></span>🌙 Вечер (13–19)</span>
         <span style="font-size:12px;color:var(--color-text-tertiary)">Нажмите на день чтобы назначить</span>
+        ${isAdmin()?`<span style="font-size:12px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#eef2ff;border:1.5px solid #4361ee;border-radius:3px;display:inline-block"></span>✎ Изменено вручную</span>`:''}
       </div>
       ${calHtml}
     </div>
-
     <div class="card">
       <div class="card-title" style="margin-bottom:12px">Суппортеры (англ)</div>
       ${supporters.map(a=>{
@@ -3465,1468 +3931,22 @@ function renderDutyPage(el){
     </div>`;
 }
 
-function showDutyEdit(dateStr){
-  if(!isAdmin()) return;
-  const supporters=(D.accounts||[]).filter(a=>a.role==='supporter'&&a.supType!=='rus');
-  // Sort: morning schedule first for morning slot, evening for evening slot
-  const morningOk=supporters.filter(a=>a.schedule==='morning'||a.schedule==='full');
-  const eveningOk=supporters.filter(a=>a.schedule==='evening'||a.schedule==='full');
-  const duty=(D.duties||{})[dateStr]||{};
-  const d=new Date(dateStr);
-  const label=d.toLocaleString('ru',{day:'numeric',month:'long',weekday:'long'});
-  const schedIcon=s=>s.schedule==='morning'?'☀':s.schedule==='evening'?'🌙':'🕐';
-  const schedText=s=>s.schedule==='morning'?'утро':s.schedule==='evening'?'вечер':'фулл';
 
-  const buildOptions=(list,selectedId)=>`<option value="">— не назначен —</option>`+
-    list.map(a=>`<option value="${a.id}" ${selectedId===a.id?'selected':''}>${schedIcon(a)} ${a.name} (${supTypeLabel(a.supType,true)}, ${schedText(a)})</option>`).join('');
-
-  openModal(`<div class="modal-title">📅 ${label}</div>
-    <div class="fg"><label class="fl">☀ Утреннее дежурство (12:00–13:00)</label>
-      <select class="fi" id="duty-m">
-        <optgroup label="Рекомендуется (утро/фулл)">${buildOptions(morningOk,duty.morning)}</optgroup>
-        <optgroup label="Остальные">${buildOptions(supporters.filter(a=>a.schedule==='evening'),duty.morning)}</optgroup>
-      </select>
-    </div>
-    <div class="fg"><label class="fl">🌙 Вечернее дежурство (13:00–19:00)</label>
-      <select class="fi" id="duty-e">
-        <optgroup label="Рекомендуется (вечер/фулл)">${buildOptions(eveningOk,duty.evening)}</optgroup>
-        <optgroup label="Остальные">${buildOptions(supporters.filter(a=>a.schedule==='morning'),duty.evening)}</optgroup>
-      </select>
-    </div>
-    <div class="fa">
-      <button class="btn btn-dan btn-sm" onclick="clearDuty('${dateStr}')">Очистить</button>
-      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
-      <button class="btn btn-pri" onclick="saveDuty('${dateStr}')">Сохранить</button>
-    </div>`);
+async function sha256(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
-
-function saveDuty(dateStr){
-  if(!D.duties) D.duties={};
-  const m=document.getElementById('duty-m')?.value||'';
-  const e=document.getElementById('duty-e')?.value||'';
-  if(!m&&!e){delete D.duties[dateStr];}
-  else D.duties[dateStr]={morning:m||null,evening:e||null};
-  sched();closeModal();gotoPage('duties');toast('Дежурство сохранено ✓','success');
-}
-
-function clearDuty(dateStr){
-  if(!confirm('Очистить дежурство?')) return;
-  if(D.duties) delete D.duties[dateStr];
-  sched();closeModal();gotoPage('duties');toast('Дежурство очищено','success');
-}
-
-function renderSupporterView(el){
-  const a=(D.accounts||[]).find(x=>x.id===curUser?.accountId);
-  if(!a){el.innerHTML=`<div class="ph"><div class="pt">Ошибка: аккаунт не найден</div></div>`;return;}
-
-  if(!a.supType) a.supType='eng-ru';
-  if(!a.demos) a.demos={};
-  if(!a.replacements) a.replacements=[];
-  if(!a.mockTests) a.mockTests=[];
-  if(!a.reports) a.reports=[];
-
-  const now=new Date();
-  const thisMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const activeReplace=(a.replacements||[]).find(r=>r.active);
-  const replHistory=(a.replacements||[]).slice().reverse();
-  const replThisMonth=replHistory.filter(r=>(r.dateFrom||'').startsWith(thisMonth));
-  const events=(a.mockTests||[]).slice().reverse();
-  const levels=supLevels(a);
-  const typeLabel=supTypeLabel(a.supType||'eng-ru');
-  const typeCls=supTypeCls(a.supType||'eng-ru');
-  const demoDone=levels.filter(l=>(a.demos||{})[l]).length;
-
-  // Build debts filtered by supporter type
-  let debtsHtml='';
-  const debtRows=[];
-  const debtQ=(window._supDebtQ||'').toLowerCase();
-  D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
-    if(!supCanReplace(a,tc,g)) return;
-    (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
-      if(debtQ&&!s.name.toLowerCase().includes(debtQ)) return;
-      const debts=getDebts(s,g.level);
-      if(debts.length) debtRows.push({s,g,tc,debts});
-    });
-  }));
-  const DC={u:'#e3f2fd:#1565c0:#90caf9',hw:'#f3e5f5:#6a1b9a:#ce93d8',at:'#fff3e0:#e65100:#ffb74d'};
-  const dbg=(key)=>{const p=(DC[key]||DC.u).split(':');return `background:${p[0]};color:${p[1]};border:1px solid ${p[2]}`;};
-  if(debtRows.length){
-    debtsHtml=`<div class="card" style="margin-bottom:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div class="card-title">⚠️ Должники (${debtRows.length})</div>
-        <input type="text" value="${window._supDebtQ||''}" placeholder="Поиск..." style="border:1.5px solid #e0e4f0;border-radius:8px;padding:5px 10px;font-size:12px;width:120px;font-family:inherit" oninput="clearTimeout(window._supDT);window._supDT=setTimeout(()=>{window._supDebtQ=this.value.toLowerCase();renderSupporterView(document.getElementById('main'));},250)">
-      </div>
-      ${debtRows.map(({s,g,tc,debts})=>`<div class="event-row">
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111)">${s.name}</div>
-          <div style="font-size:11px;color:var(--color-text-secondary,#888)">${tc.name} · ${g.day} ${g.time} · ${g.level}</div>
-        </div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:200px">
-          ${debts.map(d=>`<span style="font-size:11px;padding:2px 7px;border-radius:10px;${dbg(d.key)}">${d.label}</span>`).join('')}
-        </div>
-      </div>`).join('')}
-    </div>`;
-  } else {
-    debtsHtml=`<div class="card" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;padding:14px 18px">
-      <span style="font-size:18px">✅</span>
-      <span style="font-size:13px;color:var(--color-text-secondary,#888)">Должников нет</span>
-    </div>`;
+async function hashPass(pass){return await sha256(pass);}
+async function checkPass(input,stored){
+  if(!stored) return false;
+  if(stored.length===64&&/^[0-9a-f]+$/.test(stored)){
+    return (await sha256(input))===stored;
   }
-
-  el.innerHTML=`
-    <div class="ph">
-      <div>
-        <div class="pt">👤 ${a.name||'Суппортер'}</div>
-        <div class="ps" style="display:flex;align-items:center;gap:8px;margin-top:4px">
-          <span class="sup-type-badge ${typeCls}">${typeLabel}</span>
-          ${a.schedule?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 9px;border-radius:20px">🕐 ${'morning'===a.schedule?'09:00–12:00':'evening'===a.schedule?'14:00–20:00':'09:00–20:00'}</span>`:''}
-        </div>
-      </div>
-    </div>
-
-    ${(()=>{
-      const now2=new Date();
-      const todayStr=now2.toISOString().slice(0,10);
-      const tom=new Date(now2); tom.setDate(tom.getDate()+1);
-      const tomStr=tom.toISOString().slice(0,10);
-      const todayDuty=(D.duties||{})[todayStr]||{};
-      const tomDuty=(D.duties||{})[tomStr]||{};
-      const myTodayM=todayDuty.morning===a.id, myTodayE=todayDuty.evening===a.id;
-      const myTomM=tomDuty.morning===a.id, myTomE=tomDuty.evening===a.id;
-      const todayReplace=(a.replacements||[]).find(r=>r.active&&r.dateFrom<=todayStr&&r.dateTo>=todayStr);
-      const tomReplace=(a.replacements||[]).find(r=>r.active&&r.dateFrom<=tomStr&&r.dateTo>=tomStr)||
-                       (a.replacements||[]).find(r=>r.dateFrom===tomStr);
-      let alerts='';
-      if(todayReplace) alerts+=`<div style="background:#E6F1FB;border:1.5px solid #B5D4F4;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
-        <span style="font-size:20px">🔄</span>
-        <div><div style="font-size:13px;font-weight:500;color:#0C447C">Сегодня у вас замена!</div>
-        <div style="font-size:12px;color:#185FA5;margin-top:3px">Заменяете: ${todayReplace.teacherName} · ${todayReplace.groupName}</div></div>
-      </div>`;
-      if(tomReplace) alerts+=`<div style="background:#FAEEDA;border:1.5px solid #EF9F27;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
-        <span style="font-size:20px">⏰</span>
-        <div><div style="font-size:13px;font-weight:500;color:#633806">Завтра у вас замена!</div>
-        <div style="font-size:12px;color:#854F0B;margin-top:3px">Заменяете: ${tomReplace.teacherName} · ${tomReplace.groupName}</div></div>
-      </div>`;
-      if(myTodayM||myTodayE) alerts+=`<div style="background:#EAF3DE;border:1.5px solid #97C459;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
-        <span style="font-size:20px">📋</span>
-        <div><div style="font-size:13px;font-weight:500;color:#27500A">Сегодня вы дежурный!</div>
-        <div style="font-size:12px;color:#3B6D11;margin-top:3px">${myTodayM?'☀ Утро 12:00–13:00':''}${myTodayM&&myTodayE?' · ':''}${myTodayE?'🌙 Вечер 13:00–19:00':''}</div></div>
-      </div>`;
-      if(!todayReplace&&!tomReplace&&!myTodayM&&!myTodayE&&(myTomM||myTomE)) alerts+=`<div style="background:#F0F9FF;border:1.5px solid #B5D4F4;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
-        <span style="font-size:20px">📋</span>
-        <div><div style="font-size:13px;font-weight:500;color:#0C447C">Завтра вы дежурный!</div>
-        <div style="font-size:12px;color:#185FA5;margin-top:3px">${myTomM?'☀ Утро 12:00–13:00':''}${myTomM&&myTomE?' · ':''}${myTomE?'🌙 Вечер 13:00–19:00':''}</div></div>
-      </div>`;
-      return alerts;
-    })()}
-
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
-      <div class="stat-card" style="text-align:center;padding:14px 10px">
-        <div style="font-size:22px;font-weight:700;color:var(--color-text-primary,#111)">${replThisMonth.length}</div>
-        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Замен в ${now.toLocaleString('ru',{month:'long'})}</div>
-      </div>
-      <div class="stat-card" style="text-align:center;padding:14px 10px">
-        <div style="font-size:22px;font-weight:700;color:var(--color-text-primary,#111)">${events.length}</div>
-        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Мок/AT/Демо</div>
-      </div>
-      <div class="stat-card" style="text-align:center;padding:14px 10px">
-        <div style="font-size:22px;font-weight:700;color:var(--color-text-primary,#111)">${demoDone}/${levels.length}</div>
-        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Демо-уровней</div>
-      </div>
-    </div>
-
-    ${activeReplace?`
-    <div class="replace-card" style="margin-bottom:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <span style="background:#E6F1FB;color:#0C447C;font-size:12px;font-weight:500;padding:4px 12px;border-radius:20px">🔄 Вы на замене</span>
-        <span style="font-size:12px;color:var(--color-text-secondary,#888)">${activeReplace.dateFrom} — ${activeReplace.dateTo}</span>
-      </div>
-      <div style="font-size:14px;font-weight:500;color:var(--color-text-primary,#111);margin-bottom:4px">${activeReplace.teacherName}</div>
-      <div style="font-size:12px;color:var(--color-text-secondary,#888)">${activeReplace.groupName}</div>
-    </div>`:''}
-
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-title" style="margin-bottom:12px">📅 Мои дежурства в ${new Date().toLocaleString('ru',{month:'long'})}</div>
-      ${(()=>{
-        const now3=new Date();
-        const month3=now3.getFullYear()+'-'+String(now3.getMonth()+1).padStart(2,'0');
-        const today3=now3.toISOString().slice(0,10);
-        const myDuties=Object.entries(D.duties||{}).filter(([d,v])=>d.startsWith(month3)&&(v.morning===a.id||v.evening===a.id)).sort(([a],[b])=>a.localeCompare(b));
-        if(!myDuties.length) return `<div style="font-size:13px;color:#bbb;padding:4px 0">Дежурств не назначено</div>`;
-        return myDuties.map(([dateStr,duty])=>{
-          const d=new Date(dateStr);
-          const isToday=dateStr===today3;
-          const lbl=d.toLocaleString('ru',{day:'numeric',month:'short',weekday:'short'});
-          const mShift=duty.morning===a.id;
-          const eShift=duty.evening===a.id;
-          return `<div class="event-row" style="${isToday?'background:var(--color-background-info);border-radius:8px;padding:8px;':''}">
-            <div style="font-size:13px;font-weight:${isToday?'500':'400'};color:${isToday?'#0C447C':'var(--color-text-primary)'};min-width:90px">${lbl}${isToday?' (сегодня)':''}</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              ${mShift?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:3px 9px;border-radius:20px">☀ 12:00–13:00</span>`:''}
-              ${eShift?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:3px 9px;border-radius:20px">🌙 13:00–19:00</span>`:''}
-            </div>
-          </div>`;
-        }).join('');
-      })()}
-    </div>
-
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-title" style="margin-bottom:12px">📋 Мои демо-уровни</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${levels.map(l=>`<span class="demo-chip ${(a.demos||{})[l]?'demo-chip-ok':'demo-chip-no'}">${(a.demos||{})[l]?'✓ ':''} ${SUP_LEVEL_LABELS[l]}</span>`).join('')}
-      </div>
-    </div>
-
-    ${debtsHtml}
-
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-title" style="margin-bottom:12px">🔄 История замен (${replHistory.length})</div>
-      ${!replHistory.length?`<div style="font-size:13px;color:#bbb;padding:8px 0">Замен ещё не было</div>`:
-      replHistory.map(r=>`<div class="event-row">
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111)">${r.teacherName}</div>
-          <div style="font-size:12px;color:var(--color-text-secondary,#888)">${r.groupName}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:11px;color:var(--color-text-secondary,#888)">${r.dateFrom} — ${r.dateTo}</div>
-          ${r.withoutDemo?`<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px">без демо</span>`:''}
-          ${r.active?`<span style="font-size:10px;background:#E6F1FB;color:#0C447C;padding:1px 6px;border-radius:8px">активна</span>`:''}
-        </div>
-      </div>`).join('')}
-    </div>
-
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-title" style="margin-bottom:12px">📝 Мок / AT / Демо (${events.length})</div>
-      ${!events.length?`<div style="font-size:13px;color:#bbb;padding:8px 0">Событий ещё не было</div>`:
-      events.map(e=>`<div class="event-row">
-        <div style="flex:1">
-          <div style="font-size:13px;color:var(--color-text-primary,#111)">${e.groupName}</div>
-          <div style="font-size:12px;color:var(--color-text-secondary,#888)">${e.date}</div>
-        </div>
-        <span class="event-type-${e.type||'mock'}">${e.type==='at'?'AT тест':e.type==='demo'?'Демо':e.type==='mock'?'Мок':'—'}</span>
-      </div>`).join('')}
-    </div>
-
-    <div class="card">
-      <div class="card-title" style="margin-bottom:8px">⚠️ Сообщить о некорректности</div>
-      <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-bottom:12px">Опишите проблему — администратор получит уведомление</div>
-      <div class="fg"><label class="fl">Группа / тест</label>
-        <input type="text" class="fi" id="sup-report-group" placeholder="Например: AT Beginner MWF 09:00">
-      </div>
-      <div class="fg"><label class="fl">Описание проблемы</label>
-        <textarea class="fi" id="sup-report-text" style="min-height:80px;resize:vertical" placeholder="Опишите что не так..."></textarea>
-      </div>
-      <button class="btn btn-pri" onclick="submitSupReport('${a.id}')">Отправить</button>
-    </div>`;
-}
-function submitSupReport(supId){
-  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
-  const group=document.getElementById('sup-report-group')?.value?.trim();
-  const text=document.getElementById('sup-report-text')?.value?.trim();
-  if(!text){toast('Опишите проблему','error');return;}
-  if(!a.reports) a.reports=[];
-  const today=new Date().toISOString().slice(0,10);
-  a.reports.push({id:uid(),groupName:group||'',text,date:today,status:'new',createdAt:new Date().toISOString()});
-  sched();
-  document.getElementById('sup-report-group').value='';
-  document.getElementById('sup-report-text').value='';
-  toast('Сообщение отправлено администратору ✓','success');
-}
-
-function renderRating(el){
-  const tab=window._ratingTab||'overall';
-  const levelFilter=window._ratingLevel||'all';
-  const showArchive=window._ratingArchive||false;
-  const lang=window._ratingLang||'en'; // 'en' or 'ru'
-
-  const medal=(i)=>i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
-  const scoreColor=(v)=>v===null?'#bbb':v>=75?'#1b5e20':v>=70?'#e65100':'#b71c1c';
-  const scoreBg=(v)=>v===null?'#f5f5f5':v>=75?'#e8f5e9':v>=70?'#fff8e1':'#ffebee';
-
-  const isRusLevel=l=>RUS_LEVELS.includes(l);
-
-  // Collect students filtered by language
-  const rows=[];
-  D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
-    if(lang==='ru'&&!isRusLevel(g.level)) return;
-    if(lang==='en'&&isRusLevel(g.level)) return;
-    (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
-      const overall=calcFinal(s,g.level);
-      let avgU=null,avgA=null;
-      if(isRusLevel(g.level)){
-        const convs=(s.conversations||[]).filter(v=>v!=null&&v!=='').map(Number);
-        avgU=convs.length?convs.reduce((a,b)=>a+b,0)/convs.length:null;
-        const ats=(s.vocabulary||[]).filter(v=>v!=null&&v!=='').map(Number);
-        avgA=ats.length?ats.reduce((a,b)=>a+b,0)/ats.length:null;
-      } else {
-        const units=(s.units||[]).filter(v=>v!=null&&v!=='').map(Number);
-        avgU=units.length?units.reduce((a,b)=>a+b,0)/units.length:null;
-        const ats=(s.achievements||[]).filter(v=>v!=null&&v!=='').map(Number);
-        avgA=ats.length?ats.reduce((a,b)=>a+b,0)/ats.length:null;
-      }
-      rows.push({s,g,tc,overall,avgU,avgA,isArchive:false,tcName:tc.name});
-    });
-  }));
-
-  if(showArchive){
-    (D.archives||[]).forEach(arch=>{
-      (arch.snapshot||[]).forEach(tc=>(tc.groups||[]).forEach(g=>{
-        if(lang==='ru'&&!isRusLevel(g.level)) return;
-        if(lang==='en'&&isRusLevel(g.level)) return;
-        (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
-          const overall=calcFinal(s,g.level);
-          const units=(s[isRusLevel(g.level)?'conversations':'units']||[]).filter(v=>v!=null&&v!=='').map(Number);
-          const avgU=units.length?units.reduce((a,b)=>a+b,0)/units.length:null;
-          const ats=(s[isRusLevel(g.level)?'vocabulary':'achievements']||[]).filter(v=>v!=null&&v!=='').map(Number);
-          const avgA=ats.length?ats.reduce((a,b)=>a+b,0)/ats.length:null;
-          rows.push({s,g,tc,overall,avgU,avgA,isArchive:true,archLabel:arch.label,tcName:tc.name});
-        });
-      }));
-    });
-  }
-
-  const filtered=levelFilter==='all'?rows:rows.filter(r=>r.g.level===levelFilter);
-  const sorted=[...filtered].sort((a,b)=>(b[tab]??-1)-(a[tab]??-1));
-
-  // Teacher stats for selected language
-  const teacherMap={};
-  D.teachers.forEach(tc=>{
-    const sts=[];
-    (tc.groups||[]).forEach(g=>{
-      if(lang==='ru'&&!isRusLevel(g.level)) return;
-      if(lang==='en'&&isRusLevel(g.level)) return;
-      (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
-        const ov=calcFinal(s,g.level);
-        if(ov!==null) sts.push(ov);
-      });
-    });
-    if(sts.length) teacherMap[tc.id]={name:tc.name,avg:sts.reduce((a,b)=>a+b,0)/sts.length,count:sts.length};
-  });
-  const teacherRank=Object.values(teacherMap).sort((a,b)=>b.avg-a.avg);
-
-  const EN_LEVELS=[
-    {v:'all',l:'Все уровни'},{v:'beginner',l:'Beginner'},{v:'elementary',l:'Elementary'},
-    {v:'pre-intermediate',l:'Pre-Int'},{v:'intermediate',l:'Intermediate'},{v:'upper-intermediate',l:'Upper Int'},
-  ];
-  const RU_LEVELS_LIST=[
-    {v:'all',l:'Все уровни'},{v:'rus-1',l:'Уровень 1'},{v:'rus-2',l:'Уровень 2'},
-    {v:'rus-3',l:'Уровень 3'},{v:'rus-4',l:'Уровень 4'},
-  ];
-  const LEVELS=lang==='ru'?RU_LEVELS_LIST:EN_LEVELS;
-
-  const EN_TABS=[{k:'overall',l:'🏆 Overall'},{k:'avgU',l:'📝 Unit Tests'},{k:'avgA',l:'✅ Achievement'}];
-  const RU_TABS=[{k:'overall',l:'🏆 Overall'},{k:'avgU',l:'💬 Разговорки'},{k:'avgA',l:'📚 Словарь'}];
-  const TABS=lang==='ru'?RU_TABS:EN_TABS;
-
-  el.innerHTML=`
-    <div class="ph" style="margin-bottom:16px">
-      <div><div class="pt">🏆 Рейтинг</div><div class="ps">${filtered.length} студентов</div></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#4361ee;background:#eef2ff;padding:7px 14px;border-radius:10px;border:1.5px solid #c5cae9">
-          <input type="checkbox" ${showArchive?'checked':''} onchange="window._ratingArchive=this.checked;renderRating(document.getElementById('main'))" style="width:15px;height:15px;accent-color:#4361ee">
-          Включить архив
-        </label>
-      </div>
-    </div>
-
-    <!-- Language switch -->
-    <div style="display:flex;gap:8px;margin-bottom:16px">
-      <button onclick="window._ratingLang='en';window._ratingLevel='all';window._ratingSearch='';renderRating(document.getElementById('main'))"
-        style="padding:8px 20px;border-radius:10px;border:1.5px solid ${lang==='en'?'#4361ee':'#e0e4f0'};background:${lang==='en'?'#4361ee':'white'};color:${lang==='en'?'white':'#666'};font-size:13px;font-weight:600;cursor:pointer">
-        🇬🇧 English
-      </button>
-      <button onclick="window._ratingLang='ru';window._ratingLevel='all';window._ratingSearch='';renderRating(document.getElementById('main'))"
-        style="padding:8px 20px;border-radius:10px;border:1.5px solid ${lang==='ru'?'#3949ab':'#e0e4f0'};background:${lang==='ru'?'#3949ab':'white'};color:${lang==='ru'?'white':'#666'};font-size:13px;font-weight:600;cursor:pointer">
-        🇷🇺 Русский язык
-      </button>
-    </div>
-
-    <div class="card" style="margin-bottom:20px">
-      <div class="card-title" style="margin-bottom:14px">👤 Рейтинг преподавателей</div>
-      ${teacherRank.map((t,i)=>`
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0">
-          <div style="font-size:${i<3?'22':'15'}px;width:32px;text-align:center">${medal(i)}</div>
-          <div class="t-av" style="width:36px;height:36px;font-size:13px;border-radius:9px;flex-shrink:0">${ini(t.name)}</div>
-          <div style="flex:1"><div style="font-weight:600;font-size:14px">${t.name}</div>
-            <div style="font-size:12px;color:#888">${t.count} студентов</div></div>
-          <div style="background:${scoreBg(t.avg)};color:${scoreColor(t.avg)};padding:5px 14px;border-radius:10px;font-weight:800;font-size:16px">${t.avg.toFixed(1)}</div>
-        </div>`).join('')||'<div style="color:#bbb;font-size:13px;padding:10px 0">Нет данных</div>'}
-    </div>
-
-    <div class="card">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-        ${TABS.map(t=>`<button onclick="window._ratingTab='${t.k}';renderRating(document.getElementById('main'))"
-          style="padding:7px 16px;border-radius:20px;border:1.5px solid ${tab===t.k?'#4361ee':'#e0e4f0'};background:${tab===t.k?'#eef2ff':'white'};color:${tab===t.k?'#4361ee':'#666'};font-size:13px;font-weight:${tab===t.k?700:500};cursor:pointer">${t.l}</button>`).join('')}
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
-        ${LEVELS.map(lv=>`<button onclick="window._ratingLevel='${lv.v}';renderRating(document.getElementById('main'))"
-          style="padding:4px 12px;border-radius:20px;border:1.5px solid ${levelFilter===lv.v?'#4361ee':'#e0e4f0'};background:${levelFilter===lv.v?'#eef2ff':'white'};color:${levelFilter===lv.v?'#4361ee':'#666'};font-size:12px;cursor:pointer">${lv.l}</button>`).join('')}
-      </div>
-      <div class="card-title" style="margin-bottom:12px">👨‍🎓 Студенты — ${TABS.find(t=>t.k===tab)?.l}</div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <input type="text" value="${window._ratingSearch||''}" placeholder="Поиск по имени..." style="flex:1;border:1.5px solid #e0e4f0;border-radius:10px;padding:7px 12px;font-size:13px;outline:none;font-family:inherit" oninput="clearTimeout(window._rSearchT);window._rSearchT=setTimeout(()=>{window._ratingSearch=this.value;renderRating(document.getElementById('main'));},200)">
-        <span style="font-size:12px;color:#888;white-space:nowrap">${sorted.filter(r=>r[tab]!==null&&(!window._ratingSearch||r.s.name.toLowerCase().includes((window._ratingSearch||'').toLowerCase()))).length} из ${sorted.filter(r=>r[tab]!==null).length}</span>
-      </div>
-      ${sorted.filter(r=>r[tab]!==null&&(!window._ratingSearch||r.s.name.toLowerCase().includes((window._ratingSearch||'').toLowerCase()))).map((r,i)=>`
-        <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f0f0">
-          <div style="font-size:${i<3?'22':'15'}px;width:32px;text-align:center;font-weight:700">${medal(i)}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">
-              ${r.s.name}
-              ${r.isArchive?`<span style="font-size:10px;background:#fff3e0;color:#e65100;padding:1px 6px;border-radius:8px">📦 ${r.archLabel}</span>`:''}
-            </div>
-            <div style="font-size:11px;color:#888">${r.tcName} · ${r.g.day} ${r.g.time} · <span class="lp lv-${lvc(r.g.level)}" style="padding:1px 6px;font-size:10px">${lvl(r.g.level)}</span></div>
-          </div>
-          <div style="text-align:right">
-            <div style="background:${scoreBg(r[tab])};color:${scoreColor(r[tab])};padding:4px 12px;border-radius:8px;font-weight:800;font-size:15px">${r[tab].toFixed(1)}</div>
-            ${tab!=='overall'&&r.overall!==null?`<div style="font-size:11px;color:#888;margin-top:2px">Overall: ${r.overall.toFixed(1)}</div>`:''}
-          </div>
-        </div>`).join('')||'<div style="text-align:center;padding:40px;color:#bbb">Нет данных</div>'}
-    </div>`;
-}
-
-
-function adminArchiveHidden(sid,tid,gid){
-  const tc=D.teachers.find(x=>x.id===tid);
-  const g=(tc?.groups||[]).find(x=>x.id===gid);
-  const s=g?.students?.find(x=>x.id===sid);
-  if(!s) return;
-  if(!confirm(`Архивировать ${s.name}? Оценки сохранятся в архиве группы.`)) return;
-  if(!g.archived_students) g.archived_students=[];
-  g.archived_students.push({...s,archived_at:new Date().toISOString()});
-  g.students=g.students.filter(x=>x.id!==sid);
-  const gs=D.students.find(x=>x.id===sid||x.name===s.name);
-  if(gs) gs.status='archived';
-  renderHome(document.getElementById('main'));
-  sched();
-  toast(`${s.name} архивирован ✓`,'success');
-}
-
-function adminRestoreHidden(sid,tid,gid){
-  const tc=D.teachers.find(x=>x.id===tid);
-  const g=(tc?.groups||[]).find(x=>x.id===gid);
-  const s=g?.students?.find(x=>x.id===sid);
-  if(!s) return;
-  delete s.hidden;delete s.hideReason;delete s.hiddenAt;delete s.hiddenBy;
-  renderHome(document.getElementById('main'));
-  sched();
-  toast(`${s.name} восстановлен ✓`,'success');
-}
-
-function showHideStudent(sid){
-  const t=D.teachers.find(x=>x.id===selT);
-  const g=(t?.groups||[]).find(x=>x.id===selG);
-  const s=g?.students?.find(x=>x.id===sid);
-  if(!s) return;
-  if(s.hidden){
-    // Already hidden - toggle back
-    unhideStudent(sid);return;
-  }
-  openModal(`<div class="modal-title">👁 Скрыть студента</div>
-    <div class="modal-desc">Студент <b>${s.name}</b> будет скрыт из таблицы. Оценки сохранятся. Администратор увидит причину и сможет архивировать студента.</div>
-    <div class="fg"><label class="fl">Причина скрытия</label>
-      <select class="fs" id="hide-reason-sel" onchange="if(this.value==='other')document.getElementById('hide-reason-other').style.display='block';else document.getElementById('hide-reason-other').style.display='none'">
-        <option value="Перестал ходить">Перестал ходить</option>
-        <option value="Переехал">Переехал</option>
-        <option value="Финансовые трудности">Финансовые трудности</option>
-        <option value="Болезнь">Болезнь</option>
-        <option value="Нет времени">Нет времени</option>
-        <option value="other">Другое...</option>
-      </select>
-    </div>
-    <div class="fg" id="hide-reason-other" style="display:none">
-      <label class="fl">Укажите причину</label>
-      <input type="text" class="fi" id="hide-reason-text" placeholder="Введите причину...">
-    </div>
-    <div class="fa">
-      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
-      <button class="btn btn-ora" onclick="doHideStudent('${sid}')">👁 Скрыть</button>
-    </div>`);
-}
-
-function doHideStudent(sid){
-  const t=D.teachers.find(x=>x.id===selT);
-  const g=(t?.groups||[]).find(x=>x.id===selG);
-  const s=g?.students?.find(x=>x.id===sid);
-  if(!s) return;
-  const sel=document.getElementById('hide-reason-sel')?.value;
-  const other=document.getElementById('hide-reason-text')?.value?.trim();
-  s.hidden=true;
-  s.hideReason=sel==='other'?(other||'Другое'):sel;
-  s.hiddenAt=new Date().toISOString();
-  s.hiddenBy=curUser?.name||'Преподаватель';
-  closeModal();
-  renderGroup(document.getElementById('main'));
-  sched();
-  toast(`${s.name} скрыт. Администратор будет уведомлён.`,'success');
-}
-
-function unhideStudent(sid){
-  const t=D.teachers.find(x=>x.id===selT);
-  const g=(t?.groups||[]).find(x=>x.id===selG);
-  const s=g?.students?.find(x=>x.id===sid);
-  if(!s) return;
-  delete s.hidden;delete s.hideReason;delete s.hiddenAt;delete s.hiddenBy;
-  renderGroup(document.getElementById('main'));
-  sched();
-  toast(`${s.name} восстановлен`,'success');
-}
-
-function showQRPublicView(tid, gid){
-  const t=D.teachers.find(x=>x.id===tid);
-  const g=(t?.groups||[]).find(x=>x.id===gid);
-  if(!g){
-    document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,sans-serif;color:#888">
-      <div style="text-align:center"><div style="font-size:48px;margin-bottom:16px">⚠️</div><div>Группа не найдена</div></div>
-    </div>`;
-    return;
-  }
-  document.getElementById('login-screen').style.display='none';
-  document.getElementById('app').style.display='block';
-  document.getElementById('adm-bar').style.display='none';
-  document.getElementById('tch-bar').style.display='none';
-  const supBar=document.getElementById('sup-bar');
-  if(supBar) supBar.style.display='none';
-  const sidebar=document.getElementById('sidebar');
-  if(sidebar) sidebar.style.display='none';
-  document.querySelector('.hdr-right').innerHTML=`<div style="font-size:13px;color:rgba(255,255,255,.7)">👁 Режим просмотра</div>`;
-  curUser={role:'viewer',name:'Гость'};
-  selT=tid;selG=gid;view='group';
-  applyLogo();
-  // Render group and then remove navigation elements
-  renderGroup(document.getElementById('main'),false,D.teachers);
-  setTimeout(()=>{
-    // Remove breadcrumb links (prevent navigation)
-    document.querySelectorAll('.bc-l').forEach(el=>{
-      el.style.cursor='default';
-      el.style.color='inherit';
-      el.onclick=null;
-      el.removeAttribute('onclick');
-    });
-    // Remove Excel buttons
-    document.querySelectorAll('.btn-grn,.btn-sec').forEach(btn=>{
-      const txt=btn.textContent||'';
-      if(txt.includes('Excel')||txt.includes('Загрузить')||txt.includes('Вставить')||txt.includes('Студент')||txt.includes('Завершить')||txt.includes('QR')){
-        btn.style.display='none';
-      }
-    });
-  },100);
-}
-
-function showGroupQR(gid){
-  const t=D.teachers.find(x=>x.id===selT);
-  const g=(t?.groups||[]).find(x=>x.id===gid);
-  if(!g) return;
-  const url=`${window.location.origin}${window.location.pathname}?view=group&t=${selT}&g=${gid}`;
-  const title=`${t.name} — ${g.day} ${g.time} ${lvl(g.level)}`;
-
-  openModal(`<div class="modal-title">📱 QR код группы</div>
-    <div class="modal-desc" style="margin-bottom:16px">${title}</div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:16px">
-      <div id="qr-canvas" style="padding:16px;background:white;border-radius:12px;border:1.5px solid #e8eaf0;display:inline-block"></div>
-      <div style="font-size:11px;color:#888;text-align:center;max-width:300px;word-break:break-all">${url}</div>
-    </div>
-    <div class="fa">
-      <button class="btn btn-sec" onclick="closeModal()">Закрыть</button>
-      <button class="btn btn-pri" onclick="downloadQR('${gid}')">⬇️ Скачать JPG</button>
-    </div>`);
-
-  setTimeout(()=>{
-    const el=document.getElementById('qr-canvas');
-    if(!el) return;
-    if(typeof QRCode==='undefined'){
-      el.innerHTML=`<div style="padding:20px;text-align:center;color:#e65100">⚠️ Загрузка QR библиотеки...<br><br><a href="${url}" target="_blank" style="color:#4361ee;font-size:12px">Открыть ссылку</a></div>`;
-      return;
-    }
-    new QRCode(el,{
-      text:url,
-      width:220,height:220,
-      colorDark:'#16213e',colorLight:'#ffffff',
-      correctLevel:QRCode.CorrectLevel.H
-    });
-    window._qrUrl=url;
-    window._qrTitle=title;
-  },200);
-}
-
-function downloadQR(gid){
-  const canvas=document.querySelector('#qr-canvas canvas');
-  if(!canvas){toast('QR не готов','error');return;}
-  // Create download canvas with title
-  const dc=document.createElement('canvas');
-  dc.width=300;dc.height=340;
-  const ctx=dc.getContext('2d');
-  // White background
-  ctx.fillStyle='white';
-  ctx.fillRect(0,0,300,340);
-  // Draw QR
-  ctx.drawImage(canvas,40,60,220,220);
-  // Title text
-  ctx.fillStyle='#16213e';
-  ctx.font='bold 14px Arial';
-  ctx.textAlign='center';
-  const words=(window._qrTitle||'').split(' ');
-  let line='',y=30;
-  words.forEach(w=>{
-    if(ctx.measureText(line+w).width>260){
-      ctx.fillText(line.trim(),150,y);
-      line=w+' ';y+=18;
-    } else line+=w+' ';
-  });
-  ctx.fillText(line.trim(),150,y);
-  // Footer
-  ctx.font='11px Arial';
-  ctx.fillStyle='#888';
-  ctx.fillText('Success Academy',150,310);
-  // Download
-  const link=document.createElement('a');
-  const t=D.teachers.find(x=>x.id===selT);
-  const g=(t?.groups||[]).find(x=>x.id===gid);
-  link.download=`QR_${t?.name||''}_${g?.day||''}_${g?.time||''}.jpg`;
-  link.href=dc.toDataURL('image/jpeg',0.95);
-  link.click();
-  toast('QR скачан ✓','success');
-}
-
-function confirmDelT(id){
-  const t=D.teachers.find(x=>x.id===id);if(!t) return;
-  const gc=(t.groups||[]).length;
-  const sc=(t.groups||[]).reduce((s,g)=>s+(g.students||[]).filter(x=>x.name).length,0);
-  openModal(`<div class="modal-title">🗑 Удалить преподавателя?</div>
-    <div class="modal-desc">Вы удаляете <b>${t.name}</b>.<br>Будет удалено: <b>${gc} групп</b> и <b>${sc} студентов</b> со всеми оценками. Это действие нельзя отменить.</div>
-    <div style="background:#ffebee;border-radius:10px;padding:14px;margin-bottom:4px;font-size:13px;color:#b71c1c">
-      ⚠️ Все данные этого преподавателя будут безвозвратно удалены
-    </div>
-    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-      <button class="btn btn-dan" onclick="delT('${id}')">Удалить</button></div>`);
-}
-
-function confirmDelG(gid){
-  const t=D.teachers.find(x=>x.id===selT)||D.teachers.find(tc=>(tc.groups||[]).find(g=>g.id===gid));
-  const g=(t?.groups||[]).find(x=>x.id===gid);if(!g) return;
-  const sc=(g.students||[]).filter(s=>s.name).length;
-  openModal(`<div class="modal-title">🗑 Удалить группу?</div>
-    <div class="modal-desc">Вы удаляете группу <b>${g.day} ${g.time} — ${lvl(g.level)}</b>.<br>Будет удалено <b>${sc} студентов</b> со всеми оценками.</div>
-    <div style="background:#ffebee;border-radius:10px;padding:14px;margin-bottom:4px;font-size:13px;color:#b71c1c">
-      ⚠️ Все оценки этой группы будут безвозвратно удалены
-    </div>
-    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-      <button class="btn btn-dan" onclick="selT='${t?.id}';delG('${gid}')">Удалить</button></div>`);
-}
-
-function showAddStaff(){
-  openModal(`<div class="modal-title">+ Новый сотрудник</div>
-    <div class="modal-desc">Выберите тип сотрудника</div>
-    <div class="radio-group" style="margin-bottom:24px">
-      <label class="radio-card selected" id="st-teacher" onclick="selectStaffType('teacher')" style="cursor:pointer">
-        <div style="font-size:28px;margin-bottom:6px">👤</div>
-        <div class="rc-title">Преподаватель</div>
-        <div class="rc-sub">Ведёт группы и занятия</div>
-      </label>
-      <label class="radio-card" id="st-supporter" onclick="selectStaffType('supporter')" style="cursor:pointer">
-        <div style="font-size:28px;margin-bottom:6px">🤝</div>
-        <div class="rc-title">Supporter</div>
-        <div class="rc-sub">Работает со студентами</div>
-      </label>
-    </div>
-    <div class="fa">
-      <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-      <button class="btn btn-pri" onclick="goAddStaff()">Далее →</button>
-    </div>`);
-  window._staffType='teacher';
-}
-function selectStaffType(t){
-  window._staffType=t;
-  document.getElementById('st-teacher').classList.toggle('selected',t==='teacher');
-  document.getElementById('st-supporter').classList.toggle('selected',t==='supporter');
-}
-function goAddStaff(){
-  if(window._staffType==='supporter') showAddSupporter();
-  else showAddTeacher();
-}
-
-function showAddTeacher(){
-  openModal(`<div class="modal-title">Новый преподаватель</div>
-    <div class="fg"><label class="fl">Имя и фамилия</label>
-      <input type="text" class="fi" id="tn" placeholder="Иванова Айгуль">
-    </div>
-    <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
-      <input type="text" class="fi" id="t-phone" placeholder="+998 90 123 45 67">
-    </div>
-    <div class="fg"><label class="fl">Направление</label>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="t-lang" value="ru" checked>
-          <div><div style="font-weight:500">Англ (русскоговорящий)</div><div style="font-size:11px;color:#888">Beg/Elem рус группы + Pre-Int и выше</div></div>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="t-lang" value="kk">
-          <div><div style="font-weight:500">Англ (каракалпакоговорящий)</div><div style="font-size:11px;color:#888">Beg/Elem кк группы + Pre-Int и выше</div></div>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="t-lang" value="rus">
-          <div><div style="font-weight:500">Русский язык</div><div style="font-size:11px;color:#888">Только rus-1, rus-2, rus-3, rus-4</div></div>
-        </label>
-      </div>
-    </div>
-    <div style="background:#f0f4ff;border-radius:12px;padding:16px;margin-bottom:16px">
-      <div style="font-size:12px;font-weight:700;color:#4361ee;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px">🔐 Данные для входа</div>
-      <div class="fg" style="margin-bottom:12px"><label class="fl">Логин</label>
-        <input type="text" class="fi" id="ac-l" placeholder="например: ivanova">
-      </div>
-      <div class="fg" style="margin-bottom:0"><label class="fl">Пароль</label>
-        <input type="text" class="fi" id="ac-p" placeholder="минимум 4 символа">
-      </div>
-    </div>
-    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-      <button class="btn btn-pri" onclick="addT()">${tr('createBtn')}</button></div>`);
-  setTimeout(()=>document.getElementById('tn')?.focus(),80);
-}
-async function addT(){
-  const n=document.getElementById('tn')?.value?.trim();
-  const login=document.getElementById('ac-l')?.value?.trim();
-  const pass=document.getElementById('ac-p')?.value?.trim();
-  const lang=document.querySelector('input[name="t-lang"]:checked')?.value||'ru';
-  const phone=document.getElementById('t-phone')?.value?.trim()||'';
-  if(!n){toast('Введите имя','error');return;}
-  if(!login||!pass){toast('Введите логин и пароль','error');return;}
-  if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
-  if((D.accounts||[]).find(a=>a.login===login)){toast('Логин уже занят','error');return;}
-  const tid=uid();
-  D.teachers.push({id:tid,name:n,lang,phone,groups:[]});
-  if(!D.accounts) D.accounts=[];
-  D.accounts.push({id:uid(),teacherId:tid,login,password:await hashPass(pass)});
-  closeModal();renderAll();sched();toast(`${n} добавлен ✓`,'success');
-}
-function showEditT(id){
-  const t=D.teachers.find(x=>x.id===id);
-  openModal(`<div class="modal-title">Изменить преподавателя</div>
-    <div class="fg"><label class="fl">Имя</label><input type="text" class="fi" id="tn" value="${t.name}"></div>
-    <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
-      <input type="text" class="fi" id="t-phone" value="${t.phone||''}" placeholder="+998 90 123 45 67">
-    </div>
-    <div class="fg"><label class="fl">Направление</label>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="t-lang" value="ru" ${(t.lang||'ru')==='ru'?'checked':''}> Англ (русскоговорящий)
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="t-lang" value="kk" ${t.lang==='kk'?'checked':''}> Англ (каракалпакоговорящий)
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="t-lang" value="rus" ${t.lang==='rus'?'checked':''}> Русский язык
-        </label>
-      </div>
-    </div>
-    <div class="fa"><button class="btn btn-dan btn-sm" onclick="delT('${id}')">Удалить</button>
-      <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-      <button class="btn btn-pri" onclick="editT('${id}')">${tr('saveBtn')}</button></div>`);
-}
-function editT(id){const n=document.getElementById('tn')?.value?.trim();if(!n) return;const t=D.teachers.find(x=>x.id===id);if(t){t.name=n;t.lang=document.querySelector('input[name="t-lang"]:checked')?.value||t.lang||'ru';t.phone=document.getElementById('t-phone')?.value?.trim()||t.phone||'';}closeModal();renderAll();sched();}
-function delT(id){if(!confirm('Удалить преподавателя?')) return;D.teachers=D.teachers.filter(x=>x.id!==id);closeModal();goHome();sched();}
-
-// ── CRUD Groups ───────────────────────────────────────────────────────────
-
-const LEVEL_ORDER=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
-function nextLevel(l){const i=LEVEL_ORDER.indexOf(l);return i>=0&&i<LEVEL_ORDER.length-1?LEVEL_ORDER[i+1]:null;}
-
-function showPromoteGroup(){
-  const t=D.teachers.find(x=>x.id===selT);
-  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
-  const sts=(g.students||[]).filter(s=>s.name);
-  const next=nextLevel(g.level);
-  const passed=sts.filter(s=>calcFinal(s,g.level)>=70);
-  const failed=sts.filter(s=>{const v=calcFinal(s,g.level);return v!==null&&v<70;});
-  const noGrade=sts.filter(s=>calcFinal(s,g.level)===null);
-
-  openModal(`<div class="modal-title">${tr('finishGrp')}</div>
-    <div class="modal-desc">Группа будет добавлена в архив. Вы можете создать новую группу следующего уровня для студентов, которые сдали.</div>
-
-    <div style="background:#f0f9f0;border-radius:10px;padding:14px;margin-bottom:16px">
-      <div style="font-size:12px;font-weight:700;color:#2b9348;margin-bottom:10px">✅ Сдали (Overall ≥ 70) — ${passed.length} ${tr('stuCount')}</div>
-      ${passed.map(s=>{const fv=calcFinal(s,g.level);return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #e0f0e0">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-          <input type="checkbox" checked value="${s.id}" class="promote-chk" style="width:15px;height:15px;accent-color:#2b9348"> ${s.name}
-        </label>
-        <span class="ob ${fv>=75?'og':'oy'}" style="font-size:12px;padding:2px 8px">${fv.toFixed(1)}</span>
-      </div>`}).join('')||'<div style="color:#bbb;font-size:13px">Нет</div>'}
-    </div>
-
-    ${failed.length?`<div style="background:#fff0f0;border-radius:10px;padding:14px;margin-bottom:16px">
-      <div style="font-size:12px;font-weight:700;color:#b71c1c;margin-bottom:8px">❌ Не сдали (Overall < 70) — ${failed.length} ${tr('stuCount')}</div>
-      ${failed.map(s=>`<div style="font-size:13px;padding:4px 0;color:#666">${s.name} — <b style="color:#b71c1c">${calcFinal(s,g.level).toFixed(1)}</b></div>`).join('')}
-    </div>`:''}
-
-    ${next?`<div style="background:#f0f4ff;border-radius:10px;padding:14px;margin-bottom:16px">
-      <div style="font-size:12px;font-weight:700;color:#4361ee;margin-bottom:10px">📚 Новая группа следующего уровня</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <div>
-          <div style="font-size:11px;color:#888;margin-bottom:4px">Уровень</div>
-          <span class="lp lv-${lvc(next)}">${lvl(next)}</span>
-        </div>
-        <div>
-          <div style="font-size:11px;color:#888;margin-bottom:4px">День</div>
-          <div class="radio-group" style="gap:6px">
-            <label class="radio-card selected" id="pg-mwf" onclick="pgDay('MWF')" style="padding:6px 10px">
-              <div class="rc-title" style="font-size:12px">MWF</div></label>
-            <label class="radio-card" id="pg-tts" onclick="pgDay('TTS')" style="padding:6px 10px">
-              <div class="rc-title" style="font-size:12px">TTS</div></label>
-          </div>
-        </div>
-        <div style="flex:1;min-width:120px">
-          <div style="font-size:11px;color:#888;margin-bottom:4px">Время</div>
-          <select class="fs" id="pg-time" style="padding:6px 10px;font-size:13px">
-            ${TIMES.map(tm=>`<option value="${tm}"${tm===g.time?' selected':''}>${tm}</option>`).join('')}
-          </select>
-        </div>
-      </div>
-    </div>
-    <div class="fg" style="margin-bottom:0">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-        <input type="checkbox" id="pg-create" checked style="width:15px;height:15px;accent-color:#4361ee">
-        Создать новую группу для сдавших студентов
-      </label>
-    </div>`:'<div style="background:#fff8e1;border-radius:10px;padding:12px;font-size:13px;color:#e65100">⚠️ Это последний уровень. Студенты будут переведены в статус Выпускник.</div>'}
-
-    <div class="fa">
-      <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-      <button class="btn btn-ora" onclick="doPromoteGroup('${g.id}','${next||''}')">🎓 Завершить и архивировать</button>
-    </div>`);
-  window._pgDay=g.day||'MWF';
-}
-
-function pgDay(d){
-  window._pgDay=d;
-  document.getElementById('pg-mwf')?.classList.toggle('selected',d==='MWF');
-  document.getElementById('pg-tts')?.classList.toggle('selected',d==='TTS');
-}
-
-function doPromoteGroup(gid,nextLvl){
-  const t=D.teachers.find(x=>x.id===selT);
-  const g=(t?.groups||[]).find(x=>x.id===gid);if(!g) return;
-
-  // Get selected students to promote
-  const checked=[...document.querySelectorAll('.promote-chk:checked')].map(el=>el.value);
-  const createNew=document.getElementById('pg-create')?.checked!==false;
-  const newDay=window._pgDay||g.day||'MWF';
-  const newTime=document.getElementById('pg-time')?.value||g.time;
-
-  // Archive current group state
-  if(!D.archives) D.archives=[];
-  const archLabel=`${t.name} — ${g.day} ${g.time} ${lvl(g.level)}`;
-  D.archives.push({id:uid(),label:archLabel,date:new Date().toLocaleDateString('ru'),snapshot:JSON.parse(JSON.stringify(D.teachers))});
-
-  // Create new group if next level exists and checkbox checked
-  if(nextLvl&&createNew&&checked.length){
-    if(!t.groups) t.groups=[];
-    // Check duplicate
-    let newGrp=t.groups.find(gr=>gr.day===newDay&&gr.time===newTime&&gr.level===nextLvl);
-    if(!newGrp){
-      newGrp={id:uid(),day:newDay,time:newTime,level:nextLvl,students:[]};
-      t.groups.push(newGrp);
-    }
-    // Add passing students to new group with fresh grades
-    const promoted=(g.students||[]).filter(s=>checked.includes(s.id));
-    promoted.forEach(s=>{
-      if(!newGrp.students.find(x=>x.name===s.name))
-        newGrp.students.push(newStudent(s.name));
-    });
-  }
-
-  // Mark non-promoted students as graduated if last level
-  if(!nextLvl){
-    (g.students||[]).forEach(s=>{
-      const ds=D.students.find(x=>x.name===s.name);
-      if(ds) ds.status='graduated';
-    });
-  }
-
-  // Remove old group
-  t.groups=t.groups.filter(x=>x.id!==gid);
-  closeModal();
-  selG=null;view='teacher';
-  renderAll();sched();
-  toast(`Группа завершена${nextLvl&&createNew&&checked.length?' · Новая группа создана':''}  ✓`,'success');
-}
-
-function showAddGroup(tid){
-  openModal(`<div class="modal-title">Новая группа</div>
-    <div class="fg"><label class="fl">День</label>
-      <div class="radio-group">
-        <label class="radio-card selected" id="rc-mwf" onclick="selDay('MWF')"><input type="radio" name="day" value="MWF" checked>
-          <div class="rc-title">MWF</div><div class="rc-sub">Пн · Ср · Пт</div></label>
-        <label class="radio-card" id="rc-tts" onclick="selDay('TTS')"><input type="radio" name="day" value="TTS">
-          <div class="rc-title">TTS</div><div class="rc-sub">Вт · Чт · Сб</div></label>
-      </div>
-    </div>
-    <div class="fg"><label class="fl">Время</label>
-      <div class="time-grid">${TIMES.map((tm,i)=>`<div class="time-btn${i===0?' selected':''}" onclick="selTime('${tm}',this)">${tm}</div>`).join('')}</div>
-    </div>
-    <div class="fg"><label class="fl">Уровень</label>
-      <select class="fs" id="glvl">${LEVELS.map(l=>`<option value="${l.v}">${l.l}</option>`).join('')}</select>
-    </div>
-    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-      <button class="btn btn-pri" onclick="addG('${tid}')">${tr('createBtn')}</button></div>`);
-  window._sd='MWF';window._st='09:00';
-}
-function selDay(d){window._sd=d;document.getElementById('rc-mwf').classList.toggle('selected',d==='MWF');document.getElementById('rc-tts').classList.toggle('selected',d==='TTS');}
-function selTime(t,el){window._st=t;document.querySelectorAll('.time-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');}
-function addG(tid){
-  const day=window._sd||'MWF',time=window._st||'09:00',level=document.getElementById('glvl')?.value||'elementary';
-  const t=D.teachers.find(x=>x.id===tid);if(!t) return;if(!t.groups) t.groups=[];
-  if(t.groups.find(g=>g.day===day&&g.time===time)){toast('Такая группа уже есть!','error');return;}
-  t.groups.push({id:uid(),day,time,level,students:[]});closeModal();gotoT(tid);sched();
-}
-function showEditG(gid){
-  const t=D.teachers.find(x=>x.id===selT);
-  const g=(t?.groups||[]).find(x=>x.id===gid);
-  openModal(`<div class="modal-title">Настройки группы</div>
-    <div class="fg"><label class="fl">Уровень</label>
-      <select class="fs" id="glvl">${LEVELS.map(l=>`<option value="${l.v}"${g.level===l.v?' selected':''}>${l.l}</option>`).join('')}</select>
-    </div>
-    <div class="fa"><button class="btn btn-dan btn-sm" onclick="delG('${gid}')">Удалить</button>
-      <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-      <button class="btn btn-pri" onclick="editG('${gid}')">${tr('saveBtn')}</button></div>`);
-}
-function editG(gid){const l=document.getElementById('glvl')?.value;const t=D.teachers.find(x=>x.id===selT);const g=(t?.groups||[]).find(x=>x.id===gid);if(g) g.level=l;closeModal();renderAll();sched();}
-function delG(gid){if(!confirm('Удалить группу?')) return;const t=D.teachers.find(x=>x.id===selT);if(t) t.groups=t.groups.filter(x=>x.id!==gid);closeModal();gotoT(selT);sched();}
-
-// ── Settings ──────────────────────────────────────────────────────────────
-function showSettings(){
-  openModal(`<div class="modal-title">⚙️ Настройки</div>
-    <div class="fg"><label class="fl">Логин администратора</label>
-      <input type="text" class="fi" id="admin-login" value="${D.settings?.adminLogin||'admin'}" placeholder="admin">
-    </div>
-    <div class="fg"><label class="fl">Новый PIN-код (пароль) администратора</label>
-      <input type="password" class="fi" id="np" placeholder="Оставьте пустым чтобы не менять">
-    </div>
-    <div class="fg"><label class="fl">Firebase Database URL</label>
-      <input type="text" class="fi" id="fb-url" value="${FIREBASE_URL}" placeholder="https://your-app-default-rtdb.firebaseio.com" style="font-family:monospace;font-size:12px">
-      <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
-        <button class="btn btn-sec btn-sm" onclick="testFirebase()">🔍 Проверить</button>
-        <span id="fb-test-result" style="font-size:12px;font-weight:600"></span>
-      </div>
-    </div>
-    <div class="fg"><label class="fl">Название организации</label>
-      <input type="text" class="fi" id="org-name" value="${D.settings?.orgName||''}" placeholder="Success Academy">
-    </div>
-    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-      <button class="btn btn-pri" onclick="applySettings()">${tr('saveBtn')}</button></div>`);
-}
-
-async function testFirebase(){
-  const url=document.getElementById('fb-url')?.value?.trim();
-  const res=document.getElementById('fb-test-result');
-  if(!url){res.textContent='Введите URL';res.style.color='#e65100';return;}
-  res.textContent='⏳ Проверяю...';res.style.color='#888';
-  try{
-    const r=await fetch(`${url}/ping.json`,{method:'PUT',body:'"ok"',headers:{'Content-Type':'application/json'}});
-    if(r.ok){res.textContent='✅ Firebase работает!';res.style.color='#1b5e20';}
-    else{res.textContent=`❌ Ошибка ${r.status} — проверьте правила базы`;res.style.color='#b71c1c';}
-  }catch(e){res.textContent='⚠️ Нет соединения';res.style.color='#e65100';}
-}
-function backupData(){
-  const json=JSON.stringify(D,null,2);
-  const blob=new Blob([json],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=`backup_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  toast('Бэкап скачан ✓','success');
-}
-
-function restoreData(input){
-  const file=input.files[0];if(!file) return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      const parsed=JSON.parse(e.target.result);
-      if(!parsed.teachers&&!parsed.students){toast('Неверный формат файла','error');return;}
-      if(!confirm('Восстановить данные из бэкапа? Все текущие данные будут заменены.')) return;
-      D=parsed;
-      if(!D.settings) D.settings={pin:DPIN};
-      if(!D.teachers) D.teachers=[];
-      if(!D.students) D.students=[];
-      if(!D.accounts) D.accounts=[];
-      if(!D.archives) D.archives=[];
-      closeModal();
-      applyLogo();
-      renderAll();
-      sched();
-      toast('Данные восстановлены ✓','success');
-    }catch(e){toast('Ошибка чтения файла','error');}
-  };
-  reader.readAsText(file);
-}
-
-function applySettings(){
-  const adminLoginVal=document.getElementById('admin-login')?.value?.trim();
-  const p=document.getElementById('np')?.value?.trim();
-  const fbUrl=(document.getElementById('fb-url')?.value||'').trim().replace(/\/+$/,'');
-  const orgName=document.getElementById('org-name')?.value?.trim();
-  if(adminLoginVal) D.settings.adminLogin=adminLoginVal;
-  if(p){D.settings.pin=p;}
-  if(fbUrl){
-    FIREBASE_URL=fbUrl;
-    localStorage.setItem('firebase_url',fbUrl);
-    D.settings.firebaseUrl=fbUrl;
-  }
-  if(orgName) D.settings.orgName=orgName;
-  applyLogo();
-  closeModal();
-  toast('Сохранено. Синхронизация с Firebase...','success');
-  saveData();
-}
-const DEFAULT_LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAmCAYAAAClI5npAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAAIPklEQVR42r1YfWyV1R1+fr9z3vfetpd+YSmltwVEneLXNlQ+JlQGc25uaBYLM5ElS/CPLS7LYpw63UrdNMuyZJFl0Rk/9uGShbrEZTgzF50oGwwLKGCFKAxqW6gV2t5+3Hvf95zfb39cWtpyccWPneTmJm/enOc5z+/rOS8wvpQAxv9ntYwD0WlwUgCYu2zbSk1UXOXjoXJA8NFJFfZgkxolifZ2vnrVCwDiMUx7io3O/vSDNeHMdX+g5NwvkLGfjBaiaFzduccNbL21p50OAsqEFmW0kjauPPCCqfjUapcbcgSFfszYBalJOZwRuJHDh7Jdj37mxMGfDRMApJe81GRnLn/Z+1xMkGA8MhOpKwloAi8Fg+ichVKV2CYqgri/fUPXq1c/wQDAyVlLYKwShCaDq6qqJ04Sh+WGg3I79iNTwvgwOhGRKpSCqsUAYAHAxyPVfCoLx+FVFByQCUqN5I6fkNxoOzT/PqCACsHMaOJkXb26rIKYzikUBAIFPE4AkMkbqCiZBKnknMsceiA5+JdH33n9vr6Jr9Rc+vCCkvT6XcTJctVYAaIPkxu2WJTAoapGkRv81y0922/ccmZOAH1vfrezYc66iEwZQSL9kPhFCCiEbdLE/a/f07P9xi0LmzXsaKMovXTLCrW1l7DmWUFEwXlf5aCyRnzOE4EB0clCT4+RnQpOtiz02Xff6f7nsl+iWU1H24WUbtr/R5u6cB04HHsPIEB8HmySpkimAxJ7QAEiM30CBCE20OjEnwB4tBEaVrTfbasuXedyIzH5PCkURIGFH3bK3EdFwgMfV3JYXQIKIHFGQOBiYSyiABHEQzH6WuHBogBh7XqJxZN6BikzJyEu0ysD22+OSvL7q+OQTgbRuPzVcYYyeV9lUld+lsK6O0wivUrcqABSlISdIH+hVWkMDqreA4DGy69JKdF5UGdAEIA8mYRF9uSr3Ttv2gEAfVOTs/A3BKATwLPp5a/db8sv/7F45wFvzk6AxvpbAIkGagFQ576dw+lZ0geyVdBCPNXllILzmuqvee7zzpzYr5In4lgBgExCS31Ah7d/YxBAHi1qu1rpJ+nl7dW2ctH3JMr4qSJMyQFVIgOy5YsAPAPsihEfe4JTDT/3Yh3EiyBSMqU1pmrxiwZyEgoCQVXVAISYWOde33fCjb6zqbuVNjW1qN3aOu8HDau33cyJ2fPFjUYTIXlKFbCKA2zlWgABmtV0vbJ4kxvc9zgBloOUMTZlmUNwMBMc1lRzoqbKJGqqOaiuYJOqIC6rRFC1IKhe8nDDtdu+tbWVHHA0p/HJJ4ktCqE8exWwulFvS+rPr792213dbfTQwmY1HW10e93iLY/aRP0Cj6iQrPAADEBOSXmBKb3oXnCiDBJDJS9AipFM31dbe9vvenufHkV0/BV1FwBg/uBGRGBxOW9Tlz1Qv/TFtzvaqA0Ajv37K7sA7DpbPTes2FdnKi77jo8zjkBGJUcwqVl23ro56H367Sjq7k/6IRCn+IwQEJFMHFeQiJVCNhVXbW5c+eZP6xb9uvF/zhhrF0AFpGNpRgrxon44BwCBL2WCOcNpWADQsLJ/8nZ8qr8b5dTCu21QdUfjqut3g7hbOYx5ctqK+pELKDFrmXcjjgBS1ciEpQmXP7anp/3WHkBJy7Y1UlABuJwHYKERnQ5BPDIALUzJSSQgkCjjyVSVcZhcXqyZ0cQ+QrBQAAZG8u8P8sihO6AqIFJj998MDgDKKgCozw2cVkAzh1SiM6sCBBAMNFKJI1GCTrYrUDIBaTSQVz+4g8Ex2IqSHvIDu3/V0772IJhRe8Vj8ylZt1ZdVgEyUEDhDpw2JJm39tqSS0ZhK0qhUZHZTgSCoTPNjZA6ijPttx3buebZ4h5MEmHNqqc5qEpJnPFExmo8BMkf31U4cYty795vv6d+ZCebpBZG2fTcHYhJfV6yQ1v3FHtjztW/vahx1ZG/mZLzl/k4IwARmSTUDRw+lrlzP6Bk8TIYgCB+/zfA/OsUBJqmuYM4oaDSpGZv+H3JzJseYVgHsAJUZcLqzyGouoWDmWU+zngiNoA6MtZ6178ZHR1RUxMs4VRY6xZtLLHVG97icHaDuhEF8TQdr4JMqhA0lVN5Ywp+wWUBiaSwlyooVPjhXNT354XH99x+FPgRF7xoM/jYrtZRGT3yQ2JLSsafi+NXNywSj3hxWS9u1IsbchJnHDQeP4gCzgRJluzRXxzfs+EomsUArRPMaLMatJFPX9fxnC2/5Ms+PxgTcfCx3EpUHIcV1meP7NMD31/ctXRzhDYIQHpa5raNihZlvPf8esl2HTRhRQAV95Gx1XsKUlajvpN+YFtzV9czWSyEjt1Fp+SbMkBSe+VT8xKzVr/IJenzfTQUE8QCfI62V6GqjsMKq1HfSRnc/aWuHTfsRPNmg7a1vvg4BgmaN5veN755ZKTz8eV+5PBLJpgRgBKkKn76pxYPMrCJCqu57r1R/8vLC+A6CbyIAmPXd2W0kgCg9IrX7uKS+fdyOLNS4iGBCs5aISoKsHA4w0jcH2v23U3RgfUtvb17R6ae/IMJjH1E0I0KIq295rH5ifLVD1FizteBAOKHHRXMAI3LDTjmEktsILmev2N4zz2dO9bsLkAIAyRnvzV/0Gr6h8XWlQ4A6hc//zWecfmDpqT+YnFZqMbulIUwHKRIor4uyR5u6XplyZMTKkuAj3zbb2E0qwGA2toryhque+OBxi+eyM5fozpvjercGwY0vfLAI7VX3DlrPIQt+gl842jePG6r6xY9dXF65Vv3z131n43ppX+9elI/+YQXFQVpVoPJ03pa67/md/PCcSiWkQAAAABJRU5ErkJggg==';
-function applyLogo(){
-  const name=D.settings?.orgName||'Success Academy';
-  const logo=D.settings?.orgLogo||DEFAULT_LOGO;
-  const img=document.getElementById('logo-img');
-  const txt=document.getElementById('logo-text');
-  if(logo&&img&&txt){
-    img.src=logo;img.style.display='block';
-    txt.style.display='flex';txt.style.alignItems='center';
-    // Clear and set only the name (no badge)
-    txt.innerHTML=`<span style="font-size:17px;font-weight:700;color:white">${name}</span>`;
-  } else if(img&&txt){
-    img.style.display='none';txt.style.display='flex';
-    const badge=txt.querySelector('.logo-badge');
-    if(badge) badge.textContent=name.substring(0,2).toUpperCase();
-    const span=txt.querySelector('div:not(.logo-badge)');
-    if(!span){txt.innerHTML=`<div class="logo-badge">${name.substring(0,2).toUpperCase()}</div>${name}`;}
-    else txt.lastChild.textContent=name;
-  }
-}
-async function testSetupToken(){
-  const v=document.getElementById('tok-setup')?.value?.trim();
-  const res=document.getElementById('tok-setup-result');
-  if(!v){res.textContent='Введите токен';res.style.color='#e65100';return;}
-  res.textContent='⏳ Проверяю...';res.style.color='#888';
-  try{
-    const r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{
-      headers:{Authorization:`token ${v}`,Accept:'application/vnd.github.v3+json'}
-    });
-    if(r.ok){res.textContent='✅ Токен работает!';res.style.color='#1b5e20';}
-    else{res.textContent=`❌ Ошибка ${r.status}`;res.style.color='#b71c1c';}
-  }catch(e){res.textContent='⚠️ Нет соединения';res.style.color='#e65100';}
-}
-async function saveSetupToken(){
-  const v=document.getElementById('tok-setup')?.value?.trim();
-  if(!v){document.getElementById('tok-setup-result').textContent='Введите токен';return;}
-  token=v;
-  localStorage.setItem('gh_token',v);
-  if(D.settings) D.settings.ghToken=btoa(v);
-  closeModal();
-  toast('Токен сохранён! Синхронизация...','success');
-  await saveData();
-}
-
-async function testTokenSettings(){
-  const v=document.getElementById('nt')?.value?.trim();
-  const res=document.getElementById('tok-settings-result');
-  if(!v){res.textContent='Введите токен';res.style.color='#e65100';return;}
-  res.textContent='⏳ Проверяю...';res.style.color='#888';
-  try{
-    const r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{
-      headers:{Authorization:`token ${v}`,Accept:'application/vnd.github.v3+json'}
-    });
-    if(r.ok){res.textContent='✅ Токен работает!';res.style.color='#1b5e20';}
-    else if(r.status===401){res.textContent='❌ Неверный токен (401)';res.style.color='#b71c1c';}
-    else if(r.status===403){res.textContent='❌ Нет прав repo (403)';res.style.color='#b71c1c';}
-    else if(r.status===404){res.textContent='❌ Репозиторий не найден (404)';res.style.color='#b71c1c';}
-    else{res.textContent=`❌ Ошибка ${r.status}`;res.style.color='#b71c1c';}
-  }catch(e){res.textContent='⚠️ Нет соединения';res.style.color='#e65100';}
-}
-
-function showTokenModal(cb){
-  // Redirect to Firebase settings
-  showSettings();
-}
-function saveTok(){
-  const v=document.getElementById('tok-in')?.value?.trim();if(!v) return;
-  token=v;localStorage.setItem('gh_token',v);
-  if(D.settings) D.settings.ghToken=btoa(v); // save for cross-device
-  closeModal();
-  if(window._tcb){window._tcb();window._tcb=null;}
-}
-
-// ── Modal ─────────────────────────────────────────────────────────────────
-function openModal(h){document.getElementById('mbox').innerHTML=h;document.getElementById('mbg').style.display='flex';}
-function closeModal(e){if(e&&e.target!==document.getElementById('mbg'))return;document.getElementById('mbg').style.display='none';}
-
-// ── Toast ─────────────────────────────────────────────────────────────────
-function toast(msg,type=''){document.querySelector('.toast')?.remove();const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3000);}
-
-// ── Utils ─────────────────────────────────────────────────────────────────
-function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
-function ini(n){return(n||'').split(' ').slice(0,2).map(w=>w[0]?.toUpperCase()).join('');}
-function fmt(v){const n=Number(v);return n%1===0?n:n.toFixed(1);}
-function lvc(l){if(RUS_LEVELS&&RUS_LEVELS.includes(l))return 'rus';return(l||'').replace(/\s+/g,'-').toLowerCase();}
-function lvl(l){return{
-  beginner:'Beginner',elementary:'Elementary','pre-intermediate':'Pre-Int',
-  intermediate:'Intermediate','upper-intermediate':'Upper Int',
-  'rus-1':'РЯ Ур.1','rus-2':'РЯ Ур.2','rus-3':'РЯ Ур.3','rus-4':'РЯ Ур.4'
-}[l]||l;}
-function isRus(l){return RUS_LEVELS.includes(l);}
-function newStudent(name,level){
-  if(isRus&&isRus(level)){
-    const cfg=RUS_CFG[level]||RUS_CFG['rus-1'];
-    return{id:uid(),name,
-      conversations:Array(cfg.conv).fill(null),
-      homework:Array(cfg.hw).fill(null),
-      vocabulary:Array(cfg.vocab).fill(null),
-      presentations:Array(cfg.ppt).fill(null),
-      finalConversation:null,
-      finalTest:null,
-      startConv:1
-    };
-  }
-  return{id:uid(),name,units:Array(12).fill(null),homework:Array(5).fill(null),achievements:Array(5).fill(null),presentation:null,speaking:null,final:null,retake:null,startUnit:1,startAT:1};
-}
-
-
-// ── Translations ──────────────────────────────────────────────────────────
-
-let curLang=localStorage.getItem('sa_lang')||'ru';
-const LANGS={
-  ru:{
-    home:'Главная',teachers:'Преподаватели',groups:'Групп',students:'Студентов',
-    avg:'Средний балл',addStaff:'+ Сотрудник',accounts:'Аккаунты',
-    stuBase:'База студентов',archive:'Архив',excel:'Excel',search:'Поиск',
-    logout:'Выйти',adminMode:'✅ Режим администратора',
-    tgText:'Обращения',noTeachers:'Нет преподавателей',archivesLbl:'Архивы',createArchive:'🗃 Архив',settings:'⚙️',noGroups:'Нет групп',
-    sortName:'По имени',sortOverall:'Overall',sortUnit:'Unit Tests',sortFinal:'Final',sorting:'Сортировка:',
-    addTeacher:'+ Преподаватель',addGroup:'+ Группа',
-    cancelBtn:'Отмена',saveBtn:'Сохранить',createBtn:'Создать',addBtn:'Добавить',
-    newTeacher:'Новый преподаватель',newGroup:'Новая группа',
-    newStaff:'+ Новый сотрудник',staffType:'Выберите тип сотрудника',
-    nameLabel:'Имя и фамилия',loginLabel:'Логин',passLabel:'Пароль',
-    dayLabel:'День недели',timeLabel:'Время',levelLabel:'Уровень',
-    allAccounts:'Аккаунты',teacherAcc:'Учителя',supporterAcc:'Supporters',
-    noAccounts:'Нет аккаунтов',newAccount:'Новый аккаунт',
-    newSupporterBtn:'🤝 Новый Supporter',createAcc:'Создать',
-    stuDB:'🎓 База студентов',stuSearch:'Поиск студента...',
-    stuEmpty:'База пуста',assignGrp:'↗ В группу',
-    stuActive:'Активен',stuArchived:'Архив',stuGrad:'Выпускник',
-    stuGroups:'Текущие группы',notInGroup:'Не добавлен ни в одну группу',
-    createArchiveBtn:'Создать архив',deleteArchive:'Удалить архив',
-    backupDown:'⬇ Скачать бэкап',backupUp:'⬆ Восстановить',
-    backupTitle:'💾 Резервная копия',logoTitle:'🖼 Логотип',
-    orgName:'Название организации',orgLogo:'Логотип (ссылка)',
-    adminProfile:'👤 Профиль администратора',teacherProfile:'👤 Мой профиль',
-    changePin:'Смена PIN-кода',changePass:'Смена пароля',
-    currentPin:'Текущий PIN',newPin:'Новый PIN',confirmPin:'Подтвердите PIN',
-    currentPass:'Текущий пароль',newPass:'Новый пароль',confirmPass:'Подтвердите пароль',
-    profileSaved:'Профиль сохранён ✓',wrongPin:'Неверный текущий PIN',wrongPass:'Неверный текущий пароль',
-    pinMismatch:'PIN-коды не совпадают',passMismatch:'Пароли не совпадают',
-    pinMin:'Новый PIN минимум 4 символа',passMin:'Новый пароль минимум 4 символа',
-    tokenTitle:'GitHub Token',settingsTitle:'⚙️ Настройки',
-    adminPinLabel:'Новый PIN-код администратора',settingsSaved:'Настройки сохранены ✓',
-    searchPlaceholder:'Поиск преподавателя, студента...',searchResults:'Найдено:',
-    globalSearch:'🔍 Поиск студента',globalPlaceholder:'Введите имя или фамилию...',
-    startType:'Начните вводить имя...',notFound:'Ничего не найдено',
-    importTitle:'📋 Импорт из Excel',importHint:'💡 Выделите столбец → Ctrl+C → вставьте сюда',
-    clearBefore:'Очистить список перед добавлением',
-    uploadTitle:'⬆ Загрузить оценки из Excel',applyGrades:'✅ Применить оценки',
-    addFromDB:'Из базы',addNew:'Новый',
-    moveStudent:'↗ Перенести студента',moveTo:'Куда перенести',
-    archiveStu:'📦 Архивировать студента',archiveStuBtn:'📦 В архив',
-    promoteTitle:'🎓 Завершить группу',finishArchive:'🎓 Завершить и архивировать',
-    passedStu:'Сдали (Overall ≥ 70)',failedStu:'Не сдали (Overall < 70)',
-    createNewGroup:'Создать новую группу для сдавших',
-    supBarText:'только незакрытые тесты студентов',
-    tchBarText:'только ваши группы отображаются',
-    roleTeacher:'Преподаватель',roleSupporter:'Supporter',
-    mwfLabel:'[mwfDay]',ttsLabel:'[ttsDay]',otherLabel:'[otherDay]',
-    debts:'[debts]',allDone:'Все студенты сдали все тесты 🎉',
-    noResult:'[noResult]',eyeOff:'Оценки скрыты. Только незакрытые тесты.',
-    filterAll:'Все',grpCount:'групп',stuCount:'студентов',
-    stuSuffix:'студентов',grpSuffix:'групп',
-    finishGrp:'🎓 Завершить группу',addStu:'+ Студент',
-    paste:'📋 Вставить',uploadXl:'⬆ Загрузить Excel',saveOk:'Сохранено ✓',
-    loginTitle:'Система управления оценками',loginAdmin:'🔐 Админ',
-    loginTeacher:'👤 Учитель',loginSupporter:'[loginSupporter]',loginBtn:'Войти',
-  },
-  en:{
-    home:'Home',teachers:'Teachers',groups:'Groups',students:'Students',
-    avg:'Average score',addStaff:'+ Staff',accounts:'Accounts',
-    stuBase:'Students DB',archive:'Archive',excel:'Excel',search:'Search',
-    logout:'Logout',adminMode:'✅ Admin mode',
-    tgText:'Support',noTeachers:'No teachers',archivesLbl:'Archives',createArchive:'🗃 Archive',settings:'⚙️',noGroups:'No groups',
-    sortName:'By name',sortOverall:'Overall',sortUnit:'Unit Tests',sortFinal:'Final',sorting:'Sort:',
-    addTeacher:'+ Teacher',addGroup:'+ Group',
-    cancelBtn:'Cancel',saveBtn:'Save',createBtn:'Create',addBtn:'Add',
-    newTeacher:'New teacher',newGroup:'New group',
-    newStaff:'+ New staff',staffType:'Choose staff type',
-    nameLabel:'Full name',loginLabel:'Login',passLabel:'Password',
-    dayLabel:'Days',timeLabel:'Time',levelLabel:'Level',
-    allAccounts:'Accounts',teacherAcc:'Teachers',supporterAcc:'Supporters',
-    noAccounts:'No accounts',newAccount:'New account',
-    newSupporterBtn:'🤝 New Supporter',createAcc:'Create',
-    stuDB:'🎓 Students database',stuSearch:'Search student...',
-    stuEmpty:'Database empty',assignGrp:'↗ Assign to group',
-    stuActive:'Active',stuArchived:'Archived',stuGrad:'Graduate',
-    stuGroups:'Current groups',notInGroup:'Not assigned to any group',
-    createArchiveBtn:'Create archive',deleteArchive:'Delete archive',
-    backupDown:'⬇ Download backup',backupUp:'⬆ Restore',
-    backupTitle:'💾 Backup',logoTitle:'🖼 Logo',
-    orgName:'Organization name',orgLogo:'Logo URL',
-    adminProfile:'👤 Admin profile',teacherProfile:'👤 My profile',
-    changePin:'Change PIN',changePass:'Change password',
-    currentPin:'Current PIN',newPin:'New PIN',confirmPin:'Confirm PIN',
-    currentPass:'Current password',newPass:'New password',confirmPass:'Confirm password',
-    profileSaved:'Profile saved ✓',wrongPin:'Wrong current PIN',wrongPass:'Wrong current password',
-    pinMismatch:'PINs do not match',passMismatch:'Passwords do not match',
-    pinMin:'New PIN must be at least 4 characters',passMin:'New password must be at least 4 characters',
-    tokenTitle:'GitHub Token',settingsTitle:'⚙️ Settings',
-    adminPinLabel:'New admin PIN',settingsSaved:'Settings saved ✓',
-    searchPlaceholder:'Search teacher, student...',searchResults:'Found:',
-    globalSearch:'🔍 Search student',globalPlaceholder:'Enter name...',
-    startType:'Start typing a name...',notFound:'Nothing found',
-    importTitle:'📋 Import from Excel',importHint:'💡 Select column → Ctrl+C → paste here',
-    clearBefore:'Clear list before adding',
-    uploadTitle:'⬆ Upload grades from Excel',applyGrades:'✅ Apply grades',
-    addFromDB:'From DB',addNew:'New',
-    moveStudent:'↗ Move student',moveTo:'Move to',
-    archiveStu:'📦 Archive student',archiveStuBtn:'📦 Archive',
-    promoteTitle:'🎓 Finish group',finishArchive:'🎓 Finish and archive',
-    passedStu:'Passed (Overall ≥ 70)',failedStu:'Failed (Overall < 70)',
-    createNewGroup:'Create new group for passed students',
-    supBarText:'only missing tests shown',
-    tchBarText:'only your groups are shown',
-    roleTeacher:'Teacher',roleSupporter:'Supporter',
-    mwfLabel:'📅 MWF — Mon · Wed · Fri',ttsLabel:'📅 TTS — Tue · Thu · Sat',otherLabel:'📅 Other groups',
-    debts:'Student debts',allDone:'All students completed all tests 🎉',
-    noResult:'Student not found',eyeOff:'Grades hidden. Only missing tests shown.',
-    filterAll:'All',grpCount:'groups',stuCount:'students',
-    stuSuffix:'students',grpSuffix:'groups',
-    finishGrp:'🎓 Finish group',addStu:'+ Student',
-    paste:'📋 Paste',uploadXl:'⬆ Upload Excel',saveOk:'Saved ✓',
-    loginTitle:'Grade Management System',loginAdmin:'🔐 Admin',
-    loginTeacher:'👤 Teacher',loginSupporter:'[loginSupporter]',loginBtn:'Login',
-  }
-};
-
-
-const t=tr; // alias
-
-function tr(k){
-  try{return (LANGS[curLang]||LANGS.ru)[k]||k;}
-  catch(e){return k;}
-}
-
-
-function setLang(l){
-  curLang=l;
-  localStorage.setItem('sa_lang',l);
-  document.documentElement.lang=l;
-  updateLangBtn(l);
-  applyI18n();
-  if(curUser) renderAll();
-  else{
-    const ltEl=document.getElementById('login-title-text');
-    if(ltEl) ltEl.textContent=tr('loginTitle');
-    const ll=document.getElementById('ll-login');
-    const lp=document.getElementById('ll-pass');
-    const lb=document.getElementById('li-btn');
-    if(ll) ll.textContent=tr('loginLbl');
-    if(lp) lp.textContent=tr('passLbl');
-    if(lb) lb.textContent=tr('loginBtn');
-  }
-}
-function applyI18n(){
-  document.querySelectorAll('[data-i18n]').forEach(el=>{
-    if(el.children.length>0) return;
-    const key=el.getAttribute('data-i18n');
-    const txt=tr(key);
-    if(txt&&txt!==key) el.textContent=txt;
-  });
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
-    const key=el.getAttribute('data-i18n-placeholder');
-    const txt=tr(key);
-    if(txt&&txt!==key) el.placeholder=txt;
-  });
-}
-
-function toggleLangMenu(){
-  const m=document.getElementById('lang-menu');
-  if(m) m.style.display=m.style.display==='none'?'block':'none';
-}
-document.addEventListener('click',e=>{
-  const wrap=document.getElementById('lang-wrap');
-  if(wrap&&!wrap.contains(e.target)){
-    const m=document.getElementById('lang-menu');
-    if(m) m.style.display='none';
-  }
-});
-function updateLangBtn(l){
-  const flagImgs={
-    ru:'https://flagcdn.com/24x18/ru.png',
-    en:'https://flagcdn.com/24x18/gb.png'
-  };
-  const labels={ru:'RU',en:'EN'};
-  const flag=document.getElementById('lang-cur-flag');
-  const txt=document.getElementById('lang-cur-text');
-  if(flag){
-    flag.innerHTML=`<img src="${flagImgs[l]||''}" style="width:22px;height:16px;border-radius:2px;object-fit:cover;vertical-align:middle" onerror="this.style.display='none'">`;
-  }
-  if(txt) txt.textContent=' '+( labels[l]||l.toUpperCase());
-}
-function toggleTheme(){
-  const isDark=document.body.classList.toggle('dark');
-  localStorage.setItem('sa_theme',isDark?'dark':'light');
-  document.getElementById('theme-btn').textContent=isDark?'☀️':'🌙';
-}
-
-function applyTheme(){
-  document.documentElement.lang=curLang;
-  const saved=localStorage.getItem('sa_theme');
-  if(saved==='dark'){document.body.classList.add('dark');const tb=document.getElementById('theme-btn');if(tb)tb.textContent='☀️';}
-  updateLangBtn(curLang);
-}
-
-// Apply i18n and theme — handled by main init block below
-
-
-const TIMES=['09:00','10:30','14:00','15:30','17:00','18:30'];
-const LEVELS=[
-  {v:'beginner',l:'Beginner'},{v:'elementary',l:'Elementary'},
-  {v:'pre-intermediate',l:'Pre-Intermediate'},{v:'intermediate',l:'Intermediate'},
-  {v:'upper-intermediate',l:'Upper Intermediate'},
-  {v:'rus-1',l:'Русский — Уровень 1'},{v:'rus-2',l:'Русский — Уровень 2'},
-  {v:'rus-3',l:'Русский — Уровень 3'},{v:'rus-4',l:'Русский — Уровень 4'}
-];
-const RUS_LEVELS=['rus-1','rus-2','rus-3','rus-4'];
-const RUS_CFG={
-  'rus-1':{conv:9,hw:9,vocab:9,ppt:1,hasFinalTest:true},
-  'rus-2':{conv:10,hw:10,vocab:10,ppt:1,hasFinalTest:false},
-  'rus-3':{conv:6,hw:6,vocab:6,ppt:1,hasFinalTest:false},
-  'rus-4':{conv:8,hw:8,vocab:8,ppt:2,hasFinalTest:false}
-};
-
-let D={teachers:[],students:[],accounts:[],archives:[],settings:{pin:DPIN}};
-let view='home',selT=null,selG=null,selArch=null,selStu=null,curPage=null;
-let curUser=null; // {role:'admin'|'teacher', teacherId, name, accountId}
-let token=''; // legacy
-let saveTimer=null,curSbTab='teachers',loginMode='admin';
-
-// ── Data ──────────────────────────────────────────────────────────────────
-const LOCAL_KEY='sa_data_backup';
-let dataLoaded=false;
-async function loadData(){
-  let local={};
-  try{local=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');}catch(e){}
-  if(!FIREBASE_URL){
-    // No Firebase yet - use local only
-    if(local.teachers) D=local;
-  } else {
-    try{
-      const r=await fetch(`${FIREBASE_URL}/data.json?t=${Date.now()}`);
-      if(r.ok){
-        const cloud=await r.json()||{};
-        const cloudTime=new Date(cloud._savedAt||0).getTime();
-        const lcTime=new Date(local._localAt||local._savedAt||0).getTime();
-        const cloudScore=(cloud.teachers||[]).length*10+(cloud.accounts||[]).length;
-        const lcScore=(local.teachers||[]).length*10+(local.accounts||[]).length;
-        // Use whichever has more data, prefer local if newer
-        if(lcScore>cloudScore||(lcScore===cloudScore&&lcTime>cloudTime&&lcScore>0)){
-          D=local;
-          console.log('Using local backup');
-          setTimeout(saveData,1000); // push to Firebase
-        } else if(cloudScore>0){
-          D=cloud;
-          console.log('Using Firebase');
-        } else if(local.teachers){
-          D=local;
-          setTimeout(saveData,1000);
-        }
-      } else if(local.teachers){
-        D=local;
-      }
-    }catch(e){
-      if(local.teachers){D=local;toast('Нет соединения. Работаем с локальными данными.','error');}
-    }
-  }
-  // Fix Firebase object->array conversion
-  fixFirebaseArrays(D);
-  if(!D.settings) D.settings={pin:DPIN};
-  if(!D.teachers) D.teachers=[];
-  if(!D.students) D.students=[];
-  if(!D.accounts) D.accounts=[];
-  if(!D.archives) D.archives=[];
-  if(!D.duties) D.duties={}; // {date: {morning: supId, evening: supId}}
-  // Auto-close expired replacements
-  const today=new Date().toISOString().slice(0,10);
-  let expiredClosed=false;
-  (D.accounts||[]).filter(a=>a.role==='supporter').forEach(a=>{
-    (a.replacements||[]).forEach(r=>{
-      if(r.active&&r.dateTo&&r.dateTo<today){r.active=false;expiredClosed=true;}
-    });
-  });
-  if(expiredClosed) setTimeout(saveData,500);
-  dataLoaded=true;
-}
-
-function fixFirebaseArrays(obj){
-  if(!obj||typeof obj!=='object') return;
-
-  // Fix a single field: object with numeric keys → proper sized array
-  function toArr(val, size){
-    if(!val) return new Array(size).fill(null);
-    if(Array.isArray(val)){
-      // Ensure correct size
-      const arr=new Array(size).fill(null);
-      for(let i=0;i<size;i++) arr[i]=(val[i]!=null)?val[i]:null;
-      return arr;
-    }
-    // Firebase object {"0":86,"2":76} → [86,null,76,null...]
-    const arr=new Array(size).fill(null);
-    Object.keys(val).forEach(k=>{
-      const i=parseInt(k);
-      if(!isNaN(i)&&i<size) arr[i]=val[k];
-    });
-    return arr;
-  }
-
-  // Fix top-level arrays
-  function toList(val){
-    if(!val) return [];
-    if(Array.isArray(val)) return val;
-    return Object.values(val);
-  }
-
-  obj.teachers=toList(obj.teachers);
-  obj.accounts=toList(obj.accounts);
-  obj.students=toList(obj.students);
-  obj.archives=toList(obj.archives);
-
-  obj.teachers.forEach(t=>{
-    t.groups=toList(t.groups);
-    t.groups.forEach(g=>{
-      g.students=toList(g.students);
-      g.students.forEach(s=>{
-        if(!s) return;
-        if(RUS_LEVELS&&RUS_LEVELS.includes(g.level)){
-          const cfg=(RUS_CFG&&RUS_CFG[g.level])||{conv:9,hw:9,vocab:9,ppt:1};
-          s.conversations=toArr(s.conversations,cfg.conv);
-          s.homework=toArr(s.homework,cfg.hw);
-          s.vocabulary=toArr(s.vocabulary,cfg.vocab);
-          s.presentations=toArr(s.presentations,cfg.ppt);
-        } else {
-          s.units=toArr(s.units,12);
-          s.units_grammar=toArr(s.units_grammar,12);
-          s.units_vocab=toArr(s.units_vocab,12);
-          s.homework=toArr(s.homework,5);
-          s.achievements=toArr(s.achievements,5);
-        }
-      });
-    });
-  });
+  return input===stored;
 }
 
 async function saveData(){
   if(!FIREBASE_URL){
-    // No Firebase configured - save locally only
     try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
     return;
   }
@@ -4955,6 +3975,7 @@ async function saveData(){
   if(pill) pill.style.display='none';
 }
 
+function saveNow(){saveData();}
 
 function sched(){
   D._localAt=new Date().toISOString();
@@ -4963,32 +3984,211 @@ function sched(){
   if(up) up.style.display='flex';
   clearTimeout(saveTimer);
   saveTimer=setTimeout(saveNow,3000);
-  // Schedule Google Sheets sync
-  scheduleSheets();
 }
-function saveNow(){saveData();}
 
-// ── Login ─────────────────────────────────────────────────────────────────
-// loginTab removed - unified login
 
-async function initApp(){
+async function doLogin(){
+  try{
+    const login=(document.getElementById('li-login')?.value||'').trim().toLowerCase();
+    const pass=document.getElementById('li-pass')?.value||'';
+    document.getElementById('login-err').style.display='none';
+    if(!login){document.getElementById('li-login').focus();showLoginErr('Введите логин');return;}
+    if(!pass){document.getElementById('li-pass').focus();showLoginErr('Введите пароль');return;}
+    const btn=document.getElementById('li-btn');
+    const restoreBtn=()=>{if(btn){btn.disabled=false;btn.textContent='Войти';}};
+    if(btn){btn.disabled=true;btn.textContent='Вход...';}
+    if(!dataLoaded){
+      showLoginErr('Загрузка данных...');
+      loadData().then(()=>{restoreBtn();document.getElementById('login-err').style.display='none';doLogin();});
+      return;
+    }
+    const adminLogin=(D.settings?.adminLogin||'admin').toLowerCase();
+    const adminPin=D.settings?.pin||DPIN;
+    if(login===adminLogin||login==='admin'){
+      if(await checkPass(pass,adminPin)||pass===DPIN){
+        restoreBtn();curUser={role:'admin',name:D.settings?.adminName||'Администратор'};
+        startApp();return;
+      }
+    }
+    let tAcc=null;
+    for(const a of (D.accounts||[])){
+      if((a.login||'').toLowerCase()===login&&a.role!=='supporter'&&await checkPass(pass,a.password)){tAcc=a;break;}
+    }
+    if(tAcc){
+      const teacher=D.teachers.find(x=>x.id===tAcc.teacherId);
+      restoreBtn();curUser={role:'teacher',teacherId:tAcc.teacherId,name:teacher?teacher.name:login,accountId:tAcc.id};
+      startApp();return;
+    }
+    let sAcc=null;
+    for(const a of (D.accounts||[])){
+      if((a.login||'').toLowerCase()===login&&a.role==='supporter'&&await checkPass(pass,a.password)){sAcc=a;break;}
+    }
+    if(sAcc){
+      restoreBtn();curUser={role:'supporter',name:sAcc.name||login,accountId:sAcc.id};
+      startApp();return;
+    }
+    restoreBtn();
+    const total=(D.accounts||[]).length;
+    showLoginErr(total>0?'Неверный логин или пароль':'Данные не загружены. Обновите страницу.');
+    document.getElementById('li-pass').value='';
+    document.getElementById('li-pass').focus();
+  }catch(err){
+    showLoginErr('Ошибка: '+err.message);
+    console.error('Login error:',err);
+    const btn=document.getElementById('li-btn');
+    if(btn){btn.disabled=false;btn.textContent='Войти';}
+  }
+}
 
+function showLoginErr(msg){
+  const el=document.getElementById('login-err');
+  if(el){el.textContent=msg;el.style.display='block';}
+}
+
+function startApp(){
+  try{saveSession(curUser);}catch(e){}
+  if(D.settings?.firebaseUrl) FIREBASE_URL=D.settings.firebaseUrl;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  const isAdm=curUser.role==='admin';
+  const isSup=curUser.role==='supporter';
+  const isTch=curUser.role==='teacher';
+  const isStu=curUser.role==='student';
+  document.getElementById('adm-bar').style.display=isAdm?'flex':'none';
+  document.getElementById('tch-bar').style.display=isTch?'flex':'none';
+  const supBar=document.getElementById('sup-bar');
+  if(supBar) supBar.style.display=isSup?'flex':'none';
+  if(isTch) document.getElementById('tch-bar-name').textContent='👤 '+curUser.name;
+  const sidebar=document.getElementById('sidebar');
+  if(sidebar) sidebar.style.display=isStu?'none':'flex';
+  const pill=document.getElementById('who-pill');
+  const avCls=isAdm?'wa-admin':isSup?'wa-supporter':'wa-teacher';
+  if(pill) pill.innerHTML=`<div class="who-av ${avCls}" style="width:24px;height:24px;font-size:10px;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(curUser.name)}</div> ${curUser.name}`;
+  applyLogo();
+  applyI18n();
+  updateLangBtn(curLang);
+  if(isSup){view='supporter';renderAll();}
+  else{
+    view='home';renderAll();
+    if(isTch&&curUser.teacherId){selT=curUser.teacherId;view='teacher';renderAll();}
+  }
+  if(isAdm) setTimeout(()=>saveData(),1000);
+  clearInterval(window._refreshTimer);
+  window._refreshTimer=setInterval(async()=>{
+    await loadData();
+    const now=new Date();
+    window._supLastUpdate=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    if(curUser?.role==='supporter') renderMain();
+  },60000);
+}
+
+function doLogout(){
+  clearSession();
+  clearInterval(window._refreshTimer);
+  curUser=null;
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('app').style.display='none';
-  await loadData();
-  // Try to restore session
-  // QR public view - no login needed
-  if(window._qrViewMode){
-    showQRPublicView(window._qrT, window._qrG);
-    return;
-  }
+  document.getElementById('li-login').value='';
+  document.getElementById('li-pass').value='';
+  initApp();
+}
 
+function showProfile(){
+  const isAdm=curUser?.role==='admin';
+  const isTch=curUser?.role==='teacher';
+  const isSup=curUser?.role==='supporter';
+  if(isAdm){
+    openModal(`<div class="modal-title">👑 Профиль администратора</div>
+      <div class="fg"><label class="fl">Имя</label>
+        <input type="text" class="fi" id="pp-name" value="${D.settings?.adminName||'Администратор'}">
+      </div>
+      <div style="background:#f8f9fb;border-radius:12px;padding:16px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:#4361ee;margin-bottom:12px">🔐 Смена PIN-кода</div>
+        <div class="fg" style="margin-bottom:10px"><label class="fl">Текущий PIN</label>
+          <input type="password" class="fi" id="pp-old" placeholder="Текущий PIN">
+        </div>
+        <div class="fg" style="margin-bottom:10px"><label class="fl">Новый PIN</label>
+          <input type="password" class="fi" id="pp-new" placeholder="Новый PIN (мин. 4 символа)">
+        </div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">Подтвердите PIN</label>
+          <input type="password" class="fi" id="pp-confirm" placeholder="Повторите PIN">
+        </div>
+      </div>
+      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+        <button class="btn btn-pri" onclick="saveAdminProfile()">Сохранить</button></div>`);
+  } else if(isTch){
+    const acc=(D.accounts||[]).find(a=>a.id===curUser.accountId);
+    const t=D.teachers.find(x=>x.id===curUser.teacherId);
+    openModal(`<div class="modal-title">👤 Мой профиль</div>
+      <div style="background:#f8f9fb;border-radius:12px;padding:16px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="t-av" style="width:44px;height:44px;font-size:16px;border-radius:12px">${ini(curUser.name)}</div>
+          <div><div style="font-weight:700;font-size:15px">${curUser.name}</div>
+          <div style="font-size:12px;color:#888">Преподаватель · Логин: ${acc?.login||'—'}</div></div>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Новый пароль</label>
+        <input type="password" class="fi" id="pp-new" placeholder="Новый пароль (мин. 4 символа)">
+      </div>
+      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+        <button class="btn btn-pri" onclick="saveTeacherProfile()">Сохранить</button></div>`);
+  } else if(isSup){
+    const acc=(D.accounts||[]).find(a=>a.id===curUser.accountId);
+    openModal(`<div class="modal-title">🤝 Мой профиль</div>
+      <div style="background:#f8f9fb;border-radius:12px;padding:16px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="t-av" style="width:44px;height:44px;font-size:16px;border-radius:12px;background:linear-gradient(135deg,#2b9348,#1b5e20)">${ini(curUser.name)}</div>
+          <div><div style="font-weight:700;font-size:15px">${curUser.name}</div>
+          <div style="font-size:12px;color:#888">Supporter · Логин: ${acc?.login||'—'}</div></div>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Новый пароль</label>
+        <input type="password" class="fi" id="pp-new" placeholder="Новый пароль (мин. 4 символа)">
+      </div>
+      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+        <button class="btn btn-pri" onclick="saveSupporterProfile()">Сохранить</button></div>`);
+  }
+}
+
+async function saveAdminProfile(){
+  const name=document.getElementById('pp-name')?.value?.trim();
+  const old=document.getElementById('pp-old')?.value;
+  const nw=document.getElementById('pp-new')?.value?.trim();
+  const cf=document.getElementById('pp-confirm')?.value?.trim();
+  let changed=false;
+  if(name){D.settings.adminName=name;curUser.name=name;
+    document.getElementById('who-pill').innerHTML=`<div class="who-av wa-admin" style="width:24px;height:24px;font-size:10px;font-weight:700;background:#e94560;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(name)}</div> ${name}`;
+    changed=true;}
+  if(old||nw||cf){
+    const pinOk=await checkPass(old,D.settings?.pin||DPIN);
+    if(!pinOk){toast('Неверный текущий PIN','error');return;}
+    if(!nw||nw.length<4){toast('Новый PIN минимум 4 символа','error');return;}
+    if(nw!==cf){toast('PIN-коды не совпадают','error');return;}
+    D.settings.pin=await hashPass(nw);changed=true;
+  }
+  if(changed){closeModal();sched();toast('Профиль сохранён ✓','success');}
+  else closeModal();
+}
+
+async function saveTeacherProfile(){
+  const acc=(D.accounts||[]).find(a=>a.id===curUser.accountId);if(!acc) return;
+  const nw=document.getElementById('pp-new')?.value?.trim();
+  if(nw&&nw.length>=4){acc.password=await hashPass(nw);}
+  closeModal();if(nw&&nw.length>=4){sched();toast('Пароль изменён ✓','success');}else closeModal();
+}
+
+async function saveSupporterProfile(){
+  const acc=(D.accounts||[]).find(a=>a.id===curUser.accountId);if(!acc) return;
+  const nw=document.getElementById('pp-new')?.value?.trim();
+  if(nw&&nw.length>=4){acc.password=await hashPass(nw);sched();toast('Пароль изменён ✓','success');}
+  closeModal();
+}
+
+function loadAndRestoreSession(){
   const saved=loadSession();
   if(saved){
-    // Verify saved session is still valid
-    if(saved.role==='admin'){
-      curUser=saved;startApp();return;
-    } else if(saved.role==='teacher'){
+    if(saved.role==='admin'){curUser=saved;startApp();return;}
+    else if(saved.role==='teacher'){
       const acc=(D.accounts||[]).find(a=>a.id===saved.accountId);
       const teacher=D.teachers.find(x=>x.id===saved.teacherId);
       if(acc){curUser={...saved,name:teacher?teacher.name:saved.name};startApp();return;}
@@ -5000,293 +4200,12 @@ async function initApp(){
   }
 }
 
-async function sha256(str){
-  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-// Hash password for storage — returns hex string
-async function hashPass(pass){return await sha256(pass);}
-// Compare: supports both plain (legacy) and hashed passwords
-async function checkPass(input,stored){
-  if(!stored) return false;
-  if(stored.length===64&&/^[0-9a-f]+$/.test(stored)){
-    return (await sha256(input))===stored;
-  }
-  // Legacy plain text — still works
-  return input===stored;
-}
-
-async function doLogin(){
-  try{
-    const login=(document.getElementById('li-login')?.value||'').trim().toLowerCase();
-    const pass=document.getElementById('li-pass')?.value||'';
-    document.getElementById('login-err').style.display='none';
-
-    if(!login){document.getElementById('li-login').focus();showLoginErr('Введите логин');return;}
-    if(!pass){document.getElementById('li-pass').focus();showLoginErr('Введите пароль');return;}
-
-    // If data not loaded yet - wait and retry
-    if(!dataLoaded){
-      showLoginErr('Загрузка данных...');
-      const btn=document.getElementById('li-btn');
-      if(btn){btn.disabled=true;btn.textContent='Загрузка...';}
-      loadData().then(()=>{
-        if(btn){btn.disabled=false;btn.textContent='Войти';}
-        document.getElementById('login-err').style.display='none';
-        doLogin();
-      });
-      return;
-    }
-
-    // Show loading state during async checks
-    const btn2=document.getElementById('li-btn');
-    if(btn2){btn2.disabled=true;btn2.textContent='Проверка...';}
-    const restoreBtn=()=>{if(btn2){btn2.disabled=false;btn2.textContent='Войти';}};
-
-    // Admin check - main admin
-    const adminLogin=(D.settings?.adminLogin||'admin').toLowerCase();
-    const adminPin=D.settings?.pin||DPIN;
-    if(login===adminLogin||login==='admin'){
-      if(await checkPass(pass,adminPin)||await checkPass(pass,DPIN)){
-        restoreBtn();curUser={role:'admin',name:D.settings?.adminName||'Администратор'};
-        startApp();return;
-      }
-    }
-    // Admin check - additional admin accounts
-    let admAcc=null;
-    for(const a of (D.accounts||[])){
-      if(a.role==='admin'&&(a.login||'').toLowerCase()===login&&await checkPass(pass,a.password)){admAcc=a;break;}
-    }
-    if(admAcc){restoreBtn();curUser={role:'admin',name:admAcc.name||login,accountId:admAcc.id};startApp();return;}
-    // Student login
-    let stuAcc=null;
-    for(const a of (D.accounts||[])){
-      if(a.role==='student'&&(a.login||'').toLowerCase()===login&&await checkPass(pass,a.password)){stuAcc=a;break;}
-    }
-    if(stuAcc){
-      let stuData=null,stuGroup=null,stuTeacher=null;
-      D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
-        const s=(g.students||[]).find(x=>x.id===stuAcc.studentId||x.name===stuAcc.studentName);
-        if(s){stuData=s;stuGroup=g;stuTeacher=tc;}
-      }));
-      const hasGrades=stuData&&(
-        (stuData.units||[]).some(v=>v!=null&&v!=='')||
-        (stuData.conversations||[]).some(v=>v!=null&&v!=='')||
-        stuData.presentation!=null||stuData.finalConversation!=null
-      );
-      if(!hasGrades){restoreBtn();showLoginErr('Результаты ещё не добавлены. Обратитесь к преподавателю.');return;}
-      restoreBtn();curUser={role:'student',name:stuAcc.studentName,accountId:stuAcc.id,
-               studentId:stuAcc.studentId,groupId:stuGroup?.id,teacherId:stuTeacher?.id};
-      startApp();return;
-    }
-    // Teacher
-    let tAcc=null;
-    for(const a of (D.accounts||[])){
-      if((a.login||'').toLowerCase()===login&&a.role!=='supporter'&&await checkPass(pass,a.password)){tAcc=a;break;}
-    }
-    if(tAcc){
-      const teacher=D.teachers.find(x=>x.id===tAcc.teacherId);
-      restoreBtn();curUser={role:'teacher',teacherId:tAcc.teacherId,name:teacher?teacher.name:login,accountId:tAcc.id};
-      startApp();return;
-    }
-    // Supporter
-    let sAcc=null;
-    for(const a of (D.accounts||[])){
-      if((a.login||'').toLowerCase()===login&&a.role==='supporter'&&await checkPass(pass,a.password)){sAcc=a;break;}
-    }
-    if(sAcc){
-      restoreBtn();curUser={role:'supporter',name:sAcc.name||login,accountId:sAcc.id};
-      startApp();return;
-    }
-    // Show helpful error with account count
-    restoreBtn();
-    const total=(D.accounts||[]).length;
-    showLoginErr(total>0 ? 'Неверный логин или пароль' : 'Данные не загружены. Обновите страницу.');
-    document.getElementById('li-pass').value='';
-    document.getElementById('li-pass').focus();
-  }catch(err){
-    const b=document.getElementById('li-btn');if(b){b.disabled=false;b.textContent='Войти';}
-    showLoginErr('Ошибка: '+err.message);
-    console.error('Login error:',err);
-  }
-}
-
-function showLoginErr(msg){
-  const el=document.getElementById('login-err');
-  el.textContent=msg;el.style.display='block';
-}
-
-function startApp(){
-  try{saveSession(curUser);}catch(e){console.warn('session save failed:',e);}
-  // Warn on page leave if unsaved changes
-  window.onbeforeunload=()=>{
-    const up=document.getElementById('unsaved-pill');
-    if(up&&up.style.display!=='none') return 'Есть несохранённые изменения. Уйти?';
-  };
-  // Restore Firebase URL from settings
-  if(!FIREBASE_URL&&D.settings?.firebaseUrl){
-    FIREBASE_URL=D.settings.firebaseUrl;
-    localStorage.setItem('firebase_url',FIREBASE_URL);
-  }
-  document.getElementById('login-screen').style.display='none';
-  document.getElementById('app').style.display='block';
-  const isAdm=curUser.role==='admin';
-  const isSup=curUser.role==='supporter';
-  const isTch=curUser.role==='teacher';
-  const isStu=curUser.role==='student';
-  // Show/hide bars
-  document.getElementById('adm-bar').style.display=isAdm?'flex':'none';
-  document.getElementById('tch-bar').style.display=isTch?'flex':'none';
-  const supBar=document.getElementById('sup-bar');
-  if(supBar) supBar.style.display=isSup?'flex':'none';
-  if(isTch) document.getElementById('tch-bar-name').textContent='👤 '+curUser.name;
-  // Hide sidebar for students
-  const sidebar=document.getElementById('sidebar');
-  if(sidebar) sidebar.style.display=isStu?'none':'flex';
-  // Who pill
-  const pill=document.getElementById('who-pill');
-  const avCls=isAdm?'wa-admin':isSup?'wa-supporter':'wa-teacher';
-  pill.innerHTML=`<div class="who-av ${avCls}" style="width:24px;height:24px;font-size:10px;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(curUser.name)}</div> ${curUser.name}`;
-  applyLogo();
-  applyI18n();
-  updateLangBtn(curLang);
-  if(isSup){view='supporter';renderAll();}
-  else{
-    view='home';renderAll();
-    if(isTch&&curUser.teacherId){selT=curUser.teacherId;view='teacher';renderAll();}
-  }
-  // If admin and no Firebase URL - show setup
-  // Auto-sync to Firebase on admin login
-  if(isAdm) setTimeout(()=>saveData(),1000);
-  // Auto-refresh data every 60 seconds
-  clearInterval(window._refreshTimer);
-  window._refreshTimer=setInterval(async()=>{
-    await loadData();
-    const now=new Date();
-    window._supLastUpdate=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-    renderAll();
-  },60000);
-}
-
-function showProfile(){
-  if(!curUser) return;
-  if(curUser.role==='admin'){
-    const adminName=D.settings?.adminName||'Администратор';
-    openModal(`<div class="modal-title">👤 Профиль администратора</div>
-      <div style="background:#f8f9fb;border-radius:12px;padding:16px;margin-bottom:20px">
-        <div style="display:flex;align-items:center;gap:12px">
-          <div class="who-av wa-admin" style="width:48px;height:48px;font-size:18px;border-radius:50%">${ini(adminName)}</div>
-          <div><div style="font-size:16px;font-weight:700">${adminName}</div>
-            <div style="font-size:12px;color:#888;margin-top:2px">Полный доступ</div></div>
-        </div>
-      </div>
-      <div class="fg"><label class="fl">Имя и фамилия</label>
-        <input type="text" class="fi" id="pp-name" value="${adminName}" placeholder="Введите ФИО">
-      </div>
-      <div style="border-top:1px solid #f0f0f0;padding-top:16px;margin-top:4px">
-        <div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Смена PIN-кода</div>
-        <div class="fg"><label class="fl">Текущий PIN</label>
-          <input type="password" class="fi" id="pp-old" placeholder="Введите текущий PIN">
-        </div>
-        <div class="fg"><label class="fl">Новый PIN</label>
-          <input type="password" class="fi" id="pp-new" placeholder="Минимум 4 символа">
-        </div>
-        <div class="fg"><label class="fl">Подтвердите новый PIN</label>
-          <input type="password" class="fi" id="pp-confirm" placeholder="Повторите PIN">
-        </div>
-      </div>
-      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-        <button class="btn btn-pri" onclick="saveAdminProfile()">${tr('saveBtn')}</button></div>`);
-  } else {
-    const acc=(D.accounts||[]).find(a=>a.id===curUser.accountId);
-    const t=D.teachers.find(x=>x.id===curUser.teacherId);
-    openModal(`<div class="modal-title">👤 Мой профиль</div>
-      <div style="background:#f8f9fb;border-radius:12px;padding:16px;margin-bottom:20px">
-        <div style="display:flex;align-items:center;gap:12px">
-          <div class="who-av wa-teacher" style="width:48px;height:48px;font-size:18px;border-radius:50%">${ini(curUser.name)}</div>
-          <div><div style="font-size:16px;font-weight:700">${curUser.name}</div>
-            <div style="font-size:12px;color:#888;margin-top:2px">Логин: <b>${acc?acc.login:'—'}</b></div>
-          </div>
-        </div>
-      </div>
-      <div class="fg"><label class="fl">Имя и фамилия</label>
-        <input type="text" class="fi" id="pp-name" value="${t?t.name:curUser.name}" placeholder="Введите ФИО">
-      </div>
-      <div style="border-top:1px solid #f0f0f0;padding-top:16px;margin-top:4px">
-        <div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Смена пароля</div>
-        <div class="fg"><label class="fl">Текущий пароль</label>
-          <input type="password" class="fi" id="pp-old" placeholder="Введите текущий пароль">
-        </div>
-        <div class="fg"><label class="fl">Новый пароль</label>
-          <input type="password" class="fi" id="pp-new" placeholder="Минимум 4 символа">
-        </div>
-        <div class="fg"><label class="fl">Подтвердите новый пароль</label>
-          <input type="password" class="fi" id="pp-confirm" placeholder="Повторите пароль">
-        </div>
-      </div>
-      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-        <button class="btn btn-pri" onclick="saveTeacherProfile()">${tr('saveBtn')}</button></div>`);
-  }
-}
-
-async function saveAdminProfile(){
-  const name=document.getElementById('pp-name')?.value?.trim();
-  const old=document.getElementById('pp-old')?.value;
-  const nw=document.getElementById('pp-new')?.value?.trim();
-  const cf=document.getElementById('pp-confirm')?.value?.trim();
-  let changed=false;
-  // Save name
-  if(name){
-    D.settings.adminName=name;
-    curUser.name=name;
-    document.getElementById('who-pill').innerHTML=`<div class="who-av wa-admin" style="width:24px;height:24px;font-size:10px;font-weight:700;background:#e94560;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(name)}</div> ${name}`;
-    changed=true;
-  }
-  // Change PIN if fields filled
-  if(old||nw||cf){
-    const pinOk=await checkPass(old,D.settings?.pin||DPIN);
-    if(!pinOk){toast('Неверный текущий PIN','error');return;}
-    if(!nw||nw.length<4){toast('Новый PIN минимум 4 символа','error');return;}
-    if(nw!==cf){toast('PIN-коды не совпадают','error');return;}
-    D.settings.pin=await hashPass(nw); changed=true;
-  }
-  if(changed){closeModal();sched();toast('Профиль сохранён ✓','success');}
-  else closeModal();
-}
-
-function saveTeacherProfile(){
-  const acc=(D.accounts||[]).find(a=>a.id===curUser.accountId);if(!acc) return;
-  const t=D.teachers.find(x=>x.id===curUser.teacherId);
-  const name=document.getElementById('pp-name')?.value?.trim();
-  const old=document.getElementById('pp-old')?.value;
-  const nw=document.getElementById('pp-new')?.value?.trim();
-  const cf=document.getElementById('pp-confirm')?.value?.trim();
-  let changed=false;
-  // Save name
-  if(name&&t){
-    t.name=name; curUser.name=name;
-    document.getElementById('who-pill').innerHTML=`<div class="who-av wa-teacher" style="width:24px;height:24px;font-size:10px;font-weight:700;background:#4361ee;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(name)}</div> ${name}`;
-    document.getElementById('tch-bar-name').textContent='👤 '+name;
-    changed=true;
-  }
-  // Change password if fields filled
-  if(old||nw||cf){
-    if(old!==acc.password){toast('Неверный текущий пароль','error');return;}
-    if(!nw||nw.length<4){toast('Новый пароль минимум 4 символа','error');return;}
-    if(nw!==cf){toast('Пароли не совпадают','error');return;}
-    acc.password=nw; changed=true;
-  }
-  if(changed){closeModal();renderSidebar();sched();toast('Профиль сохранён ✓','success');}
-  else closeModal();
-}
-
-function doLogout(){
-  clearInterval(window._refreshTimer);
-  clearSession();
-  curUser=null;
-  document.getElementById('li-login').value='';
-  document.getElementById('li-pass').value='';
-  initApp();
+async function initApp(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  await loadData();
+  if(window._qrViewMode){showQRPublicView(window._qrT,window._qrG);return;}
+  loadAndRestoreSession();
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
