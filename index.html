@@ -2785,6 +2785,10 @@ function renderSupporterProfile(el){
   const demoDone=levels.filter(l=>(a.demos||{})[l]).length;
   const activeReplace=repls.find(r=>r.active);
 
+  const now2=new Date();
+  const thisMonth2=`${now2.getFullYear()}-${String(now2.getMonth()+1).padStart(2,'0')}`;
+  const replThisMonth2=repls.filter(r=>(r.dateFrom||'').startsWith(thisMonth2));
+
   el.innerHTML=`
     <div class="bc">
       <span class="bc-l" onclick="goHome()">Главная</span>
@@ -2816,8 +2820,8 @@ function renderSupporterProfile(el){
     <!-- Stats -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
       <div class="stat-card" style="text-align:center;padding:14px 10px">
-        <div style="font-size:24px;font-weight:700;color:var(--color-text-primary,#111)">${repls.length}</div>
-        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Замен всего</div>
+        <div style="font-size:24px;font-weight:700;color:var(--color-text-primary,#111)">${replThisMonth2.length}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Замен в ${now2.toLocaleString('ru',{month:'long'})}</div>
       </div>
       <div class="stat-card" style="text-align:center;padding:14px 10px">
         <div style="font-size:24px;font-weight:700;color:var(--color-text-primary,#111)">${events.length}</div>
@@ -3273,20 +3277,55 @@ function renderSupporterView(el){
   const a=(D.accounts||[]).find(x=>x.id===curUser?.accountId);
   if(!a){el.innerHTML=`<div class="ph"><div class="pt">Ошибка: аккаунт не найден</div></div>`;return;}
 
-  // Auto-init missing fields for old-style supporters without supType
   if(!a.supType) a.supType='eng-ru';
   if(!a.demos) a.demos={};
   if(!a.replacements) a.replacements=[];
   if(!a.mockTests) a.mockTests=[];
   if(!a.reports) a.reports=[];
 
+  const now=new Date();
+  const thisMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const activeReplace=(a.replacements||[]).find(r=>r.active);
   const replHistory=(a.replacements||[]).slice().reverse();
+  const replThisMonth=replHistory.filter(r=>(r.dateFrom||'').startsWith(thisMonth));
   const events=(a.mockTests||[]).slice().reverse();
   const levels=supLevels(a);
   const typeLabel={'eng-ru':'Англ (русскоговорящий)','eng-kk':'Англ (каракалпакоговорящий)','rus':'Русский язык'}[a.supType||'eng-ru'];
   const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'}[a.supType||'eng-ru'];
   const demoDone=levels.filter(l=>(a.demos||{})[l]).length;
+
+  // Build debts
+  let debtsHtml='';
+  try{
+    const debtRows=[];
+    D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+      (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
+        const debts=getDebts(s,g.level);
+        if(debts.length) debtRows.push({s,g,tc,debts});
+      });
+    }));
+    const DC={u:'#e3f2fd:#1565c0:#90caf9',hw:'#f3e5f5:#6a1b9a:#ce93d8',at:'#fff3e0:#e65100:#ffb74d'};
+    const dbg=(key)=>{const p=(DC[key]||DC.u).split(':');return `background:${p[0]};color:${p[1]};border:1px solid ${p[2]}`;};
+    if(debtRows.length){
+      debtsHtml=`<div class="card" style="margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:12px">⚠️ Должники (${debtRows.length} студентов)</div>
+        ${debtRows.map(({s,g,tc,debts})=>`<div class="event-row">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111)">${s.name}</div>
+            <div style="font-size:11px;color:var(--color-text-secondary,#888)">${tc.name} · ${g.day} ${g.time} · ${g.level}</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:200px">
+            ${debts.map(d=>`<span style="font-size:11px;padding:2px 7px;border-radius:10px;${dbg(d.key)}">${d.label}</span>`).join('')}
+          </div>
+        </div>`).join('')}
+      </div>`;
+    } else {
+      debtsHtml=`<div class="card" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;padding:14px 18px">
+        <span style="font-size:18px">✅</span>
+        <span style="font-size:13px;color:var(--color-text-secondary,#888)">Должников нет</span>
+      </div>`;
+    }
+  }catch(err){debtsHtml='';}
 
   el.innerHTML=`
     <div class="ph">
@@ -3301,8 +3340,8 @@ function renderSupporterView(el){
 
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
       <div class="stat-card" style="text-align:center;padding:14px 10px">
-        <div style="font-size:22px;font-weight:700;color:var(--color-text-primary,#111)">${replHistory.length}</div>
-        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Замен всего</div>
+        <div style="font-size:22px;font-weight:700;color:var(--color-text-primary,#111)">${replThisMonth.length}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Замен в ${now.toLocaleString('ru',{month:'long'})}</div>
       </div>
       <div class="stat-card" style="text-align:center;padding:14px 10px">
         <div style="font-size:22px;font-weight:700;color:var(--color-text-primary,#111)">${events.length}</div>
@@ -3330,6 +3369,8 @@ function renderSupporterView(el){
         ${levels.map(l=>`<span class="demo-chip ${(a.demos||{})[l]?'demo-chip-ok':'demo-chip-no'}">${(a.demos||{})[l]?'✓ ':''} ${SUP_LEVEL_LABELS[l]}</span>`).join('')}
       </div>
     </div>
+
+    ${debtsHtml}
 
     <div class="card" style="margin-bottom:12px">
       <div class="card-title" style="margin-bottom:12px">🔄 История замен (${replHistory.length})</div>
@@ -3371,7 +3412,6 @@ function renderSupporterView(el){
       <button class="btn btn-pri" onclick="submitSupReport('${a.id}')">Отправить</button>
     </div>`;
 }
-
 function submitSupReport(supId){
   const a=D.accounts.find(x=>x.id===supId);if(!a) return;
   const group=document.getElementById('sup-report-group')?.value?.trim();
