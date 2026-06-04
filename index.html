@@ -536,8 +536,11 @@ function renderSidebar(){
   const typeLabel={'eng-ru':'Англ (рус)','eng-kk':'Англ (кк)','rus':'Рус язык'};
   const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'};
   const supEl=document.getElementById('suplist');
-  if(supEl) supEl.innerHTML=supporters.length
-    ?supporters.map(a=>{
+  if(supEl) supEl.innerHTML=(supporters.length
+    ?`${isAdmin()?`<div style="padding:10px 12px 4px">
+        <button onclick="gotoPage('sup_events')" class="btn btn-pri btn-sm" style="width:100%;justify-content:center">📋 Все события суппортеров</button>
+      </div>`:''}
+      ${supporters.map(a=>{
         const active=(a.replacements||[]).find(r=>r.active);
         const tl=typeLabel[a.supType||'eng-ru']||'Англ (рус)';
         const tc=typeCls[a.supType||'eng-ru']||'sup-type-eng-ru';
@@ -555,8 +558,8 @@ function renderSidebar(){
             </div>
           </div>
         </div>`;
-      }).join('')
-    :'<div style="padding:16px;font-size:13px;color:#bbb">Нет суппортеров</div>';
+      }).join('')}`
+    :'<div style="padding:16px;font-size:13px;color:#bbb">Нет суппортеров</div>');
 
   document.getElementById('alist').innerHTML=(D.archives||[]).length
     ?(D.archives||[]).slice().reverse().map(a=>`<div class="t-item ${selArch===a.id&&view==='archive'?'active':''}" onclick="gotoArch('${a.id}')">
@@ -574,9 +577,11 @@ function renderMain(){
       return;
     }
     if(curUser?.role==='student'){renderStudentView(el);return;}
-    if(curPage==='accounts') renderAccounts(el);
+    if(curPage==='sup_events') renderSupporterEvents(el);
+    else if(curPage==='accounts') renderAccounts(el);
     else if(curPage==='students') renderStudentsPage(el);
     else if(curPage==='rating') renderRating(el);
+    else if(view==='supporter_profile') renderSupporterProfile(el);
     else if(view==='home') renderHome(el);
     else if(view==='teacher') renderTeacher(el);
     else if(view==='group') renderGroup(el);
@@ -2750,72 +2755,367 @@ function supCanReplace(a,t,g){
   return false;
 }
 
-function showSupporterProfile(id){
-  const a=D.accounts.find(x=>x.id===id);if(!a) return;
+function gotoSupporterProfile(id){
+  window._selSupporter=id;
+  view='supporter_profile';
+  curPage=null;
+  renderAll();
+}
+
+// Keep old name as alias for sidebar click
+function showSupporterProfile(id){gotoSupporterProfile(id);}
+
+function renderSupporterProfile(el){
+  const id=window._selSupporter;
+  const a=(D.accounts||[]).find(x=>x.id===id);
+  if(!a){el.innerHTML=`<div class="ph"><div class="pt">Суппортер не найден</div></div>`;return;}
+  if(!a.supType) a.supType='eng-ru';
+  if(!a.demos) a.demos={};
+  if(!a.replacements) a.replacements=[];
+  if(!a.mockTests) a.mockTests=[];
+  if(!a.reports) a.reports=[];
+
   const levels=supLevels(a);
-  const typeLabel={'eng-ru':'Англ (русскоговорящий)','eng-kk':'Англ (каракалпакоговорящий)','rus':'Русский язык'}[a.supType||'eng-ru'];
-  const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'}[a.supType||'eng-ru'];
+  const typeLabel={'eng-ru':'Англ (русскоговорящий)','eng-kk':'Англ (каракалпакоговорящий)','rus':'Русский язык'}[a.supType];
+  const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'}[a.supType];
+  const schedLabel={'morning':'09:00–12:00','evening':'14:00–20:00','full':'09:00–20:00'}[a.schedule||'']||'';
   const repls=(a.replacements||[]).slice().reverse();
   const events=(a.mockTests||[]).slice().reverse();
   const reports=(a.reports||[]).slice().reverse();
+  const demoDone=levels.filter(l=>(a.demos||{})[l]).length;
+  const activeReplace=repls.find(r=>r.active);
 
-  openModal(`<div class="modal-title">👤 ${a.name||a.login}</div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-      <span class="sup-type-badge ${typeCls}">${typeLabel}</span>
-      ${a.schedule?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 9px;border-radius:20px">🕐 ${'morning'===a.schedule?'09:00–12:00':'evening'===a.schedule?'14:00–20:00':'09:00–20:00'}</span>`:''}
-      ${a.phone?`<span style="font-size:12px;color:var(--color-text-secondary,#888)">📞 ${a.phone}</span>`:''}
-      <span style="font-size:12px;color:#888">Замен: ${repls.length} · Событий: ${events.length}</span>
+  el.innerHTML=`
+    <div class="bc">
+      <span class="bc-l" onclick="goHome()">Главная</span>
+      <span class="bc-s">›</span>
+      <span class="bc-l" onclick="gotoPage('accounts')">Аккаунты</span>
+      <span class="bc-s">›</span>
+      <span class="bc-c">${a.name||a.login}</span>
     </div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">Демо-уроки по уровням</div>
+
+    <!-- Header card -->
+    <div style="background:linear-gradient(135deg,#16213e,#0f3460);border-radius:16px;padding:24px;margin-bottom:16px;color:white;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0">${ini(a.name||a.login)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:20px;font-weight:700;margin-bottom:6px">${a.name||a.login}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <span class="sup-type-badge ${typeCls}">${typeLabel}</span>
+          ${schedLabel?`<span style="font-size:11px;background:rgba(255,255,255,.15);color:white;padding:2px 9px;border-radius:20px">🕐 ${schedLabel}</span>`:''}
+          ${a.phone?`<span style="font-size:12px;opacity:.8">📞 ${a.phone}</span>`:''}
+          ${activeReplace?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 9px;border-radius:20px">На замене до ${activeReplace.dateTo}</span>`:`<span style="font-size:11px;background:rgba(255,255,255,.15);color:white;padding:2px 9px;border-radius:20px">Свободен</span>`}
+        </div>
+      </div>
+      ${isAdmin()?`<div style="display:flex;gap:8px">
+        <button class="btn btn-sec btn-sm" onclick="showAssignReplace('${a.id}')">📅 Замена</button>
+        <button class="btn btn-sec btn-sm" onclick="showAssignEvent('${a.id}')">📝 Событие</button>
+        <button class="btn btn-sec btn-sm" onclick="showEditAccount('${a.id}')">✏️ Изменить</button>
+      </div>`:''}
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      <div class="stat-card" style="text-align:center;padding:14px 10px">
+        <div style="font-size:24px;font-weight:700;color:var(--color-text-primary,#111)">${repls.length}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Замен всего</div>
+      </div>
+      <div class="stat-card" style="text-align:center;padding:14px 10px">
+        <div style="font-size:24px;font-weight:700;color:var(--color-text-primary,#111)">${events.length}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Мок / AT / Демо</div>
+      </div>
+      <div class="stat-card" style="text-align:center;padding:14px 10px">
+        <div style="font-size:24px;font-weight:700;color:var(--color-text-primary,#111)">${demoDone}/${levels.length}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Демо-уровней</div>
+      </div>
+    </div>
+
+    <!-- Demo levels -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:12px">📋 Демо-уроки по уровням</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${levels.map(l=>`
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
-            <input type="checkbox" ${(a.demos||{})[l]?'checked':''} onchange="supToggleDemo('${id}','${l}',this.checked)" style="width:14px;height:14px;accent-color:#4361ee">
+          <label style="display:flex;align-items:center;gap:5px;cursor:${isAdmin()?'pointer':'default'}">
+            <input type="checkbox" ${(a.demos||{})[l]?'checked':''} ${isAdmin()?`onchange="supToggleDemo('${id}','${l}',this.checked)"`:'disabled'} style="width:14px;height:14px;accent-color:#4361ee">
             <span class="demo-chip ${(a.demos||{})[l]?'demo-chip-ok':'demo-chip-no'}" id="demo-chip-${l}">${SUP_LEVEL_LABELS[l]}</span>
           </label>`).join('')}
       </div>
     </div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">История замен (${repls.length})</div>
-      ${!repls.length?`<div style="font-size:13px;color:#bbb">Замен ещё не было</div>`:
-      `<div style="max-height:140px;overflow-y:auto;border:0.5px solid #e8eaf0;border-radius:8px">
-        ${repls.map(r=>`<div class="event-row" style="padding:8px 12px">
-          <div style="flex:1">
-            <div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#111)">${r.teacherName||'—'}</div>
-            <div style="font-size:11px;color:#888">${r.groupName||''} · ${r.dateFrom||''} — ${r.dateTo||''}</div>
-          </div>
-          ${r.withoutDemo?`<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px">без демо</span>`:''}
-          <span class="event-type-replace">Замена</span>
-        </div>`).join('')}
-      </div>`}
-    </div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">Мок/AT тесты (${events.length})</div>
-      ${!events.length?`<div style="font-size:13px;color:#bbb">Событий ещё не было</div>`:
-      `<div style="max-height:120px;overflow-y:auto;border:0.5px solid #e8eaf0;border-radius:8px">
-        ${events.map(e=>`<div class="event-row" style="padding:8px 12px">
-          <div style="flex:1">
-            <div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#111)">${e.groupName||'—'}</div>
-            <div style="font-size:11px;color:#888">${e.date||''}</div>
-          </div>
-          <span class="event-type-${e.type||'mock'}">${e.type==='at'?'AT тест':e.type==='demo'?'Демо':e.type==='mock'?'Мок':'—'}</span>
-        </div>`).join('')}
-      </div>`}
-    </div>
-    ${reports.length?`<div>
-      <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">Сообщения о некорректности (${reports.filter(r=>r.status==='new').length} новых)</div>
-      <div style="max-height:120px;overflow-y:auto;border:0.5px solid #e8eaf0;border-radius:8px">
-        ${reports.map(r=>`<div class="event-row" style="padding:8px 12px">
-          <div style="flex:1">
-            <div style="font-size:12px;color:var(--color-text-primary,#111)">${r.text||''}</div>
-            <div style="font-size:11px;color:#888">${r.groupName||''} · ${r.date||''}</div>
-          </div>
-          <span class="${r.status==='new'?'report-new':'report-done'}" onclick="supResolveReport('${id}','${r.id}')" style="cursor:pointer">${r.status==='new'?'Новое ✓':'Решено'}</span>
-        </div>`).join('')}
+
+    <!-- Replace history -->
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title">🔄 История замен (${repls.length})</div>
+        ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAssignReplace('${id}')">+ Добавить</button>`:''}
       </div>
-    </div>`:''}
-    <div class="fa" style="margin-top:16px"><button class="btn btn-sec" onclick="closeModal()">Закрыть</button></div>`);
+      ${!repls.length?`<div style="font-size:13px;color:#bbb;padding:8px 0">Замен ещё не было</div>`:
+      repls.map(r=>`<div class="event-row">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111)">${r.teacherName}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary,#888)">${r.groupName}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:6px">
+          <div>
+            <div style="font-size:11px;color:var(--color-text-secondary,#888)">${r.dateFrom} — ${r.dateTo}</div>
+            <div style="display:flex;gap:4px;justify-content:flex-end;margin-top:3px">
+              ${r.withoutDemo?`<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px">без демо</span>`:''}
+              ${r.active?`<span class="event-type-replace">Активна</span>`:''}
+            </div>
+          </div>
+          ${isAdmin()?`<div style="display:flex;gap:4px">
+            <button onclick="showEditReplace('${id}','${r.id}')" style="padding:3px 8px;border-radius:6px;border:0.5px solid #e0e4f0;background:white;font-size:11px;cursor:pointer">✏️</button>
+            <button onclick="delSupEvent('${id}','replace','${r.id}')" style="padding:3px 8px;border-radius:6px;border:0.5px solid #fcc;background:#fff5f5;font-size:11px;cursor:pointer;color:#c00">✕</button>
+          </div>`:''}
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Events -->
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title">📝 Мок / AT / Демо (${events.length})</div>
+        ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAssignEvent('${id}')">+ Добавить</button>`:''}
+      </div>
+      ${!events.length?`<div style="font-size:13px;color:#bbb;padding:8px 0">Событий ещё не было</div>`:
+      events.map(e=>`<div class="event-row">
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--color-text-primary,#111)">${e.groupName}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary,#888)">${e.date}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="event-type-${e.type||'mock'}">${e.type==='at'?'AT тест':e.type==='demo'?'Демо':'Мок'}</span>
+          ${isAdmin()?`<div style="display:flex;gap:4px">
+            <button onclick="showEditEvent('${id}','${e.id}')" style="padding:3px 8px;border-radius:6px;border:0.5px solid #e0e4f0;background:white;font-size:11px;cursor:pointer">✏️</button>
+            <button onclick="delSupEvent('${id}','event','${e.id}')" style="padding:3px 8px;border-radius:6px;border:0.5px solid #fcc;background:#fff5f5;font-size:11px;cursor:pointer;color:#c00">✕</button>
+          </div>`:''}
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Reports -->
+    ${reports.length||isAdmin()?`<div class="card">
+      <div class="card-title" style="margin-bottom:12px">⚠️ Сообщения о некорректности${reports.filter(r=>r.status==='new').length?` <span class="report-new">${reports.filter(r=>r.status==='new').length} новых</span>`:''}</div>
+      ${!reports.length?`<div style="font-size:13px;color:#bbb;padding:8px 0">Сообщений нет</div>`:
+      reports.map(r=>`<div class="event-row">
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--color-text-primary,#111)">${r.text}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary,#888)">${r.groupName} · ${r.date}</div>
+        </div>
+        <span class="${r.status==='new'?'report-new':'report-done'}" ${r.status==='new'&&isAdmin()?`onclick="supResolveReport('${id}','${r.id}');renderAll()" style="cursor:pointer"`:''}>
+          ${r.status==='new'?'Новое ✓':'Решено'}
+        </span>
+      </div>`).join('')}
+    </div>`:``}`;
+}
+
+
+function delSupEvent(supId,type,eventId){
+  if(!confirm('Удалить запись?')) return;
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  if(type==='replace') a.replacements=(a.replacements||[]).filter(x=>x.id!==eventId);
+  else a.mockTests=(a.mockTests||[]).filter(x=>x.id!==eventId);
+  sched();renderAll();toast('Удалено','success');
+}
+
+function showEditReplace(supId,replId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  const r=(a.replacements||[]).find(x=>x.id===replId);if(!r) return;
+  openModal(`<div class="modal-title">✏️ Редактировать замену</div>
+    <div style="background:#f0f9ff;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#0C447C">
+      ${a.name} → ${r.teacherName}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Дата начала</label>
+        <input type="date" class="fi" id="edit-rep-from" value="${r.dateFrom||''}">
+      </div>
+      <div class="fg"><label class="fl">Дата конца</label>
+        <input type="date" class="fi" id="edit-rep-to" value="${r.dateTo||''}">
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Статус</label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="radio" name="rep-active" value="1" ${r.active?'checked':''}> Активна
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="radio" name="rep-active" value="0" ${!r.active?'checked':''}> Завершена
+        </label>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Без демо</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-top:4px">
+        <input type="checkbox" id="edit-rep-nodemo" ${r.withoutDemo?'checked':''} style="accent-color:#4361ee"> Замена проводилась без демо-урока
+      </label>
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveEditReplace('${supId}','${replId}')">Сохранить</button>
+    </div>`);
+}
+
+function saveEditReplace(supId,replId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  const r=(a.replacements||[]).find(x=>x.id===replId);if(!r) return;
+  r.dateFrom=document.getElementById('edit-rep-from')?.value||r.dateFrom;
+  r.dateTo=document.getElementById('edit-rep-to')?.value||r.dateTo;
+  r.active=document.querySelector('input[name="rep-active"]:checked')?.value==='1';
+  r.withoutDemo=document.getElementById('edit-rep-nodemo')?.checked||false;
+  sched();closeModal();renderAll();toast('Замена обновлена ✓','success');
+}
+
+function showEditEvent(supId,eventId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  const e=(a.mockTests||[]).find(x=>x.id===eventId);if(!e) return;
+  openModal(`<div class="modal-title">✏️ Редактировать событие</div>
+    <div class="fg"><label class="fl">Тип</label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="edit-ev-type" value="mock" ${(e.type||'mock')==='mock'?'checked':''}> Мок тест
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="edit-ev-type" value="at" ${e.type==='at'?'checked':''}> AT тест
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="edit-ev-type" value="demo" ${e.type==='demo'?'checked':''}> Демо
+        </label>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Группа / описание</label>
+      <input type="text" class="fi" id="edit-ev-group" value="${e.groupName||''}">
+    </div>
+    <div class="fg"><label class="fl">Дата</label>
+      <input type="date" class="fi" id="edit-ev-date" value="${e.date||''}">
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveEditEvent('${supId}','${eventId}')">Сохранить</button>
+    </div>`);
+}
+
+function saveEditEvent(supId,eventId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  const e=(a.mockTests||[]).find(x=>x.id===eventId);if(!e) return;
+  e.type=document.querySelector('input[name="edit-ev-type"]:checked')?.value||e.type;
+  e.groupName=document.getElementById('edit-ev-group')?.value||e.groupName;
+  e.date=document.getElementById('edit-ev-date')?.value||e.date;
+  sched();closeModal();renderAll();toast('Событие обновлено ✓','success');
+}
+
+// ── Global events page (sidebar supporters tab) ────────────────────────────
+function renderSupporterEvents(el){
+  const supporters=(D.accounts||[]).filter(a=>a.role==='supporter');
+  // Collect all events across all supporters
+  const allEvents=[];
+  supporters.forEach(a=>{
+    (a.replacements||[]).forEach(r=>allEvents.push({supId:a.id,supName:a.name,type:'replace',date:r.dateFrom,dateTo:r.dateTo,label:r.teacherName,sub:r.groupName,active:r.active,withoutDemo:r.withoutDemo,id:r.id}));
+    (a.mockTests||[]).forEach(e=>allEvents.push({supId:a.id,supName:a.name,type:e.type||'mock',date:e.date,label:e.groupName,sub:'',id:e.id}));
+  });
+  allEvents.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const today=new Date().toISOString().slice(0,10);
+
+  el.innerHTML=`
+    <div class="ph">
+      <div><div class="pt">🤝 События суппортеров</div><div class="ps">${allEvents.length} записей</div></div>
+      ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAddGlobalEvent()">+ Добавить</button>`:''}
+    </div>
+    ${!supporters.length?`<div class="card"><div style="padding:20px;text-align:center;color:#bbb;font-size:13px">Нет суппортеров</div></div>`:
+    !allEvents.length?`<div class="card"><div style="padding:20px;text-align:center;color:#bbb;font-size:13px">Событий ещё нет</div></div>`:`
+    <div class="card">
+      ${allEvents.map(ev=>`<div class="event-row">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#2b9348,#1b5e20);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:white;flex-shrink:0">${ini(ev.supName)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111)">${ev.supName}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary,#888)">${ev.label}${ev.sub?' · '+ev.sub:''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:6px">
+          <div>
+            <div style="font-size:11px;color:var(--color-text-secondary,#888)">${ev.date||''}${ev.dateTo&&ev.dateTo!==ev.date?' — '+ev.dateTo:''}</div>
+            <div style="margin-top:3px">
+              <span class="event-type-${ev.type}">${ev.type==='replace'?'Замена':ev.type==='at'?'AT тест':ev.type==='demo'?'Демо':'Мок'}</span>
+              ${ev.withoutDemo?`<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px;margin-left:3px">без демо</span>`:''}
+            </div>
+          </div>
+          ${isAdmin()?`<button onclick="gotoSupporterProfile('${ev.supId}')" style="padding:3px 8px;border-radius:6px;border:0.5px solid #e0e4f0;background:white;font-size:11px;cursor:pointer;white-space:nowrap">Открыть</button>`:''}
+        </div>
+      </div>`).join('')}
+    </div>`}`;
+}
+
+function showAddGlobalEvent(){
+  const supporters=(D.accounts||[]).filter(a=>a.role==='supporter');
+  const today=new Date().toISOString().slice(0,10);
+  // Collect all groups
+  const allGroups=[];
+  D.teachers.forEach(t=>(t.groups||[]).forEach(g=>allGroups.push({t,g})));
+
+  openModal(`<div class="modal-title">+ Добавить событие</div>
+    <div class="fg"><label class="fl">Суппортер</label>
+      <select class="fi" id="gev-sup">
+        <option value="">— выберите —</option>
+        ${supporters.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Тип события</label>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="gev-type" value="mock" checked> Мок
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="gev-type" value="at"> AT тест
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="gev-type" value="replace"> Замена
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="gev-type" value="demo"> Демо
+        </label>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Группа / преподаватель</label>
+      <select class="fi" id="gev-group">
+        <option value="">— выберите —</option>
+        ${allGroups.map(({t,g})=>`<option value="${g.id}" data-name="${t.name} · ${g.day} ${g.time} ${g.level}" data-level="${g.level}" data-teacher="${t.id}" data-tname="${t.name}">${t.name} · ${g.day} ${g.time} · ${g.level}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Дата начала</label>
+        <input type="date" class="fi" id="gev-from" value="${today}">
+      </div>
+      <div class="fg"><label class="fl">Дата конца</label>
+        <input type="date" class="fi" id="gev-to" value="${today}">
+      </div>
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveGlobalEvent()">Сохранить</button>
+    </div>`);
+}
+
+function saveGlobalEvent(){
+  const supId=document.getElementById('gev-sup')?.value;
+  const type=document.querySelector('input[name="gev-type"]:checked')?.value||'mock';
+  const gSel=document.getElementById('gev-group');
+  const gid=gSel?.value;
+  const dateFrom=document.getElementById('gev-from')?.value;
+  const dateTo=document.getElementById('gev-to')?.value;
+  if(!supId){toast('Выберите суппортера','error');return;}
+  if(!gid){toast('Выберите группу','error');return;}
+  if(!dateFrom){toast('Укажите дату','error');return;}
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  if(!a.mockTests) a.mockTests=[];
+  if(!a.replacements) a.replacements=[];
+  const opt=gSel.options[gSel.selectedIndex];
+  const groupName=opt?.dataset?.name||'';
+  const level=opt?.dataset?.level||'';
+  const teacherName=opt?.dataset?.tname||'';
+  const teacherId=opt?.dataset?.teacher||'';
+  if(type==='replace'){
+    const withoutDemo=level&&!(a.demos||{})[level];
+    a.replacements.push({id:uid(),teacherId,teacherName,groupIds:[gid],groupName,dateFrom,dateTo,withoutDemo,active:true,createdAt:new Date().toISOString()});
+  } else {
+    a.mockTests.push({id:uid(),type,groupId:gid,groupName,level,date:dateFrom,createdAt:new Date().toISOString()});
+    if(type==='demo'){if(!a.demos)a.demos={};a.demos[level]=true;}
+  }
+  sched();closeModal();renderMain();toast('Добавлено ✓','success');
 }
 
 function supToggleDemo(supId,level,checked){
@@ -2830,7 +3130,7 @@ function supToggleDemo(supId,level,checked){
 function supResolveReport(supId,reportId){
   const a=D.accounts.find(x=>x.id===supId);if(!a) return;
   const r=(a.reports||[]).find(x=>x.id===reportId);
-  if(r){r.status='resolved';sched();showSupporterProfile(supId);}
+  if(r){r.status='resolved';sched();renderAll();}
 }
 
 function showAssignReplace(supId){
