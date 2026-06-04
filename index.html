@@ -128,10 +128,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 table{width:100%;border-collapse:collapse;font-size:11.5px;min-width:1200px}
 thead th{background:#f8f9fb;padding:7px 4px;text-align:center;font-weight:700;font-size:11px;color:#555;border-bottom:2px solid #e8eaf0;white-space:nowrap;position:sticky;top:0;z-index:2}
 thead th.nc{text-align:left;min-width:32px;position:sticky;left:0;background:#f8f9fb;z-index:3}
-thead th.nmc{text-align:left;min-width:150px}
+thead th.nmc{text-align:left;min-width:190px;max-width:240px;white-space:normal;position:sticky;left:32px;background:#f8f9fb;z-index:3}
 tbody td{padding:5px 3px;text-align:center;border-bottom:1px solid #f2f4f8;transition:background .1s}
 tbody td.nc{text-align:center;font-weight:600;font-size:12px;color:#999;position:sticky;left:0;background:white;z-index:1;min-width:32px}
-tbody td.nmc{text-align:left;font-weight:600;font-size:13px;position:sticky;left:32px;background:white;z-index:1;min-width:150px}
+tbody td.nmc{text-align:left;font-weight:600;font-size:13px;position:sticky;left:32px;background:white;z-index:1;min-width:190px;max-width:240px;white-space:normal;word-break:break-word}
 tbody tr:hover td{background:#eef2ff!important}
 tbody tr:hover td.nc,tbody tr:hover td.nmc{background:#eef2ff!important}
 tbody tr:hover .row-acts{opacity:1}
@@ -149,7 +149,14 @@ tbody tr.empty-row td{background:#fafafa}
 .gi{width:42px;border:1.5px solid #e8eaf0;border-radius:5px;padding:3px 4px;text-align:center;font-size:12.5px;background:#fafbff;font-family:inherit;transition:.15s}
 .gi:hover{border-color:#c5cae9;background:#f8f9ff}
 .gi:focus{outline:none;border-color:#4361ee;background:white;box-shadow:0 0 0 3px rgba(67,97,238,.1)}
-.ni{width:100%;border:1.5px solid transparent;border-radius:5px;padding:3px 6px;font-size:13px;background:transparent;font-family:inherit;transition:.15s;font-weight:600}
+.gi.err{border-color:#ef233c!important;background:#fff5f7!important;color:#c62828!important;animation:shake .2s ease}
+.gi.active-nav{border-color:#4361ee!important;background:#eef2ff!important;box-shadow:0 0 0 3px rgba(67,97,238,.18)!important}
+tr.active-row td{background:#f0f4ff!important}
+tr.active-row td.nc,tr.active-row td.nmc{background:#e8eeff!important}
+body.dark tr.active-row td{background:#1e2340!important}
+body.dark tr.active-row td.nc,body.dark tr.active-row td.nmc{background:#1e2340!important}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.ni{width:100%;min-width:160px;border:1.5px solid transparent;border-radius:5px;padding:3px 6px;font-size:13px;background:transparent;font-family:inherit;transition:.15s;font-weight:600}
 .ni:hover{border-color:#c5cae9;background:#f8f9ff}
 .ni:focus{outline:none;border-color:#4361ee;background:white;box-shadow:0 0 0 3px rgba(67,97,238,.1)}
 input[type=number]::-webkit-inner-spin-button,
@@ -236,6 +243,7 @@ body.dark .stat-card{background:#1a1d27;border-color:#2a2d3a}
 body.dark .tw{background:#1a1d27;border-color:#2a2d3a}
 body.dark table{background:#1a1d27}
 body.dark thead th{background:#141620;color:#9fa8c0}
+body.dark thead th.nc,body.dark thead th.nmc{background:#141620}
 body.dark tbody td{border-color:#2a2d3a}
 body.dark tbody td.nc,body.dark tbody td.nmc{background:#1a1d27}
 body.dark tbody tr:hover td{background:#1e2340!important}
@@ -275,6 +283,25 @@ body.dark .lang-btn:hover,body.dark .lang-btn.active{background:#1e2340;border-c
 .tg-link{display:flex;align-items:center;gap:5px;color:#0088cc;font-size:12px;font-weight:500;text-decoration:none;padding:4px 10px;border-radius:8px;border:1px solid #b3e0f7;background:#e8f5fb;transition:.15s}
 .tg-link:hover{background:#cceeff}
 body.dark .tg-link{background:#0d2a3a;border-color:#0055aa;color:#64b5f6}
+/* Supporter system */
+.sup-type-badge{font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px}
+.sup-type-eng-ru{background:#E6F1FB;color:#0C447C}
+.sup-type-eng-kk{background:#FAEEDA;color:#633806}
+.sup-type-rus{background:#EEEDFE;color:#3C3489}
+.demo-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px}
+.demo-chip-ok{background:#EAF3DE;color:#27500A}
+.demo-chip-no{background:var(--color-background-secondary,#f4f6fb);color:var(--color-text-tertiary,#aaa);border:0.5px solid var(--color-border-tertiary,#e8eaf0)}
+.replace-card{border:2px solid #378ADD;border-radius:12px;padding:1rem 1.25rem;background:var(--color-background-primary,white);margin-bottom:14px}
+.event-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary,#f0f0f0)}
+.event-row:last-child{border-bottom:none}
+.event-type-replace{background:#E6F1FB;color:#0C447C;font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.event-type-mock{background:#EAF3DE;color:#27500A;font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.event-type-at{background:#FAEEDA;color:#633806;font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.event-type-demo{background:#EEEDFE;color:#3C3489;font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.sup-busy{opacity:.5;pointer-events:none}
+.report-new{background:#FAEEDA;color:#633806;font-size:11px;padding:2px 8px;border-radius:10px}
+.report-done{background:#EAF3DE;color:#27500A;font-size:11px;padding:2px 8px;border-radius:10px}
+body.dark .replace-card{border-color:#2d74da}
 </style>
 </head>
 <body>
@@ -507,7 +534,13 @@ function renderSidebar(){
 function renderMain(){
   const el=document.getElementById('main');
   try{
-    if(curUser?.role==='supporter'){renderSupporter(el);return;}
+    if(curUser?.role==='supporter'){
+      const a=(D.accounts||[]).find(x=>x.id===curUser?.accountId);
+      // Check if supporter has supType — new system
+      if(a&&a.supType) renderSupporterView(el);
+      else renderSupporter(el);
+      return;
+    }
     if(curUser?.role==='student'){renderStudentView(el);return;}
     if(curPage==='accounts') renderAccounts(el);
     else if(curPage==='students') renderStudentsPage(el);
@@ -530,6 +563,11 @@ function renderMain(){
 
 function renderHome(el){
   const teachers=isAdmin()?D.teachers:D.teachers.filter(t=>t.id===curUser?.teacherId);
+  // Sort by average student score descending
+  const sortedTeachers=[...teachers].sort((a,b)=>{
+    const avg=t=>{let s=0,c=0;(t.groups||[]).forEach(g=>(g.students||[]).forEach(st=>{const o=calcFinal(st,g.level);if(o!==null){s+=o;c++;}}));return c?s/c:-1;};
+    return avg(b)-avg(a);
+  });
   const tt=teachers.length;
   const tg=teachers.reduce((s,t)=>s+(t.groups||[]).length,0);
   const ts=teachers.reduce((s,t)=>s+(t.groups||[]).reduce((a,g)=>a+(g.students||[]).filter(s=>s.name).length,0),0);
@@ -542,7 +580,25 @@ function renderHome(el){
       if(s.hidden) hiddenAlert.push({s,g,tc});
     })));
   }
+  // Collect new supporter reports
+  const newReports=[];
+  (D.accounts||[]).filter(a=>a.role==='supporter').forEach(a=>{
+    (a.reports||[]).filter(r=>r.status==='new').forEach(r=>newReports.push({a,r}));
+  });
   el.innerHTML=`
+    ${newReports.length?`<div style="background:#FFF3E0;border:1.5px solid #FFB74D;border-radius:12px;padding:14px 18px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="font-size:20px">⚠️</div>
+        <div style="font-weight:700;color:#E65100;font-size:14px">${newReports.length} новых сообщений от суппортеров</div>
+      </div>
+      ${newReports.map(({a,r})=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid #FFE0B2">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500;color:#BF360C">${a.name} — ${r.groupName||'группа не указана'}</div>
+          <div style="font-size:12px;color:#795548;margin-top:2px">${r.text}</div>
+        </div>
+        <button onclick="supResolveReport('${a.id}','${r.id}');renderAll()" style="font-size:11px;padding:3px 10px;border-radius:8px;border:1px solid #FFB74D;background:white;color:#E65100;cursor:pointer;white-space:nowrap">✓ Решено</button>
+      </div>`).join('')}
+    </div>`:''}
     ${hiddenAlert.length?`<div style="background:#fff3e0;border:1.5px solid #ffb74d;border-radius:12px;padding:16px 20px;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <div style="font-size:22px">👁</div>
@@ -577,7 +633,7 @@ function renderHome(el){
       <div class="card-top"><div class="card-title">${tr('teachers')}</div>
         ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAddStaff()">Новый сотрудник</button>`:''}
       </div>
-      <div class="gg">${teachers.map(t=>{
+      <div class="gg">${sortedTeachers.map(t=>{
         const c2=(t.groups||[]).reduce((s,g)=>s+(g.students||[]).filter(x=>x.name).length,0);
         return `<div class="gc" onclick="gotoT('${t.id}')" style="position:relative">
           ${isAdmin()?`<button onclick="event.stopPropagation();confirmDelT('${t.id}')" style="position:absolute;top:8px;right:8px;background:#ffebee;border:none;border-radius:6px;cursor:pointer;color:#c62828;font-size:16px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s" onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=0">×</button>`:''}
@@ -664,6 +720,8 @@ function gchRus(sid,field,idx,val){
   const g=(t?.groups||[]).find(x=>x.id===selG);
   const s=(g?.students||[]).find(x=>x.id===sid);
   if(!s) return;
+  const inp=event?.target||null;
+  if(!validateGradeInput(inp,val,100)) return;
   const n=val===''?null:parseFloat(val);
   if(idx!==null){if(!s[field])s[field]=[];s[field][idx]=n;}
   else s[field]=n;
@@ -690,6 +748,7 @@ function renderRusGroup(el,g,t,ed,archMode){
         <div style="margin-top:4px;display:flex;align-items:center;gap:10px">
           <span class="lp lv-rus">${lvl(g.level)}</span>
           <span style="font-size:13px;color:#888">${sorted.length} студентов</span>
+          ${!window._qrViewMode&&(isAdmin()||curUser?.role==='teacher')?(()=>{const dc=countGroupDebts(g);return dc?`<span style="background:#FAEEDA;color:#633806;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px">⚠️ ${dc} долг${dc===1?'':'ов'}</span>`:''})():''}
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -731,6 +790,7 @@ function renderRusGroup(el,g,t,ed,archMode){
         </tr>`:''}
       </tbody>
     </table></div>`;
+  el.innerHTML += renderGroupDebts(g);
 }
 
 function renderGroup(el,archMode,archSnap){
@@ -772,6 +832,7 @@ function renderGroup(el,archMode,archSnap){
           <span class="lp lv-${lvc(g.level)}">${lvl(g.level)}</span>
           ${archMode?`<span class="arch-badge">📦 Архив</span>`:''}
           <span style="font-size:13px;color:#888">${sts.filter(s=>s.name).length} студентов</span>
+          ${!window._qrViewMode&&(isAdmin()||curUser?.role==='teacher')?(()=>{const dc=countGroupDebts(g);return dc?`<span style="background:#FAEEDA;color:#633806;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px">⚠️ ${dc} долг${dc===1?'':'ов'}</span>`:''})():''}
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -839,6 +900,7 @@ function renderGroup(el,archMode,archSnap){
         </table>
       </div>`:''}
     </div>`:''}`;
+  el.innerHTML += renderGroupDebts(g);
 }
 
 function srow(s,num,g,ed,archMode){
@@ -934,12 +996,27 @@ function calcFinal(s,level){
 }
 
 // ── Grade input ───────────────────────────────────────────────────────────
+function validateGradeInput(inp,val,max){
+  if(val===''||val===null){inp&&inp.classList.remove('err');return true;}
+  const n=parseFloat(val);
+  const ok=!isNaN(n)&&n>=0&&n<=(max||100);
+  if(inp){
+    inp.classList.toggle('err',!ok);
+    if(!ok) setTimeout(()=>inp.classList.remove('err'),1500);
+  }
+  return ok;
+}
+
 function gch(sid,field,idx,val){
   if(!sid) return;
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);
   const s=(g?.students||[]).find(x=>x.id===sid);
   if(!s) return;
+  // Find the input element for validation
+  const inp=event?.target||null;
+  const max=field==='retake'?6:100;
+  if(!validateGradeInput(inp,val,max)) return;
   const n=val===''?null:parseFloat(val);
   if(idx!==null){if(!s[field])s[field]=Array(field==='units'?12:5).fill(null);s[field][idx]=n;}
   else s[field]=n;
@@ -1342,12 +1419,18 @@ function showOpenStudentAccount(stuId,stuName){
       ✅ Аккаунт уже существует · Логин: <b>${existing.login}</b>
     </div>`:''}
     <div class="fg"><label class="fl">Логин</label>
-      <input type="text" class="fi" id="stu-login" value="${existing?existing.login:suggestLogin}" placeholder="например: ivan123">
+      <div style="display:flex;gap:6px">
+        <input type="text" class="fi" id="stu-login" value="${existing?existing.login:suggestLogin}" placeholder="например: ivan123" style="flex:1">
+        <button onclick="navigator.clipboard.writeText(document.getElementById('stu-login').value).then(()=>toast('Логин скопирован ✓','success'))" style="padding:6px 10px;border-radius:8px;border:1px solid #e0e0e0;background:white;font-size:12px;cursor:pointer" title="Скопировать">📋</button>
+      </div>
     </div>
-    <div class="fg"><label class="fl">Пароль</label>
-      <input type="text" class="fi" id="stu-pass" value="${existing?existing.password:''}" placeholder="минимум 4 символа">
+    <div class="fg"><label class="fl">Пароль ${existing?'<span style="font-size:11px;color:#888;font-weight:400">(оставьте пустым чтобы не менять)</span>':''}</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" class="fi" id="stu-pass" value="" placeholder="${existing?'Введите новый пароль...':'минимум 4 символа'}" style="flex:1">
+        <button onclick="navigator.clipboard.writeText(document.getElementById('stu-pass').value).then(()=>toast('Пароль скопирован ✓','success'))" style="padding:6px 10px;border-radius:8px;border:1px solid #e0e0e0;background:white;font-size:12px;cursor:pointer" title="Скопировать">📋</button>
+      </div>
       <div style="margin-top:6px;display:flex;gap:6px">
-        <button onclick="document.getElementById('stu-pass').value=Math.random().toString(36).slice(2,8)" style="padding:4px 10px;border-radius:6px;border:1px solid #e0e0e0;background:white;font-size:11px;cursor:pointer">🎲 Сгенерировать</button>
+        <button onclick="const p=Math.random().toString(36).slice(2,8);document.getElementById('stu-pass').value=p;" style="padding:4px 10px;border-radius:6px;border:1px solid #e0e0e0;background:white;font-size:11px;cursor:pointer">🎲 Сгенерировать</button>
       </div>
     </div>
     <div style="background:#eef2ff;border-radius:10px;padding:10px 14px;font-size:12px;color:#4361ee;margin-bottom:4px">
@@ -1361,20 +1444,22 @@ function showOpenStudentAccount(stuId,stuName){
   setTimeout(()=>document.getElementById('stu-pass')?.focus(),80);
 }
 
-function saveStudentAccount(stuId,stuName){
+async function saveStudentAccount(stuId,stuName){
   const login=document.getElementById('stu-login')?.value?.trim();
   const pass=document.getElementById('stu-pass')?.value?.trim();
-  if(!login||!pass){toast('Заполните все поля','error');return;}
-  if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
+  if(!login){toast('Введите логин','error');return;}
   if(!D.accounts) D.accounts=[];
-  // Check login not taken by another account
+  const existing=(D.accounts||[]).find(a=>a.role==='student'&&a.studentId===stuId);
+  // Password required only for new accounts
+  if(!existing&&!pass){toast('Введите пароль','error');return;}
+  if(pass&&pass.length<4){toast('Пароль минимум 4 символа','error');return;}
   const conflict=(D.accounts||[]).find(a=>a.login===login&&a.studentId!==stuId);
   if(conflict){toast('Логин уже занят','error');return;}
-  // Remove old account if exists
+  const hashed=pass?await hashPass(pass):(existing?.password||'');
   D.accounts=D.accounts.filter(a=>!(a.role==='student'&&a.studentId===stuId));
-  D.accounts.push({id:uid(),role:'student',studentId:stuId,studentName:stuName,login,password:pass});
+  D.accounts.push({id:uid(),role:'student',studentId:stuId,studentName:stuName,login,password:hashed});
   closeModal();sched();
-  toast(`✅ Доступ открыт! Логин: ${login} · Пароль: ${pass}`,'success');
+  toast(pass?`✅ Доступ открыт! Логин: ${login} · Пароль: ${pass}`:`✅ Логин обновлён: ${login}`,'success');
 }
 
 function closeStudentAccount(stuId){
@@ -1430,14 +1515,33 @@ function renderAccounts(el){
     <div class="card">
       <div class="card-title" style="margin-bottom:14px">🤝 Supporters (${supporters.length})</div>
       ${!supporters.length?`<div style="color:#bbb;font-size:13px;padding:10px 0">Нет аккаунтов supporters</div>`:''}
-      ${supporters.map(a=>`
-        <div class="acc-row">
-          <div class="t-av" style="width:38px;height:38px;font-size:13px;border-radius:10px;background:linear-gradient(135deg,#2b9348,#1b5e20)">${ini(a.name||a.login)}</div>
-          <div class="acc-info"><div class="acc-name">${a.name||a.login}</div>
-            <div class="acc-login">Логин: <b>${a.login}</b></div></div>
-          <span class="role-badge" style="background:#e8f5e9;color:#1b5e20">Supporter</span>
-          <button class="btn btn-sec btn-sm" onclick="showEditAccount('${a.id}')">✏️</button>
-        </div>`).join('')}
+      ${supporters.map(a=>{
+        const typeLabel={'eng-ru':'Англ (рус)','eng-kk':'Англ (кк)','rus':'Рус язык'}[a.supType||'eng-ru']||'Англ (рус)';
+        const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'}[a.supType||'eng-ru']||'sup-type-eng-ru';
+        const activeReplace=(a.replacements||[]).find(r=>r.active);
+        const replCount=(a.replacements||[]).length;
+        const DEMO_LEVELS=a.supType==='rus'?['rus-1','rus-2','rus-3','rus-4']:['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+        const demoDone=DEMO_LEVELS.filter(l=>(a.demos||{})[l]).length;
+        return `<div style="padding:12px 0;border-bottom:0.5px solid var(--color-border-tertiary,#f0f0f0)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <div class="t-av" style="width:38px;height:38px;font-size:13px;border-radius:10px;background:linear-gradient(135deg,#2b9348,#1b5e20)">${ini(a.name||a.login)}</div>
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span class="acc-name">${a.name||a.login}</span>
+                <span class="sup-type-badge ${typeCls}">${typeLabel}</span>
+                ${activeReplace?`<span style="background:#FAEEDA;color:#633806;font-size:11px;padding:2px 8px;border-radius:10px">Занят до ${activeReplace.dateTo||'?'}</span>`:`<span style="background:#EAF3DE;color:#27500A;font-size:11px;padding:2px 8px;border-radius:10px">Свободен</span>`}
+              </div>
+              <div style="font-size:11px;color:var(--color-text-secondary,#888);margin-top:3px">Логин: <b>${a.login}</b> · Замен: ${replCount} · Демо: ${demoDone}/${DEMO_LEVELS.length}</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-sec btn-sm" onclick="showSupporterProfile('${a.id}')">👤 Профиль</button>
+              <button class="btn btn-pri btn-sm" onclick="showAssignReplace('${a.id}')" ${activeReplace?'style="opacity:.5" disabled':''}>📅 Замена</button>
+              <button class="btn btn-sec btn-sm" onclick="showAssignEvent('${a.id}')">📝 Событие</button>
+              <button class="btn btn-sec btn-sm" onclick="showEditAccount('${a.id}')">✏️</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
     </div>`;
 }
 function showAddAdmin(){
@@ -1456,7 +1560,7 @@ function showAddAdmin(){
       <button class="btn btn-dan" onclick="addAdmin()">Создать администратора</button></div>`);
   setTimeout(()=>document.getElementById('adm-name')?.focus(),80);
 }
-function addAdmin(){
+async function addAdmin(){
   const name=document.getElementById('adm-name')?.value?.trim();
   const login=document.getElementById('adm-login')?.value?.trim();
   const pass=document.getElementById('adm-pass')?.value?.trim();
@@ -1464,7 +1568,7 @@ function addAdmin(){
   if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
   if((D.accounts||[]).find(a=>a.login===login)||(D.settings?.adminLogin||'admin')===login){toast('Логин уже занят','error');return;}
   if(!D.accounts) D.accounts=[];
-  D.accounts.push({id:uid(),role:'admin',name,login,password:pass});
+  D.accounts.push({id:uid(),role:'admin',name,login,password:await hashPass(pass)});
   closeModal();renderAccounts(document.getElementById('main'));sched();toast('Администратор создан ✓','success');
 }
 
@@ -1488,6 +1592,22 @@ function showAddSupporter(){
     <div class="fg"><label class="fl">Имя и фамилия</label>
       <input type="text" class="fi" id="sup-name" placeholder="Дилноза Абдуллаева">
     </div>
+    <div class="fg"><label class="fl">Тип суппортера</label>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="sup-type" value="eng-ru" checked>
+          <div><div style="font-weight:500">Англ (русскоговорящий)</div><div style="font-size:11px;color:#888">Beg/Elem рус группы + Pre-Int и выше</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="sup-type" value="eng-kk">
+          <div><div style="font-weight:500">Англ (каракалпакоговорящий)</div><div style="font-size:11px;color:#888">Beg/Elem кк группы + Pre-Int и выше</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="sup-type" value="rus">
+          <div><div style="font-weight:500">Русский язык</div><div style="font-size:11px;color:#888">Только rus-1, rus-2, rus-3, rus-4</div></div>
+        </label>
+      </div>
+    </div>
     <div class="fg"><label class="fl">Логин</label>
       <input type="text" class="fi" id="sup-login" placeholder="например: dilnoza">
     </div>
@@ -1498,19 +1618,20 @@ function showAddSupporter(){
       <button class="btn btn-pri" onclick="addSupporter()">Создать</button></div>`);
   setTimeout(()=>document.getElementById('sup-name')?.focus(),80);
 }
-function addSupporter(){
+async function addSupporter(){
   const name=document.getElementById('sup-name')?.value?.trim();
   const login=document.getElementById('sup-login')?.value?.trim();
   const pass=document.getElementById('sup-pass')?.value?.trim();
+  const supType=document.querySelector('input[name="sup-type"]:checked')?.value||'eng-ru';
   if(!name||!login||!pass){toast('Заполните все поля','error');return;}
   if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
   if((D.accounts||[]).find(a=>a.login===login)){toast('Логин уже занят','error');return;}
   if(!D.accounts) D.accounts=[];
-  D.accounts.push({id:uid(),role:'supporter',name,login,password:pass});
+  D.accounts.push({id:uid(),role:'supporter',name,login,password:await hashPass(pass),supType,demos:{},replacements:[],mockTests:[],reports:[]});
   closeModal();renderAccounts(document.getElementById('main'));sched();toast('Supporter создан ✓','success');
 }
 
-function addAccount(){
+async function addAccount(){
   const tid=document.getElementById('ac-t')?.value;
   const login=document.getElementById('ac-l')?.value?.trim();
   const pass=document.getElementById('ac-p')?.value?.trim();
@@ -1518,7 +1639,7 @@ function addAccount(){
   if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
   if((D.accounts||[]).find(a=>a.login===login)){toast('Логин уже занят','error');return;}
   if(!D.accounts) D.accounts=[];
-  D.accounts.push({id:uid(),teacherId:tid,login,password:pass});
+  D.accounts.push({id:uid(),teacherId:tid,login,password:await hashPass(pass)});
   closeModal();renderAccounts(document.getElementById('main'));sched();toast('Аккаунт создан ✓','success');
 }
 function showEditAccount(id){
@@ -1529,21 +1650,27 @@ function showEditAccount(id){
       <b>${tc?tc.name:a.name||a.login}</b> · логин: <code>${a.login}</code>
     </div>
     <div class="fg"><label class="fl">Новый логин</label>
-      <input type="text" class="fi" id="ac-l" value="${a.login}">
+      <div style="display:flex;gap:6px">
+        <input type="text" class="fi" id="ac-l" value="${a.login}" style="flex:1">
+        <button onclick="navigator.clipboard.writeText(document.getElementById('ac-l').value).then(()=>toast('Логин скопирован ✓','success'))" style="padding:6px 10px;border-radius:8px;border:1px solid #e0e0e0;background:white;font-size:12px;cursor:pointer" title="Скопировать">📋</button>
+      </div>
     </div>
-    <div class="fg"><label class="fl">Новый пароль</label>
-      <input type="text" class="fi" id="ac-p" placeholder="Оставьте пустым чтобы не менять">
+    <div class="fg"><label class="fl">Новый пароль <span style="font-size:11px;color:#888;font-weight:400">(оставьте пустым чтобы не менять)</span></label>
+      <div style="display:flex;gap:6px">
+        <input type="text" class="fi" id="ac-p" placeholder="Введите новый пароль..." style="flex:1">
+        <button onclick="navigator.clipboard.writeText(document.getElementById('ac-p').value).then(()=>toast('Пароль скопирован ✓','success'))" style="padding:6px 10px;border-radius:8px;border:1px solid #e0e0e0;background:white;font-size:12px;cursor:pointer" title="Скопировать">📋</button>
+      </div>
     </div>
     <div class="fa"><button class="btn btn-dan btn-sm" onclick="delAccount('${id}')">Удалить</button>
       <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
       <button class="btn btn-pri" onclick="editAccount('${id}')">${tr('saveBtn')}</button></div>`);
 }
-function editAccount(id){
+async function editAccount(id){
   const a=D.accounts.find(x=>x.id===id);if(!a) return;
   const login=document.getElementById('ac-l')?.value?.trim();
   const pass=document.getElementById('ac-p')?.value?.trim();
   if(login) a.login=login;
-  if(pass&&pass.length>=4) a.password=pass;
+  if(pass&&pass.length>=4) a.password=await hashPass(pass);
   closeModal();renderAccounts(document.getElementById('main'));sched();toast('Обновлено ✓','success');
 }
 function delAccount(id){
@@ -1737,26 +1864,65 @@ function saveSetStart(sid){
 }
 
 function gradeKey(e,inp){
-  if(e.key==='Enter'||e.key==='Tab'){
-    e.preventDefault();
-    const row=inp.closest('tr');
-    const allInRow=[...row.querySelectorAll('input.gi')];
-    const idx=allInRow.indexOf(inp);
-    if(idx>=0&&idx<allInRow.length-1){
-      // Move to next cell in same row
-      allInRow[idx+1].focus();
-      allInRow[idx+1].select();
-    } else {
-      // Last cell in row — move to first cell of next row
-      const rows=[...document.querySelectorAll('tbody tr')];
-      const ri=rows.indexOf(row);
-      if(ri>=0&&ri<rows.length-1){
-        const nextInput=rows[ri+1].querySelector('input.gi');
-        if(nextInput){nextInput.focus();nextInput.select();}
-      }
+  const nav={'Enter':1,'Tab':1,'ArrowRight':1,'ArrowLeft':1,'ArrowUp':1,'ArrowDown':1};
+  if(!nav[e.key]) return;
+  e.preventDefault();
+  const row=inp.closest('tr');
+  const rows=[...document.querySelectorAll('tbody tr')];
+  const ri=rows.indexOf(row);
+  const allInRow=[...row.querySelectorAll('input.gi')];
+  const ci=allInRow.indexOf(inp);
+
+  let targetInput=null;
+
+  if(e.key==='ArrowRight'||(e.key==='Tab'&&!e.shiftKey)||e.key==='Enter'){
+    if(ci>=0&&ci<allInRow.length-1){
+      targetInput=allInRow[ci+1];
+    } else if(ri>=0&&ri<rows.length-1){
+      targetInput=rows[ri+1].querySelector('input.gi');
+    }
+  } else if(e.key==='ArrowLeft'||(e.key==='Tab'&&e.shiftKey)){
+    if(ci>0){
+      targetInput=allInRow[ci-1];
+    } else if(ri>0){
+      const prevRow=rows[ri-1];
+      const prevInputs=[...prevRow.querySelectorAll('input.gi')];
+      targetInput=prevInputs[prevInputs.length-1]||null;
+    }
+  } else if(e.key==='ArrowDown'){
+    if(ri>=0&&ri<rows.length-1){
+      const nextInputs=[...rows[ri+1].querySelectorAll('input.gi')];
+      targetInput=nextInputs[ci]||nextInputs[nextInputs.length-1]||null;
+    }
+  } else if(e.key==='ArrowUp'){
+    if(ri>0){
+      const prevInputs=[...rows[ri-1].querySelectorAll('input.gi')];
+      targetInput=prevInputs[ci]||prevInputs[prevInputs.length-1]||null;
     }
   }
+
+  if(targetInput){
+    // Highlight active row
+    rows.forEach(r=>r.classList.remove('active-row'));
+    targetInput.closest('tr')?.classList.add('active-row');
+    targetInput.classList.add('active-nav');
+    targetInput.focus();
+    targetInput.select();
+    setTimeout(()=>{
+      targetInput.scrollIntoView({block:'nearest',inline:'nearest'});
+    },0);
+  }
 }
+
+// Remove active-row highlight when clicking outside table
+document.addEventListener('click',e=>{
+  if(!e.target.closest('table')){
+    document.querySelectorAll('tr.active-row').forEach(r=>r.classList.remove('active-row'));
+  }
+  if(!e.target.classList.contains('gi')){
+    document.querySelectorAll('.gi.active-nav').forEach(i=>i.classList.remove('active-nav'));
+  }
+});
 
 function getSortButtons(){
   const labels={name:tr('sortName'),overall:tr('sortOverall'),unit:tr('sortUnit'),final:tr('sortFinal')};
@@ -2100,7 +2266,15 @@ function sbTab(tab,btn){
 // ── Navigation ────────────────────────────────────────────────────────────
 function goHome(){view='home';selT=null;selG=null;selArch=null;selStu=null;curPage=null;renderAll();}
 function gotoT(id){selT=id;selG=null;selArch=null;view='teacher';curPage=null;renderAll();}
-function gotoG(id){selG=id;view='group';curPage=null;renderAll();}
+function gotoG(id){selG=id;view='group';curPage=null;renderAll();
+  // Autofocus first grade input after render — only for admin/teacher
+  if(!window._qrViewMode&&(isAdmin()||curUser?.role==='teacher')){
+    setTimeout(()=>{
+      const first=document.querySelector('tbody tr:not(.empty-row) input.gi');
+      if(first){first.focus();first.select();first.closest('tr')?.classList.add('active-row');}
+    },80);
+  }
+}
 function gotoPage(p){curPage=p;view=null;renderMain();}
 
 // ── CRUD Teachers ─────────────────────────────────────────────────────────
@@ -2115,6 +2289,8 @@ function renderSupporter(el){
   const btn=document.getElementById('sup-refresh-btn');
   if(btn){btn.textContent='⏳ Загрузка...';btn.disabled=true;}
   await loadData();
+  const now=new Date();
+  window._supLastUpdate=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
   renderAll();
   if(btn){btn.textContent='🔄 Обновить';btn.disabled=false;}
   toast('Данные обновлены ✓','success');
@@ -2202,6 +2378,7 @@ function getDebts(s,level){
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button onclick="refreshAndRender()" style="padding:6px 14px;border-radius:8px;border:1.5px solid #e0e4f0;background:white;cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:5px" id="sup-refresh-btn">🔄 Обновить</button>
+        <div id="sup-last-update" style="font-size:11px;color:#999;white-space:nowrap">${window._supLastUpdate?'Обновлено в '+window._supLastUpdate:'Автообновление каждые 60 сек'}</div>
         <div style="display:flex;align-items:center;gap:8px;background:white;border:1.5px solid #e8eaf0;border-radius:10px;padding:7px 14px;width:220px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input type="text" value="${window._supQ||''}" placeholder="Поиск студента..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="clearTimeout(window._supTimer);window._supTimer=setTimeout(()=>{window._supQ=this.value;renderMain();},300)">
@@ -2253,7 +2430,7 @@ function renderStudentView(el){
     const filled=vals.length;
     const total=arr?.length||0;
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f0">
-      <div style="width:160px;font-size:13px;font-weight:600;color:#555">${label} <span style="font-size:11px;color:#888;font-weight:400">(${pct}%)</span></div>
+      <div style="min-width:100px;max-width:160px;font-size:13px;font-weight:600;color:var(--color-text-secondary,#555)">${label} <span style="font-size:11px;color:#888;font-weight:400">(${pct}%)</span></div>
       <div style="flex:1;display:flex;gap:4px;flex-wrap:wrap">
         ${(arr||[]).map((v,i)=>`<div style="width:36px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:${v!=null&&v!==''?(Number(v)>=75?'#e8f5e9':Number(v)>=70?'#fff8e1':'#ffebee'):'#f5f5f5'};color:${v!=null&&v!==''?(Number(v)>=75?'#1b5e20':Number(v)>=70?'#e65100':'#b71c1c'):'#ccc'};border:1px solid ${v!=null&&v!==''?'transparent':'#e8eaf0'}">${v!=null&&v!==''?fmt(v):'—'}</div>`).join('')}
       </div>
@@ -2266,7 +2443,7 @@ function renderStudentView(el){
   const singleGrade=(label,val,pct)=>{
     const v=val!=null&&val!==''?Number(val):null;
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f0">
-      <div style="width:160px;font-size:13px;font-weight:600;color:#555">${label} <span style="font-size:11px;color:#888;font-weight:400">(${pct}%)</span></div>
+      <div style="min-width:100px;max-width:160px;font-size:13px;font-weight:600;color:var(--color-text-secondary,#555)">${label} <span style="font-size:11px;color:#888;font-weight:400">(${pct}%)</span></div>
       <div style="flex:1"></div>
       <div style="text-align:right;min-width:60px">
         ${v!==null?`<div style="font-weight:800;font-size:18px;color:${v>=75?'#1b5e20':v>=70?'#e65100':'#b71c1c'}">${fmt(v)}</div>`:'<div style="color:#ccc;font-size:15px">—</div>'}
@@ -2283,15 +2460,27 @@ function renderStudentView(el){
         <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#4361ee,#7209b7);color:white;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;margin:0 auto 16px">${ini(s.name)}</div>
         <div style="font-size:22px;font-weight:800;color:#16213e;margin-bottom:4px">${s.name}</div>
         <div style="font-size:13px;color:#888">${tc.name} · ${g.day} ${g.time} · <span class="lp lv-${lvc(g.level)}">${lvl(g.level)}</span></div>
-        <div style="margin-top:20px;display:inline-block;background:${scoreBg};color:${scoreColor};padding:12px 32px;border-radius:16px;font-size:32px;font-weight:900">${ov!==null?ov.toFixed(1):'—'}</div>
-        <div style="font-size:12px;color:#888;margin-top:6px">Overall</div>
-        ${ov!==null?`<div style="margin-top:8px;font-size:13px;font-weight:600;color:${scoreColor}">${ov>=75?'✅ Сдан':ov>=70?'⚠️ Пограничный результат':'❌ Не сдан'}</div>`:''}
+        <div style="margin-top:24px;display:flex;align-items:center;justify-content:center">
+          <div style="position:relative;width:110px;height:110px">
+            <svg width="110" height="110" viewBox="0 0 110 110" style="transform:rotate(-90deg)">
+              <circle cx="55" cy="55" r="46" fill="none" stroke="#f0f0f0" stroke-width="10"/>
+              ${ov!==null?`<circle cx="55" cy="55" r="46" fill="none" stroke="${scoreColor}" stroke-width="10"
+                stroke-dasharray="${2*Math.PI*46}"
+                stroke-dashoffset="${2*Math.PI*46*(1-Math.min(ov,100)/100)}"
+                stroke-linecap="round"/>`:''}
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div style="font-size:26px;font-weight:800;color:${scoreColor};line-height:1">${ov!==null?ov.toFixed(1):'—'}</div>
+              <div style="font-size:11px;color:#888;margin-top:2px">Overall</div>
+            </div>
+          </div>
+        </div>
+        ${ov!==null?`<div style="margin-top:10px;font-size:13px;font-weight:600;color:${scoreColor}">${ov>=75?'✅ Сдан':ov>=70?'⚠️ Пограничный результат':'❌ Не сдан'}</div>`:''}
       </div>
 
       <!-- Grades card -->
       <div class="card">
-        <div class="card-title" style="margin-bottom:4px">📊 Мои результаты</div>
-        <div style="font-size:12px;color:#888;margin-bottom:16px">Нажмите на оценку чтобы увидеть детали</div>
+        <div class="card-title" style="margin-bottom:16px">📊 Мои результаты</div>
         ${isRusGrp?`
           ${gradeRow('Разговорки',s.conversations,15)}
           ${gradeRow('Домашнее задание',s.homework,g.level==='rus-1'?10:12)}
@@ -2314,6 +2503,445 @@ function renderStudentView(el){
         Success Academy · Данные обновляются в реальном времени
       </div>
     </div>`;
+}
+
+function countGroupDebts(g){
+  if(!g||window._qrViewMode) return 0;
+  const ok=v=>v!==null&&v!==undefined&&v!==''&&Number(v)>0;
+  const isRus=RUS_LEVELS.includes(g.level);
+  let total=0;
+  (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
+    if(isRus){
+      const cfg=RUS_CFG[g.level];if(!cfg) return;
+      const convs=s.conversations||[],hws=s.homework||[],vocabs=s.vocabulary||[];
+      for(let i=0;i<cfg.conv;i++){
+        if(ok(convs[i])){if(!ok(hws[i])||!ok(vocabs[i])) total++;}
+      }
+    } else {
+      const startU=(s.startUnit||1)-1,startA=(s.startAT||1)-1;
+      const units=s.units||Array(12).fill(null);
+      let lastU=-1;for(let i=11;i>=0;i--){if(ok(units[i])){lastU=i;break;}}
+      for(let i=startU;i<lastU;i++){if(!ok(units[i])) total++;}
+      const ats=s.achievements||Array(5).fill(null);
+      let lastA=-1;for(let i=4;i>=0;i--){if(ok(ats[i])){lastA=i;break;}}
+      for(let i=startA;i<lastA;i++){if(!ok(ats[i])) total++;}
+      const hws=s.homework||Array(5).fill(null);
+      let lastHW=-1;for(let i=4;i>=0;i--){if(ok(hws[i])){lastHW=i;break;}}
+      for(let i=startA;i<=Math.max(lastA,lastHW);i++){
+        const hasAT=ok(ats[i]),hasHW=ok(hws[i]);
+        if((hasAT&&!hasHW)||(hasHW&&!hasAT)) total++;
+      }
+    }
+  });
+  return total;
+}
+
+function renderGroupDebts(g){
+  // Only for admin and teacher, hidden in QR view
+  if(window._qrViewMode) return '';
+  if(!isAdmin()&&curUser?.role!=='teacher') return '';
+
+  const ok=v=>v!==null&&v!==undefined&&v!==''&&Number(v)>0;
+  const isRus=RUS_LEVELS.includes(g.level);
+  const students=(g.students||[]).filter(s=>s&&s.name&&!s.hidden);
+
+  const debtors=[];
+  students.forEach(s=>{
+    const debts=[];
+    if(isRus){
+      const cfg=RUS_CFG[g.level];if(!cfg) return;
+      const convs=s.conversations||[];
+      const hws=s.homework||[];
+      const vocabs=s.vocabulary||[];
+      for(let i=0;i<cfg.conv;i++){
+        if(ok(convs[i])){
+          if(!ok(hws[i]))   debts.push({type:'hw',label:`ДЗ${i+1}`});
+          if(!ok(vocabs[i])) debts.push({type:'vocab',label:`Сл${i+1}`});
+        }
+      }
+    } else {
+      const startU=(s.startUnit||1)-1;
+      const startA=(s.startAT||1)-1;
+      const units=s.units||Array(12).fill(null);
+      let lastU=-1;
+      for(let i=11;i>=0;i--){if(ok(units[i])){lastU=i;break;}}
+      for(let i=startU;i<lastU;i++){if(!ok(units[i])) debts.push({type:'u',label:`U${i+1}`});}
+      const ats=s.achievements||Array(5).fill(null);
+      let lastA=-1;
+      for(let i=4;i>=0;i--){if(ok(ats[i])){lastA=i;break;}}
+      for(let i=startA;i<lastA;i++){if(!ok(ats[i])) debts.push({type:'at',label:`AT${i+1}`});}
+      const hws=s.homework||Array(5).fill(null);
+      let lastHW=-1;
+      for(let i=4;i>=0;i--){if(ok(hws[i])){lastHW=i;break;}}
+      for(let i=startA;i<=Math.max(lastA,lastHW);i++){
+        const hasAT=ok(ats[i]),hasHW=ok(hws[i]);
+        if(hasAT&&!hasHW) debts.push({type:'hw',label:`HW${i+1}`});
+        if(hasHW&&!hasAT) debts.push({type:'at',label:`AT${i+1}`});
+      }
+    }
+    if(debts.length) debtors.push({s,debts});
+  });
+
+  if(!debtors.length) return `
+    <div style="margin-top:14px;background:var(--color-background-primary,white);border:0.5px solid var(--color-border-tertiary,#e8eaf0);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px">✅</span>
+      <span style="font-size:13px;color:var(--color-text-secondary,#888)">Должников нет — все тесты сданы</span>
+    </div>`;
+
+  const tagStyle={
+    u:'background:#E6F1FB;color:#0C447C',
+    at:'background:#FAEEDA;color:#633806',
+    hw:'background:#FBEAF0;color:#72243E',
+    vocab:'background:#EEEDFE;color:#3C3489',
+    conv:'background:#EAF3DE;color:#27500A'
+  };
+
+  return `
+    <div style="margin-top:14px;background:var(--color-background-primary,white);border:0.5px solid var(--color-border-tertiary,#e8eaf0);border-radius:12px;padding:1.25rem">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span style="font-size:13px;font-weight:500;color:var(--color-text-secondary,#666)">Должники группы</span>
+        <span style="margin-left:auto;background:#FAEEDA;color:#633806;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:500">${debtors.length} ${debtors.length===1?'студент':debtors.length<5?'студента':'студентов'}</span>
+      </div>
+      ${debtors.map(({s,debts})=>`
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary,#f0f0f0)">
+          <div style="width:32px;height:32px;border-radius:50%;background:#FAEEDA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#633806;flex-shrink:0">${ini(s.name)}</div>
+          <div>
+            <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111);margin-bottom:5px">${s.name}</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+              ${debts.map(d=>`<span style="font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;${tagStyle[d.type]||tagStyle.u}">${d.label}</span>`).join('')}
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ── Supporter Management ──────────────────────────────────────────────────
+
+const SUP_LEVELS_ENG=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+const SUP_LEVELS_RUS=['rus-1','rus-2','rus-3','rus-4'];
+const SUP_LEVEL_LABELS={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int','intermediate':'Intermediate','upper-intermediate':'Upper-Int','rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4'};
+
+function supLevels(a){return(a.supType==='rus')?SUP_LEVELS_RUS:SUP_LEVELS_ENG;}
+
+// Check if supporter can replace a teacher's group
+function supCanReplace(a,t,g){
+  if(!a||!t||!g) return false;
+  const isRus=RUS_LEVELS.includes(g.level);
+  if(a.supType==='rus') return isRus;
+  if(isRus) return false;
+  const isHighLevel=['pre-intermediate','intermediate','upper-intermediate'].includes(g.level);
+  if(isHighLevel) return true; // any eng supporter for pre-int+
+  // Beg/Elem: check teacher lang matches supporter lang
+  const tLang=t.lang||'ru';
+  if(a.supType==='eng-ru') return tLang==='ru';
+  if(a.supType==='eng-kk') return tLang==='kk';
+  return false;
+}
+
+function showSupporterProfile(id){
+  const a=D.accounts.find(x=>x.id===id);if(!a) return;
+  const levels=supLevels(a);
+  const typeLabel={'eng-ru':'Англ (русскоговорящий)','eng-kk':'Англ (каракалпакоговорящий)','rus':'Русский язык'}[a.supType||'eng-ru'];
+  const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'}[a.supType||'eng-ru'];
+  const repls=(a.replacements||[]).slice().reverse();
+  const events=(a.mockTests||[]).slice().reverse();
+  const reports=(a.reports||[]).slice().reverse();
+
+  openModal(`<div class="modal-title">👤 ${a.name||a.login}</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span class="sup-type-badge ${typeCls}">${typeLabel}</span>
+      <span style="font-size:12px;color:#888">Замен: ${repls.length} · Событий: ${events.length}</span>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">Демо-уроки по уровням</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${levels.map(l=>`
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input type="checkbox" ${(a.demos||{})[l]?'checked':''} onchange="supToggleDemo('${id}','${l}',this.checked)" style="width:14px;height:14px;accent-color:#4361ee">
+            <span class="demo-chip ${(a.demos||{})[l]?'demo-chip-ok':'demo-chip-no'}" id="demo-chip-${l}">${SUP_LEVEL_LABELS[l]}</span>
+          </label>`).join('')}
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">История замен (${repls.length})</div>
+      ${!repls.length?`<div style="font-size:13px;color:#bbb">Замен ещё не было</div>`:
+      `<div style="max-height:140px;overflow-y:auto;border:0.5px solid #e8eaf0;border-radius:8px">
+        ${repls.map(r=>`<div class="event-row" style="padding:8px 12px">
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#111)">${r.teacherName||'—'}</div>
+            <div style="font-size:11px;color:#888">${r.groupName||''} · ${r.dateFrom||''} — ${r.dateTo||''}</div>
+          </div>
+          ${r.withoutDemo?`<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px">без демо</span>`:''}
+          <span class="event-type-replace">Замена</span>
+        </div>`).join('')}
+      </div>`}
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">Мок/AT тесты (${events.length})</div>
+      ${!events.length?`<div style="font-size:13px;color:#bbb">Событий ещё не было</div>`:
+      `<div style="max-height:120px;overflow-y:auto;border:0.5px solid #e8eaf0;border-radius:8px">
+        ${events.map(e=>`<div class="event-row" style="padding:8px 12px">
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500;color:var(--color-text-primary,#111)">${e.groupName||'—'}</div>
+            <div style="font-size:11px;color:#888">${e.date||''}</div>
+          </div>
+          <span class="event-type-${e.type||'mock'}">${e.type==='at'?'AT тест':e.type==='demo'?'Демо':e.type==='mock'?'Мок':'—'}</span>
+        </div>`).join('')}
+      </div>`}
+    </div>
+    ${reports.length?`<div>
+      <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">Сообщения о некорректности (${reports.filter(r=>r.status==='new').length} новых)</div>
+      <div style="max-height:120px;overflow-y:auto;border:0.5px solid #e8eaf0;border-radius:8px">
+        ${reports.map(r=>`<div class="event-row" style="padding:8px 12px">
+          <div style="flex:1">
+            <div style="font-size:12px;color:var(--color-text-primary,#111)">${r.text||''}</div>
+            <div style="font-size:11px;color:#888">${r.groupName||''} · ${r.date||''}</div>
+          </div>
+          <span class="${r.status==='new'?'report-new':'report-done'}" onclick="supResolveReport('${id}','${r.id}')" style="cursor:pointer">${r.status==='new'?'Новое ✓':'Решено'}</span>
+        </div>`).join('')}
+      </div>
+    </div>`:''}
+    <div class="fa" style="margin-top:16px"><button class="btn btn-sec" onclick="closeModal()">Закрыть</button></div>`);
+}
+
+function supToggleDemo(supId,level,checked){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  if(!a.demos) a.demos={};
+  a.demos[level]=checked;
+  const chip=document.getElementById(`demo-chip-${level}`);
+  if(chip){chip.className=`demo-chip ${checked?'demo-chip-ok':'demo-chip-no'}`;}
+  sched();toast(`Демо ${SUP_LEVEL_LABELS[level]} ${checked?'добавлено ✓':'убрано'}`,checked?'success':'');
+}
+
+function supResolveReport(supId,reportId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  const r=(a.reports||[]).find(x=>x.id===reportId);
+  if(r){r.status='resolved';sched();showSupporterProfile(supId);}
+}
+
+function showAssignReplace(supId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  // Build teacher list filtered by supporter type
+  const availTeachers=D.teachers.filter(t=>{
+    const groups=t.groups||[];
+    return groups.some(g=>supCanReplace(a,t,g));
+  });
+  const today=new Date().toISOString().slice(0,10);
+  openModal(`<div class="modal-title">📅 Назначить замену</div>
+    <div style="background:#f0f9ff;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#0C447C">
+      Суппортер: <b>${a.name}</b>
+    </div>
+    <div class="fg"><label class="fl">Заменяет преподавателя</label>
+      <select class="fi" id="rep-teacher" onchange="supLoadGroups('${supId}')">
+        <option value="">— выберите —</option>
+        ${availTeachers.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Группы</label>
+      <div id="rep-groups-list" style="font-size:13px;color:#888">Сначала выберите преподавателя</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Дата начала</label>
+        <input type="date" class="fi" id="rep-from" value="${today}">
+      </div>
+      <div class="fg"><label class="fl">Дата конца</label>
+        <input type="date" class="fi" id="rep-to" value="${today}">
+      </div>
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="confirmAssignReplace('${supId}')">Назначить</button></div>`);
+}
+
+function supLoadGroups(supId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  const tid=document.getElementById('rep-teacher')?.value;
+  const t=D.teachers.find(x=>x.id===tid);
+  const el=document.getElementById('rep-groups-list');if(!el) return;
+  if(!t){el.innerHTML=`<span style="color:#888">Сначала выберите преподавателя</span>`;return;}
+  const groups=(t.groups||[]).filter(g=>supCanReplace(a,t,g));
+  if(!groups.length){el.innerHTML=`<span style="color:#888">Нет подходящих групп</span>`;return;}
+  el.innerHTML=groups.map(g=>`
+    <label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer">
+      <input type="checkbox" value="${g.id}" checked style="accent-color:#4361ee">
+      ${g.day} ${g.time} · ${g.level}
+    </label>`).join('');
+}
+
+function confirmAssignReplace(supId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  const tid=document.getElementById('rep-teacher')?.value;
+  const t=D.teachers.find(x=>x.id===tid);
+  if(!t){toast('Выберите преподавателя','error');return;}
+  const dateFrom=document.getElementById('rep-from')?.value;
+  const dateTo=document.getElementById('rep-to')?.value;
+  if(!dateFrom||!dateTo){toast('Укажите даты','error');return;}
+  const checkedGroups=[...document.querySelectorAll('#rep-groups-list input[type=checkbox]:checked')].map(x=>x.value);
+  if(!checkedGroups.length){toast('Выберите хотя бы одну группу','error');return;}
+  if(!a.replacements) a.replacements=[];
+  // Check if demo done for any group
+  const withoutDemo=checkedGroups.some(gid=>{
+    const g=(t.groups||[]).find(x=>x.id===gid);
+    return g&&!(a.demos||{})[g.level];
+  });
+  const groupNames=checkedGroups.map(gid=>{
+    const g=(t.groups||[]).find(x=>x.id===gid);
+    return g?`${g.day} ${g.time} ${g.level}`:'';
+  }).filter(Boolean).join(', ');
+  a.replacements.push({id:uid(),teacherId:tid,teacherName:t.name,groupIds:checkedGroups,groupName:groupNames,dateFrom,dateTo,withoutDemo,active:true,createdAt:new Date().toISOString()});
+  sched();closeModal();
+  renderAccounts(document.getElementById('main'));
+  toast(`Замена назначена${withoutDemo?' (без демо)':''} ✓`,'success');
+}
+
+function showAssignEvent(supId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  // Get groups relevant to this supporter
+  const allGroups=[];
+  D.teachers.forEach(t=>(t.groups||[]).forEach(g=>{
+    if(supCanReplace(a,t,g)) allGroups.push({t,g});
+  }));
+  const today=new Date().toISOString().slice(0,10);
+  openModal(`<div class="modal-title">📝 Добавить событие</div>
+    <div style="background:#f0f9ff;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#0C447C">
+      Суппортер: <b>${a.name}</b>
+    </div>
+    <div class="fg"><label class="fl">Тип события</label>
+      <div style="display:flex;gap:8px">
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="ev-type" value="mock" checked> Мок тест
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="ev-type" value="at"> AT тест
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="ev-type" value="demo"> Демо урок
+        </label>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Группа</label>
+      <select class="fi" id="ev-group">
+        <option value="">— выберите —</option>
+        ${allGroups.map(({t,g})=>`<option value="${g.id}" data-level="${g.level}">${t.name} · ${g.day} ${g.time} ${g.level}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Дата</label>
+      <input type="date" class="fi" id="ev-date" value="${today}">
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="confirmAssignEvent('${supId}')">Сохранить</button></div>`);
+}
+
+function confirmAssignEvent(supId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  const type=document.querySelector('input[name="ev-type"]:checked')?.value||'mock';
+  const gid=document.getElementById('ev-group')?.value;
+  const date=document.getElementById('ev-date')?.value;
+  if(!gid||!date){toast('Заполните все поля','error');return;}
+  let groupName='',level='';
+  D.teachers.forEach(t=>(t.groups||[]).forEach(g=>{if(g.id===gid){groupName=`${t.name} · ${g.day} ${g.time}`;level=g.level;}}));
+  if(!a.mockTests) a.mockTests=[];
+  a.mockTests.push({id:uid(),type,groupId:gid,groupName,level,date,createdAt:new Date().toISOString()});
+  // If demo event — auto-mark demo for this level
+  if(type==='demo'){if(!a.demos) a.demos={};a.demos[level]=true;}
+  sched();closeModal();
+  renderAccounts(document.getElementById('main'));
+  toast(`${type==='at'?'AT тест':type==='demo'?'Демо урок':'Мок тест'} добавлен ✓`,'success');
+}
+
+function cancelReplace(supId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  if(!confirm('Снять замену?')) return;
+  (a.replacements||[]).forEach(r=>{if(r.active) r.active=false;});
+  sched();renderAccounts(document.getElementById('main'));toast('Замена снята','success');
+}
+
+function renderSupporterView(el){
+  const a=(D.accounts||[]).find(x=>x.id===curUser?.accountId);
+  if(!a){el.innerHTML=`<div class="ph"><div class="pt">Загрузка...</div></div>`;return;}
+  const activeReplace=(a.replacements||[]).find(r=>r.active);
+  const replHistory=(a.replacements||[]).slice().reverse();
+  const events=(a.mockTests||[]).slice().reverse();
+  const levels=supLevels(a);
+  const typeLabel={'eng-ru':'Англ (русскоговорящий)','eng-kk':'Англ (каракалпакоговорящий)','rus':'Русский язык'}[a.supType||'eng-ru'];
+  const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'}[a.supType||'eng-ru'];
+
+  el.innerHTML=`
+    <div class="ph">
+      <div><div class="pt">👤 ${a.name||'Суппортер'}</div>
+        <div class="ps"><span class="sup-type-badge ${typeCls}">${typeLabel}</span></div>
+      </div>
+    </div>
+
+    ${activeReplace?`
+    <div class="replace-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span style="background:#E6F1FB;color:#0C447C;font-size:12px;font-weight:500;padding:4px 12px;border-radius:20px">🔄 Вы на замене</span>
+        <span style="font-size:12px;color:var(--color-text-secondary,#888)">${activeReplace.dateFrom} — ${activeReplace.dateTo}</span>
+      </div>
+      <div style="font-size:14px;font-weight:500;color:var(--color-text-primary,#111);margin-bottom:6px">${activeReplace.teacherName}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary,#888)">${activeReplace.groupName}</div>
+    </div>`:''}
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:12px">📋 Мои демо-уроки</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${levels.map(l=>`<span class="demo-chip ${(a.demos||{})[l]?'demo-chip-ok':'demo-chip-no'}">${(a.demos||{})[l]?'✓ ':''} ${SUP_LEVEL_LABELS[l]}</span>`).join('')}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:12px">🔄 История замен (${replHistory.length})</div>
+      ${!replHistory.length?`<div style="font-size:13px;color:#bbb;padding:8px 0">Замен ещё не было</div>`:
+      replHistory.map(r=>`<div class="event-row">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111)">${r.teacherName}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary,#888)">${r.groupName}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--color-text-secondary,#888)">${r.dateFrom} — ${r.dateTo}</div>
+          ${r.withoutDemo?`<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px">без демо</span>`:''}
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:12px">📝 Мок и AT тесты (${events.length})</div>
+      ${!events.length?`<div style="font-size:13px;color:#bbb;padding:8px 0">Событий ещё не было</div>`:
+      events.map(e=>`<div class="event-row">
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--color-text-primary,#111)">${e.groupName}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary,#888)">${e.date}</div>
+        </div>
+        <span class="event-type-${e.type||'mock'}">${e.type==='at'?'AT тест':e.type==='demo'?'Демо':e.type==='mock'?'Мок':'—'}</span>
+      </div>`).join('')}
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px">⚠️ Сообщить о некорректности</div>
+      <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-bottom:12px">Опишите проблему — администратор получит уведомление</div>
+      <div class="fg"><label class="fl">Группа / тест</label>
+        <input type="text" class="fi" id="sup-report-group" placeholder="Например: AT Beginner MWF 09:00">
+      </div>
+      <div class="fg"><label class="fl">Описание проблемы</label>
+        <textarea class="fi" id="sup-report-text" style="min-height:80px;resize:vertical" placeholder="Опишите что не так..."></textarea>
+      </div>
+      <button class="btn btn-pri" onclick="submitSupReport('${a.id}')">Отправить</button>
+    </div>`;
+}
+
+function submitSupReport(supId){
+  const a=D.accounts.find(x=>x.id===supId);if(!a) return;
+  const group=document.getElementById('sup-report-group')?.value?.trim();
+  const text=document.getElementById('sup-report-text')?.value?.trim();
+  if(!text){toast('Опишите проблему','error');return;}
+  if(!a.reports) a.reports=[];
+  const today=new Date().toISOString().slice(0,10);
+  a.reports.push({id:uid(),groupName:group||'',text,date:today,status:'new',createdAt:new Date().toISOString()});
+  sched();
+  document.getElementById('sup-report-group').value='';
+  document.getElementById('sup-report-text').value='';
+  toast('Сообщение отправлено администратору ✓','success');
 }
 
 function renderRating(el){
@@ -2414,11 +3042,11 @@ function renderRating(el){
 
     <!-- Language switch -->
     <div style="display:flex;gap:8px;margin-bottom:16px">
-      <button onclick="window._ratingLang='en';window._ratingLevel='all';renderRating(document.getElementById('main'))"
+      <button onclick="window._ratingLang='en';window._ratingLevel='all';window._ratingSearch='';renderRating(document.getElementById('main'))"
         style="padding:8px 20px;border-radius:10px;border:1.5px solid ${lang==='en'?'#4361ee':'#e0e4f0'};background:${lang==='en'?'#4361ee':'white'};color:${lang==='en'?'white':'#666'};font-size:13px;font-weight:600;cursor:pointer">
         🇬🇧 English
       </button>
-      <button onclick="window._ratingLang='ru';window._ratingLevel='all';renderRating(document.getElementById('main'))"
+      <button onclick="window._ratingLang='ru';window._ratingLevel='all';window._ratingSearch='';renderRating(document.getElementById('main'))"
         style="padding:8px 20px;border-radius:10px;border:1.5px solid ${lang==='ru'?'#3949ab':'#e0e4f0'};background:${lang==='ru'?'#3949ab':'white'};color:${lang==='ru'?'white':'#666'};font-size:13px;font-weight:600;cursor:pointer">
         🇷🇺 Русский язык
       </button>
@@ -2446,7 +3074,11 @@ function renderRating(el){
           style="padding:4px 12px;border-radius:20px;border:1.5px solid ${levelFilter===lv.v?'#4361ee':'#e0e4f0'};background:${levelFilter===lv.v?'#eef2ff':'white'};color:${levelFilter===lv.v?'#4361ee':'#666'};font-size:12px;cursor:pointer">${lv.l}</button>`).join('')}
       </div>
       <div class="card-title" style="margin-bottom:12px">👨‍🎓 Студенты — ${TABS.find(t=>t.k===tab)?.l}</div>
-      ${sorted.filter(r=>r[tab]!==null).map((r,i)=>`
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <input type="text" value="${window._ratingSearch||''}" placeholder="Поиск по имени..." style="flex:1;border:1.5px solid #e0e4f0;border-radius:10px;padding:7px 12px;font-size:13px;outline:none;font-family:inherit" oninput="clearTimeout(window._rSearchT);window._rSearchT=setTimeout(()=>{window._ratingSearch=this.value;renderRating(document.getElementById('main'));},200)">
+        <span style="font-size:12px;color:#888;white-space:nowrap">${sorted.filter(r=>r[tab]!==null&&(!window._ratingSearch||r.s.name.toLowerCase().includes((window._ratingSearch||'').toLowerCase()))).length} из ${sorted.filter(r=>r[tab]!==null).length}</span>
+      </div>
+      ${sorted.filter(r=>r[tab]!==null&&(!window._ratingSearch||r.s.name.toLowerCase().includes((window._ratingSearch||'').toLowerCase()))).map((r,i)=>`
         <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f0f0">
           <div style="font-size:${i<3?'22':'15'}px;width:32px;text-align:center;font-weight:700">${medal(i)}</div>
           <div style="flex:1;min-width:0">
@@ -2729,6 +3361,16 @@ function showAddTeacher(){
     <div class="fg"><label class="fl">Имя и фамилия</label>
       <input type="text" class="fi" id="tn" placeholder="Иванова Айгуль">
     </div>
+    <div class="fg"><label class="fl">Язык преподавания</label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="t-lang" value="ru" checked> 🇷🇺 Русскоговорящий
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="t-lang" value="kk"> 🇺🇿 Каракалпакоговорящий
+        </label>
+      </div>
+    </div>
     <div style="background:#f0f4ff;border-radius:12px;padding:16px;margin-bottom:16px">
       <div style="font-size:12px;font-weight:700;color:#4361ee;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px">🔐 Данные для входа</div>
       <div class="fg" style="margin-bottom:12px"><label class="fl">Логин</label>
@@ -2742,29 +3384,40 @@ function showAddTeacher(){
       <button class="btn btn-pri" onclick="addT()">${tr('createBtn')}</button></div>`);
   setTimeout(()=>document.getElementById('tn')?.focus(),80);
 }
-function addT(){
+async function addT(){
   const n=document.getElementById('tn')?.value?.trim();
   const login=document.getElementById('ac-l')?.value?.trim();
   const pass=document.getElementById('ac-p')?.value?.trim();
+  const lang=document.querySelector('input[name="t-lang"]:checked')?.value||'ru';
   if(!n){toast('Введите имя','error');return;}
   if(!login||!pass){toast('Введите логин и пароль','error');return;}
   if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
   if((D.accounts||[]).find(a=>a.login===login)){toast('Логин уже занят','error');return;}
   const tid=uid();
-  D.teachers.push({id:tid,name:n,groups:[]});
+  D.teachers.push({id:tid,name:n,lang,groups:[]});
   if(!D.accounts) D.accounts=[];
-  D.accounts.push({id:uid(),teacherId:tid,login,password:pass});
+  D.accounts.push({id:uid(),teacherId:tid,login,password:await hashPass(pass)});
   closeModal();renderAll();sched();toast(`${n} добавлен ✓`,'success');
 }
 function showEditT(id){
   const t=D.teachers.find(x=>x.id===id);
   openModal(`<div class="modal-title">Изменить преподавателя</div>
     <div class="fg"><label class="fl">Имя</label><input type="text" class="fi" id="tn" value="${t.name}"></div>
+    <div class="fg"><label class="fl">Язык преподавания</label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="t-lang" value="ru" ${(t.lang||'ru')==='ru'?'checked':''}> 🇷🇺 Русскоговорящий
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="t-lang" value="kk" ${(t.lang||'ru')==='kk'?'checked':''}> 🇺🇿 Каракалпакоговорящий
+        </label>
+      </div>
+    </div>
     <div class="fa"><button class="btn btn-dan btn-sm" onclick="delT('${id}')">Удалить</button>
       <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
       <button class="btn btn-pri" onclick="editT('${id}')">${tr('saveBtn')}</button></div>`);
 }
-function editT(id){const n=document.getElementById('tn')?.value?.trim();if(!n) return;const t=D.teachers.find(x=>x.id===id);if(t) t.name=n;closeModal();renderAll();sched();}
+function editT(id){const n=document.getElementById('tn')?.value?.trim();if(!n) return;const t=D.teachers.find(x=>x.id===id);if(t){t.name=n;t.lang=document.querySelector('input[name="t-lang"]:checked')?.value||t.lang||'ru';}closeModal();renderAll();sched();}
 function delT(id){if(!confirm('Удалить преподавателя?')) return;D.teachers=D.teachers.filter(x=>x.id!==id);closeModal();goHome();sched();}
 
 // ── CRUD Groups ───────────────────────────────────────────────────────────
@@ -3393,7 +4046,7 @@ async function loadData(){
         D=local;
       }
     }catch(e){
-      if(local.teachers) D=local;
+      if(local.teachers){D=local;toast('Нет соединения. Работаем с локальными данными.','error');}
     }
   }
   // Fix Firebase object->array conversion
@@ -3404,6 +4057,33 @@ async function loadData(){
   if(!D.accounts) D.accounts=[];
   if(!D.archives) D.archives=[];
   dataLoaded=true;
+  // Seed test supporter if not exists
+  await seedTestSupporter();
+}
+
+async function seedTestSupporter(){
+  if((D.accounts||[]).find(a=>a.login==='gulzada')) return;
+  if(!D.accounts) D.accounts=[];
+  const hashed=await hashPass('1234');
+  D.accounts.push({
+    id:uid(),role:'supporter',name:'Gulzada',login:'gulzada',password:hashed,
+    supType:'eng-ru',
+    demos:{beginner:true,elementary:true,'pre-intermediate':false,intermediate:false,'upper-intermediate':false},
+    replacements:[
+      {id:uid(),teacherName:'Алибек Жумаев',groupName:'MWF 09:00 beginner',groupIds:[],dateFrom:'2025-05-01',dateTo:'2025-05-05',withoutDemo:false,active:false,createdAt:'2025-05-01'},
+      {id:uid(),teacherName:'Зарина Асанова',groupName:'TTS 14:00 elementary',groupIds:[],dateFrom:'2025-05-20',dateTo:'2025-05-21',withoutDemo:true,active:false,createdAt:'2025-05-20'},
+      {id:uid(),teacherName:'Алибек Жумаев',groupName:'MWF 09:00 beginner',groupIds:[],dateFrom:'2025-06-05',dateTo:'2025-06-10',withoutDemo:false,active:true,createdAt:'2025-06-05'}
+    ],
+    mockTests:[
+      {id:uid(),type:'mock',groupName:'Алибек Жумаев · MWF 09:00',level:'beginner',date:'2025-05-26',createdAt:'2025-05-26'},
+      {id:uid(),type:'at',groupName:'Зарина Асанова · TTS 11:00',level:'elementary',date:'2025-06-02',createdAt:'2025-06-02'},
+      {id:uid(),type:'demo',groupName:'Нодира Юсупова · MWF 14:00',level:'beginner',date:'2025-04-15',createdAt:'2025-04-15'}
+    ],
+    reports:[
+      {id:uid(),groupName:'AT Elementary TTS 11:00',text:'В задании 3 неверный вариант ответа — все варианты одинаковые',date:'2025-06-01',status:'new',createdAt:'2025-06-01'}
+    ]
+  });
+  sched();
 }
 
 function fixFirebaseArrays(obj){
@@ -3540,7 +4220,23 @@ async function initApp(){
   }
 }
 
-function doLogin(){
+async function sha256(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+// Hash password for storage — returns hex string
+async function hashPass(pass){return await sha256(pass);}
+// Compare: supports both plain (legacy) and hashed passwords
+async function checkPass(input,stored){
+  if(!stored) return false;
+  if(stored.length===64&&/^[0-9a-f]+$/.test(stored)){
+    return (await sha256(input))===stored;
+  }
+  // Legacy plain text — still works
+  return input===stored;
+}
+
+async function doLogin(){
   try{
     const login=(document.getElementById('li-login')?.value||'').trim().toLowerCase();
     const pass=document.getElementById('li-pass')?.value||'';
@@ -3562,70 +4258,74 @@ function doLogin(){
       return;
     }
 
+    // Show loading state during async checks
+    const btn2=document.getElementById('li-btn');
+    if(btn2){btn2.disabled=true;btn2.textContent='Проверка...';}
+    const restoreBtn=()=>{if(btn2){btn2.disabled=false;btn2.textContent='Войти';}};
+
     // Admin check - main admin
     const adminLogin=(D.settings?.adminLogin||'admin').toLowerCase();
     const adminPin=D.settings?.pin||DPIN;
     if(login===adminLogin||login==='admin'){
-      if(pass===adminPin||pass===DPIN){
-        curUser={role:'admin',name:D.settings?.adminName||'Администратор'};
+      if(await checkPass(pass,adminPin)||await checkPass(pass,DPIN)){
+        restoreBtn();curUser={role:'admin',name:D.settings?.adminName||'Администратор'};
         startApp();return;
       }
     }
     // Admin check - additional admin accounts
-    const admAcc=(D.accounts||[]).find(a=>
-      a.role==='admin'&&(a.login||'').toLowerCase()===login&&a.password===pass
-    );
-    if(admAcc){
-      curUser={role:'admin',name:admAcc.name||login,accountId:admAcc.id};
-      startApp();return;
+    let admAcc=null;
+    for(const a of (D.accounts||[])){
+      if(a.role==='admin'&&(a.login||'').toLowerCase()===login&&await checkPass(pass,a.password)){admAcc=a;break;}
     }
+    if(admAcc){restoreBtn();curUser={role:'admin',name:admAcc.name||login,accountId:admAcc.id};startApp();return;}
     // Student login
-    const stuAcc=(D.accounts||[]).find(a=>
-      a.role==='student'&&(a.login||'').toLowerCase()===login&&a.password===pass
-    );
+    let stuAcc=null;
+    for(const a of (D.accounts||[])){
+      if(a.role==='student'&&(a.login||'').toLowerCase()===login&&await checkPass(pass,a.password)){stuAcc=a;break;}
+    }
     if(stuAcc){
-      // Find student data
       let stuData=null,stuGroup=null,stuTeacher=null;
       D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
         const s=(g.students||[]).find(x=>x.id===stuAcc.studentId||x.name===stuAcc.studentName);
         if(s){stuData=s;stuGroup=g;stuTeacher=tc;}
       }));
-      // Check if student has any grades
       const hasGrades=stuData&&(
         (stuData.units||[]).some(v=>v!=null&&v!=='')||
         (stuData.conversations||[]).some(v=>v!=null&&v!=='')||
         stuData.presentation!=null||stuData.finalConversation!=null
       );
-      if(!hasGrades){
-        showLoginErr('Результаты ещё не добавлены. Обратитесь к преподавателю.');return;
-      }
-      curUser={role:'student',name:stuAcc.studentName,accountId:stuAcc.id,
+      if(!hasGrades){restoreBtn();showLoginErr('Результаты ещё не добавлены. Обратитесь к преподавателю.');return;}
+      restoreBtn();curUser={role:'student',name:stuAcc.studentName,accountId:stuAcc.id,
                studentId:stuAcc.studentId,groupId:stuGroup?.id,teacherId:stuTeacher?.id};
       startApp();return;
     }
-    // Teacher - check both exact and lowercase login match
-    const tAcc=(D.accounts||[]).find(a=>
-      (a.login||'').toLowerCase()===login && a.password===pass && a.role!=='supporter'
-    );
+    // Teacher
+    let tAcc=null;
+    for(const a of (D.accounts||[])){
+      if((a.login||'').toLowerCase()===login&&a.role!=='supporter'&&await checkPass(pass,a.password)){tAcc=a;break;}
+    }
     if(tAcc){
       const teacher=D.teachers.find(x=>x.id===tAcc.teacherId);
-      curUser={role:'teacher',teacherId:tAcc.teacherId,name:teacher?teacher.name:login,accountId:tAcc.id};
+      restoreBtn();curUser={role:'teacher',teacherId:tAcc.teacherId,name:teacher?teacher.name:login,accountId:tAcc.id};
       startApp();return;
     }
     // Supporter
-    const sAcc=(D.accounts||[]).find(a=>
-      (a.login||'').toLowerCase()===login && a.password===pass && a.role==='supporter'
-    );
+    let sAcc=null;
+    for(const a of (D.accounts||[])){
+      if((a.login||'').toLowerCase()===login&&a.role==='supporter'&&await checkPass(pass,a.password)){sAcc=a;break;}
+    }
     if(sAcc){
-      curUser={role:'supporter',name:sAcc.name||login,accountId:sAcc.id};
+      restoreBtn();curUser={role:'supporter',name:sAcc.name||login,accountId:sAcc.id};
       startApp();return;
     }
     // Show helpful error with account count
+    restoreBtn();
     const total=(D.accounts||[]).length;
     showLoginErr(total>0 ? 'Неверный логин или пароль' : 'Данные не загружены. Обновите страницу.');
     document.getElementById('li-pass').value='';
     document.getElementById('li-pass').focus();
   }catch(err){
+    const b=document.getElementById('li-btn');if(b){b.disabled=false;b.textContent='Войти';}
     showLoginErr('Ошибка: '+err.message);
     console.error('Login error:',err);
   }
@@ -3638,6 +4338,11 @@ function showLoginErr(msg){
 
 function startApp(){
   try{saveSession(curUser);}catch(e){console.warn('session save failed:',e);}
+  // Warn on page leave if unsaved changes
+  window.onbeforeunload=()=>{
+    const up=document.getElementById('unsaved-pill');
+    if(up&&up.style.display!=='none') return 'Есть несохранённые изменения. Уйти?';
+  };
   // Restore Firebase URL from settings
   if(!FIREBASE_URL&&D.settings?.firebaseUrl){
     FIREBASE_URL=D.settings.firebaseUrl;
@@ -3677,7 +4382,9 @@ function startApp(){
   clearInterval(window._refreshTimer);
   window._refreshTimer=setInterval(async()=>{
     await loadData();
-      renderAll();
+    const now=new Date();
+    window._supLastUpdate=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    renderAll();
   },60000);
 }
 
