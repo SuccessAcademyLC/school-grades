@@ -151,6 +151,8 @@ tbody tr.empty-row td{background:#fafafa}
 .gi:focus{outline:none;border-color:#4361ee;background:white;box-shadow:0 0 0 3px rgba(67,97,238,.1)}
 .gi.err{border-color:#ef233c!important;background:#fff5f7!important;color:#c62828!important;animation:shake .2s ease}
 .gi.active-nav{border-color:#4361ee!important;background:#eef2ff!important;box-shadow:0 0 0 3px rgba(67,97,238,.18)!important}
+.gi.zero{border-color:#ef9f27!important;background:#fff8f0!important;color:#b45309!important;font-weight:700!important}
+body.dark .gi.zero{background:#2a1f0a!important;border-color:#b45309!important;color:#fbbf24!important}
 tr.active-row td{background:#f0f4ff!important}
 tr.active-row td.nc,tr.active-row td.nmc{background:#e8eeff!important}
 body.dark tr.active-row td{background:#1e2340!important}
@@ -741,8 +743,9 @@ function renderRusRow(s,num,g,ed){
   const ovc=ov===null?'on':ov>=75?'og':ov>=70?'oy':'or';
   const gcell=(val,field,idx)=>{
     const v=(val!=null&&val!=='')?val:'';
-    if(ed) return `<input class="gi" type="text" inputmode="decimal" value="${v}" oninput="gchRus('${sid}','${field}',${idx!=null?idx:'null'},this.value)" onkeydown="gradeKey(event,this)" onfocus="this.select()" placeholder="">`;
-    return `<span style="color:${v===''?'#ddd':'inherit'}">${v!==''?fmt(v):'—'}</span>`;
+    const isZero=v!==''&&parseFloat(v)===0;
+    if(ed) return `<input class="gi${isZero?' zero':''}" type="text" inputmode="decimal" value="${v}" oninput="gchRus('${sid}','${field}',${idx!=null?idx:'null'},this.value)" onkeydown="gradeKey(event,this)" onfocus="this.select()" placeholder="">`;
+    return `<span style="color:${v===''?'#ddd':isZero?'#b45309':'inherit'};${isZero?'font-weight:700;background:#fff8f0;padding:1px 5px;border-radius:4px;':''}">` + (v!==''?fmt(v):'—') + `</span>`;
   };
   const namecell=ed
     ?`<input class="ni" type="text" value="${s?s.name:''}" placeholder="Введите имя..." onblur="nameBlur('${sid}',${num-1},this)" onkeydown="nameKey(event,'${sid}',${num-1},this)" onfocus="this.select()">`
@@ -779,8 +782,16 @@ function gchRus(sid,field,idx,val){
   const inp=event?.target||null;
   if(!validateGradeInput(inp,val,100)) return;
   const n=val===''?null:parseFloat(val);
-  if(idx!==null){if(!s[field])s[field]=[];s[field][idx]=n;}
-  else s[field]=n;
+  if(idx!==null){
+    if(!s[field])s[field]=[];
+    s[field][idx]=n;
+    // Auto-fill gaps with 0
+    if(n!==null){
+      const arr=s[field];
+      const lastFilled=arr.reduce((last,v,i)=>v!==null?i:last,-1);
+      for(let i=0;i<lastFilled;i++){if(arr[i]===null||arr[i]===undefined) arr[i]=0;}
+    }
+  } else s[field]=n;
   const ov=calc(s,g.level);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=ov!==null?ov.toFixed(1):'—';badge.className='ob '+(ov===null?'on':ov>=75?'og':ov>=70?'oy':'or');}
@@ -969,8 +980,9 @@ function srow(s,num,g,ed,archMode){
   const ovc=finalOv===null?'on':finalOv>=75?'og':finalOv>=70?'oy':'or';
   const gcell=(val,field,idx)=>{
     const v=(val!=null&&val!=='')?val:'';
-    if(ed) return `<input class="gi" type="text" inputmode="decimal" value="${v}" oninput="gch('${sid}','${field}',${idx!=null?idx:'null'},this.value)" onkeydown="gradeKey(event,this)" onfocus="this.select()" placeholder="">`;
-    return `<span style="color:${v===''?'#ddd':'inherit'}">${v!==''?fmt(v):'—'}</span>`;
+    const isZero=v!==''&&parseFloat(v)===0;
+    if(ed) return `<input class="gi${isZero?' zero':''}" type="text" inputmode="decimal" value="${v}" oninput="gch('${sid}','${field}',${idx!=null?idx:'null'},this.value)" onkeydown="gradeKey(event,this)" onfocus="this.select()" placeholder="">`;
+    return `<span style="color:${v===''?'#ddd':isZero?'#b45309':'inherit'};${isZero?'font-weight:700;background:#fff8f0;padding:1px 5px;border-radius:4px;':''}">` + (v!==''?fmt(v):'—') + `</span>`;
   };
   const namecell=ed
     ?`<input class="ni" type="text" value="${s?s.name:''}" placeholder="Введите имя..." onblur="nameBlur('${sid}',${num-1},this)" onkeydown="nameKey(event,'${sid}',${num-1},this)" onfocus="this.select()">`
@@ -1053,11 +1065,12 @@ function calcFinal(s,level){
 
 // ── Grade input ───────────────────────────────────────────────────────────
 function validateGradeInput(inp,val,max){
-  if(val===''||val===null){inp&&inp.classList.remove('err');return true;}
+  if(val===''||val===null){inp&&inp.classList.remove('err');inp&&inp.classList.remove('zero');return true;}
   const n=parseFloat(val);
   const ok=!isNaN(n)&&n>=0&&n<=(max||100);
   if(inp){
     inp.classList.toggle('err',!ok);
+    inp.classList.toggle('zero',ok&&n===0);
     if(!ok) setTimeout(()=>inp.classList.remove('err'),1500);
   }
   return ok;
@@ -1074,8 +1087,16 @@ function gch(sid,field,idx,val){
   const max=field==='retake'?6:100;
   if(!validateGradeInput(inp,val,max)) return;
   const n=val===''?null:parseFloat(val);
-  if(idx!==null){if(!s[field])s[field]=Array(field==='units'?12:5).fill(null);s[field][idx]=n;}
-  else s[field]=n;
+  if(idx!==null){
+    if(!s[field])s[field]=Array(field==='units'?12:5).fill(null);
+    s[field][idx]=n;
+    // Auto-fill gaps with 0: if there's a value after a gap, fill gaps with 0
+    if(n!==null){
+      const arr=s[field];
+      const lastFilled=arr.reduce((last,v,i)=>v!==null?i:last,-1);
+      for(let i=0;i<lastFilled;i++){if(arr[i]===null) arr[i]=0;}
+    }
+  } else s[field]=n;
   const ov=calc(s,g.level);
   const r=s.retake!=null&&s.retake!==''?Number(s.retake):null;
   const fv=ov!==null?(ov+(r||0)):(r!==null?r:null);
