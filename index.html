@@ -521,12 +521,16 @@ function renderAll(){renderSidebar();renderMain();}
 
 function renderSidebar(){
   const teachers=isAdmin()?D.teachers:D.teachers.filter(t=>t.id===curUser?.teacherId);
-  const langBadge=t=>t.lang==='kk'?`<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px;margin-left:4px">КК</span>`:`<span style="font-size:10px;background:#EEEDFE;color:#3C3489;padding:1px 6px;border-radius:8px;margin-left:4px">РУС</span>`;
+  const tLangBadge=t=>{
+    if(t.lang==='kk') return `<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px;margin-left:4px">Англ КК</span>`;
+    if(t.lang==='rus') return `<span style="font-size:10px;background:#EEEDFE;color:#3C3489;padding:1px 6px;border-radius:8px;margin-left:4px">Рус яз</span>`;
+    return `<span style="font-size:10px;background:#E6F1FB;color:#0C447C;padding:1px 6px;border-radius:8px;margin-left:4px">Англ РУС</span>`;
+  };
   document.getElementById('tlist').innerHTML=teachers.length
     ?teachers.map(t=>`<div class="t-item ${selT===t.id&&view==='teacher'?'active':''}" onclick="gotoT('${t.id}')">
         <div class="t-av">${ini(t.name)}</div>
         <div style="flex:1;min-width:0">
-          <div class="t-name">${t.name}${langBadge(t)}</div>
+          <div class="t-name">${t.name}${tLangBadge(t)}</div>
           <div class="t-sub">${(t.groups||[]).length} ${tr('grpCount')}${t.phone?` · ${t.phone}`:''}</div>
         </div>
       </div>`).join('')
@@ -717,7 +721,7 @@ function renderTeacher(el){
           <span style="font-size:12px;opacity:.8">👨‍🎓 ${totalStudents} студентов</span>
           <span style="font-size:12px;opacity:.8">⭐ Средний: ${avgAll}</span>
           ${t.phone?`<span style="font-size:12px;opacity:.8">📞 ${t.phone}</span>`:''}
-          ${t.lang?`<span style="font-size:12px;opacity:.8">${t.lang==='kk'?'🇺🇿 Каракалп':'🇷🇺 Рус'}</span>`:''}
+          ${t.lang==='kk'?`<span style="font-size:12px;opacity:.8">Англ (КК)</span>`:t.lang==='rus'?`<span style="font-size:12px;opacity:.8">Русский язык</span>`:`<span style="font-size:12px;opacity:.8">Англ (Рус)</span>`}
         </div>
       </div>
     </div>`:'';
@@ -2768,14 +2772,17 @@ function supLevels(a){return(a.supType==='rus')?SUP_LEVELS_RUS:SUP_LEVELS_ENG;}
 function supCanReplace(a,t,g){
   if(!a||!t||!g) return false;
   const isRus=RUS_LEVELS.includes(g.level);
-  if(a.supType==='rus') return isRus;
+  // Rus teacher → only rus supporter
+  if(t.lang==='rus') return a.supType==='rus'&&isRus;
+  // Rus supporter → only rus teacher groups
+  if(a.supType==='rus') return isRus&&t.lang==='rus';
+  // Eng supporter → only eng teacher groups
   if(isRus) return false;
   const isHighLevel=['pre-intermediate','intermediate','upper-intermediate'].includes(g.level);
-  if(isHighLevel) return true;
-  // Beg/Elem: check teacher lang matches supporter lang
-  // If teacher has no lang set — show to all eng supporters
+  if(isHighLevel) return true; // any eng supporter for pre-int+
+  // Beg/Elem: match teacher lang to supporter lang
   const tLang=t.lang||null;
-  if(!tLang) return true;
+  if(!tLang) return true; // no lang set → visible to all eng supporters
   if(a.supType==='eng-ru') return tLang==='ru';
   if(a.supType==='eng-kk') return tLang==='kk';
   return false;
@@ -3877,13 +3884,19 @@ function showAddTeacher(){
     <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
       <input type="text" class="fi" id="t-phone" placeholder="+998 90 123 45 67">
     </div>
-    <div class="fg"><label class="fl">Язык преподавания</label>
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="t-lang" value="ru" checked> 🇷🇺 Русскоговорящий
+    <div class="fg"><label class="fl">Направление</label>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="t-lang" value="ru" checked>
+          <div><div style="font-weight:500">Англ (русскоговорящий)</div><div style="font-size:11px;color:#888">Beg/Elem рус группы + Pre-Int и выше</div></div>
         </label>
-        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="t-lang" value="kk"> 🇺🇿 Каракалпакоговорящий
+        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="t-lang" value="kk">
+          <div><div style="font-weight:500">Англ (каракалпакоговорящий)</div><div style="font-size:11px;color:#888">Beg/Elem кк группы + Pre-Int и выше</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="t-lang" value="rus">
+          <div><div style="font-weight:500">Русский язык</div><div style="font-size:11px;color:#888">Только rus-1, rus-2, rus-3, rus-4</div></div>
         </label>
       </div>
     </div>
@@ -3923,13 +3936,16 @@ function showEditT(id){
     <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
       <input type="text" class="fi" id="t-phone" value="${t.phone||''}" placeholder="+998 90 123 45 67">
     </div>
-    <div class="fg"><label class="fl">Язык преподавания</label>
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="t-lang" value="ru" ${(t.lang||'ru')==='ru'?'checked':''}> 🇷🇺 Русскоговорящий
+    <div class="fg"><label class="fl">Направление</label>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="t-lang" value="ru" ${(t.lang||'ru')==='ru'?'checked':''}> Англ (русскоговорящий)
         </label>
-        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="t-lang" value="kk" ${(t.lang||'ru')==='kk'?'checked':''}> 🇺🇿 Каракалпакоговорящий
+        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="t-lang" value="kk" ${t.lang==='kk'?'checked':''}> Англ (каракалпакоговорящий)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="t-lang" value="rus" ${t.lang==='rus'?'checked':''}> Русский язык
         </label>
       </div>
     </div>
