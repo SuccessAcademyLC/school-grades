@@ -533,8 +533,6 @@ function renderSidebar(){
   // Supporters tab
   const supporters=(D.accounts||[]).filter(a=>a.role==='supporter');
   const scheduleLabel={'morning':'09–12','evening':'14–20','full':'09–20'};
-  const typeLabel={'eng-ru':'Англ (рус)','eng-kk':'Англ (кк)','rus':'Рус язык'};
-  const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'};
   const supEl=document.getElementById('suplist');
   if(supEl) supEl.innerHTML=(supporters.length
     ?`${isAdmin()?`<div style="padding:10px 12px 4px">
@@ -542,8 +540,8 @@ function renderSidebar(){
       </div>`:''}
       ${supporters.map(a=>{
         const active=(a.replacements||[]).find(r=>r.active);
-        const tl=typeLabel[a.supType||'eng-ru']||'Англ (рус)';
-        const tc=typeCls[a.supType||'eng-ru']||'sup-type-eng-ru';
+        const tl=supTypeLabel(a.supType,true);
+        const tc=supTypeCls(a.supType);
         return `<div class="t-item" onclick="showSupporterProfile('${a.id}')">
           <div class="t-av" style="background:linear-gradient(135deg,#2b9348,#1b5e20)">${ini(a.name||a.login)}</div>
           <div style="flex:1;min-width:0">
@@ -1574,8 +1572,8 @@ function renderAccounts(el){
       <div class="card-title" style="margin-bottom:14px">🤝 Supporters (${supporters.length})</div>
       ${!supporters.length?`<div style="color:#bbb;font-size:13px;padding:10px 0">Нет аккаунтов supporters</div>`:''}
       ${supporters.map(a=>{
-        const typeLabel={'eng-ru':'Англ (рус)','eng-kk':'Англ (кк)','rus':'Рус язык'}[a.supType||'eng-ru']||'Англ (рус)';
-        const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'}[a.supType||'eng-ru']||'sup-type-eng-ru';
+        const typeLabel=supTypeLabel(a.supType||'eng-ru',true)||'Англ (рус)';
+        const typeCls=supTypeCls(a.supType||'eng-ru')||'sup-type-eng-ru';
         const activeReplace=(a.replacements||[]).find(r=>r.active);
         const replCount=(a.replacements||[]).length;
         const DEMO_LEVELS=a.supType==='rus'?['rus-1','rus-2','rus-3','rus-4']:['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
@@ -2737,6 +2735,11 @@ function renderGroupDebts(g){
 const SUP_LEVELS_ENG=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
 const SUP_LEVELS_RUS=['rus-1','rus-2','rus-3','rus-4'];
 const SUP_LEVEL_LABELS={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int','intermediate':'Intermediate','upper-intermediate':'Upper-Int','rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4'};
+const SUP_TYPE_LABEL={'eng-ru':'Англ (русскоговорящий)','eng-kk':'Англ (каракалпакоговорящий)','rus':'Русский язык'};
+const SUP_TYPE_LABEL_SHORT={'eng-ru':'Англ (рус)','eng-kk':'Англ (кк)','rus':'Рус язык'};
+const SUP_TYPE_CLS={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'};
+function supTypeLabel(t,short){return (short?SUP_TYPE_LABEL_SHORT:SUP_TYPE_LABEL)[t||'eng-ru']||'Англ (рус)';}
+function supTypeCls(t){return SUP_TYPE_CLS[t||'eng-ru']||'sup-type-eng-ru';}
 
 function supLevels(a){return(a.supType==='rus')?SUP_LEVELS_RUS:SUP_LEVELS_ENG;}
 
@@ -2776,8 +2779,8 @@ function renderSupporterProfile(el){
   if(!a.reports) a.reports=[];
 
   const levels=supLevels(a);
-  const typeLabel={'eng-ru':'Англ (русскоговорящий)','eng-kk':'Англ (каракалпакоговорящий)','rus':'Русский язык'}[a.supType];
-  const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'}[a.supType];
+  const typeLabel=supTypeLabel(a.supType);
+  const typeCls=supTypeCls(a.supType);
   const schedLabel={'morning':'09:00–12:00','evening':'14:00–20:00','full':'09:00–20:00'}[a.schedule||'']||'';
   const repls=(a.replacements||[]).slice().reverse();
   const events=(a.mockTests||[]).slice().reverse();
@@ -2814,6 +2817,7 @@ function renderSupporterProfile(el){
         <button class="btn btn-sec btn-sm" onclick="showAssignReplace('${a.id}')">📅 Замена</button>
         <button class="btn btn-sec btn-sm" onclick="showAssignEvent('${a.id}')">📝 Событие</button>
         <button class="btn btn-sec btn-sm" onclick="showEditAccount('${a.id}')">✏️ Изменить</button>
+        ${activeReplace?`<button class="btn btn-sm" style="color:#791F1F;border-color:#F7C1C1;background:#FCEBEB" onclick="cancelReplace('${a.id}')">✕ Снять замену</button>`:''}
       </div>`:''}
     </div>
 
@@ -3007,41 +3011,29 @@ function saveEditEvent(supId,eventId){
 // ── Global events page (sidebar supporters tab) ────────────────────────────
 function renderSupporterEvents(el){
   const supporters=(D.accounts||[]).filter(a=>a.role==='supporter');
-  // Collect all events across all supporters
+  const filterSup=window._supEvFilter||'';
+  const filterType=window._supEvType||'all';
+  const now=new Date();
+  const filterMonth=window._supEvMonth||(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+
   const allEvents=[];
   supporters.forEach(a=>{
     (a.replacements||[]).forEach(r=>allEvents.push({supId:a.id,supName:a.name,type:'replace',date:r.dateFrom,dateTo:r.dateTo,label:r.teacherName,sub:r.groupName,active:r.active,withoutDemo:r.withoutDemo,id:r.id}));
-    (a.mockTests||[]).forEach(e=>allEvents.push({supId:a.id,supName:a.name,type:e.type||'mock',date:e.date,label:e.groupName,sub:'',id:e.id}));
+    (a.mockTests||[]).forEach(e=>allEvents.push({supId:a.id,supName:a.name,type:e.type||'mock',date:e.date,dateTo:e.date,label:e.groupName,sub:'',id:e.id}));
   });
   allEvents.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const today=new Date().toISOString().slice(0,10);
 
-  el.innerHTML=`
-    <div class="ph">
-      <div><div class="pt">🤝 События суппортеров</div><div class="ps">${allEvents.length} записей</div></div>
-      ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAddGlobalEvent()">+ Добавить</button>`:''}
-    </div>
-    ${!supporters.length?`<div class="card"><div style="padding:20px;text-align:center;color:#bbb;font-size:13px">Нет суппортеров</div></div>`:
-    !allEvents.length?`<div class="card"><div style="padding:20px;text-align:center;color:#bbb;font-size:13px">Событий ещё нет</div></div>`:`
-    <div class="card">
-      ${allEvents.map(ev=>`<div class="event-row">
-        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#2b9348,#1b5e20);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:white;flex-shrink:0">${ini(ev.supName)}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111)">${ev.supName}</div>
-          <div style="font-size:12px;color:var(--color-text-secondary,#888)">${ev.label}${ev.sub?' · '+ev.sub:''}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:6px">
-          <div>
-            <div style="font-size:11px;color:var(--color-text-secondary,#888)">${ev.date||''}${ev.dateTo&&ev.dateTo!==ev.date?' — '+ev.dateTo:''}</div>
-            <div style="margin-top:3px">
-              <span class="event-type-${ev.type}">${ev.type==='replace'?'Замена':ev.type==='at'?'AT тест':ev.type==='demo'?'Демо':'Мок'}</span>
-              ${ev.withoutDemo?`<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px;margin-left:3px">без демо</span>`:''}
-            </div>
-          </div>
-          ${isAdmin()?`<button onclick="gotoSupporterProfile('${ev.supId}')" style="padding:3px 8px;border-radius:6px;border:0.5px solid #e0e4f0;background:white;font-size:11px;cursor:pointer;white-space:nowrap">Открыть</button>`:''}
-        </div>
-      </div>`).join('')}
-    </div>`}`;
+  const filtered=allEvents.filter(ev=>{
+    if(filterSup&&ev.supId!==filterSup) return false;
+    if(filterType!=='all'&&ev.type!==filterType) return false;
+    if(filterMonth&&!(ev.date||'').startsWith(filterMonth)) return false;
+    return true;
+  });
+
+  // Build month options from data
+  const months=[...new Set(allEvents.map(e=>(e.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
+
+  el.innerHTML+=``;// end
 }
 
 function showAddGlobalEvent(){
@@ -3113,8 +3105,14 @@ function saveGlobalEvent(){
   const teacherName=opt?.dataset?.tname||'';
   const teacherId=opt?.dataset?.teacher||'';
   if(type==='replace'){
+    // Check date overlap
+    const overlap=(a.replacements||[]).find(r=>{
+      if(!r.active) return false;
+      return !(dateTo<r.dateFrom||dateFrom>r.dateTo);
+    });
+    if(overlap){toast(`Пересечение с заменой ${overlap.teacherName} (${overlap.dateFrom}–${overlap.dateTo})`,'error');return;}
     const withoutDemo=level&&!(a.demos||{})[level];
-    a.replacements.push({id:uid(),teacherId,teacherName,groupIds:[gid],groupName,dateFrom,dateTo,withoutDemo,active:true,createdAt:new Date().toISOString()});
+    a.replacements.push({id:uid(),teacherId,teacherName,groupIds:[gid],groupName,dateFrom,dateTo:dateTo||dateFrom,withoutDemo,active:true,createdAt:new Date().toISOString()});
   } else {
     a.mockTests.push({id:uid(),type,groupId:gid,groupName,level,date:dateFrom,createdAt:new Date().toISOString()});
     if(type==='demo'){if(!a.demos)a.demos={};a.demos[level]=true;}
@@ -3193,10 +3191,16 @@ function confirmAssignReplace(supId){
   const dateFrom=document.getElementById('rep-from')?.value;
   const dateTo=document.getElementById('rep-to')?.value;
   if(!dateFrom||!dateTo){toast('Укажите даты','error');return;}
+  if(dateTo<dateFrom){toast('Дата конца не может быть раньше начала','error');return;}
+  // Check date overlap with existing active replacements
+  const overlap=(a.replacements||[]).find(r=>{
+    if(!r.active) return false;
+    return !(dateTo<r.dateFrom||dateFrom>r.dateTo);
+  });
+  if(overlap){toast(`Пересечение с заменой ${overlap.teacherName} (${overlap.dateFrom} — ${overlap.dateTo})`, 'error');return;}
   const checkedGroups=[...document.querySelectorAll('#rep-groups-list input[type=checkbox]:checked')].map(x=>x.value);
   if(!checkedGroups.length){toast('Выберите хотя бы одну группу','error');return;}
   if(!a.replacements) a.replacements=[];
-  // Check if demo done for any group
   const withoutDemo=checkedGroups.some(gid=>{
     const g=(t.groups||[]).find(x=>x.id===gid);
     return g&&!(a.demos||{})[g.level];
@@ -3207,7 +3211,7 @@ function confirmAssignReplace(supId){
   }).filter(Boolean).join(', ');
   a.replacements.push({id:uid(),teacherId:tid,teacherName:t.name,groupIds:checkedGroups,groupName:groupNames,dateFrom,dateTo,withoutDemo,active:true,createdAt:new Date().toISOString()});
   sched();closeModal();
-  renderAccounts(document.getElementById('main'));
+  renderAll();
   toast(`Замена назначена${withoutDemo?' (без демо)':''} ✓`,'success');
 }
 
@@ -3290,16 +3294,19 @@ function renderSupporterView(el){
   const replThisMonth=replHistory.filter(r=>(r.dateFrom||'').startsWith(thisMonth));
   const events=(a.mockTests||[]).slice().reverse();
   const levels=supLevels(a);
-  const typeLabel={'eng-ru':'Англ (русскоговорящий)','eng-kk':'Англ (каракалпакоговорящий)','rus':'Русский язык'}[a.supType||'eng-ru'];
-  const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'}[a.supType||'eng-ru'];
+  const typeLabel=supTypeLabel(a.supType||'eng-ru');
+  const typeCls=supTypeCls(a.supType||'eng-ru');
   const demoDone=levels.filter(l=>(a.demos||{})[l]).length;
 
-  // Build debts
+  // Build debts filtered by supporter type
   let debtsHtml='';
   try{
     const debtRows=[];
+    const debtQ=(window._supDebtQ||'').toLowerCase();
     D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+      if(!supCanReplace(a,tc,g)) return;
       (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
+        if(debtQ&&!s.name.toLowerCase().includes(debtQ)) return;
         const debts=getDebts(s,g.level);
         if(debts.length) debtRows.push({s,g,tc,debts});
       });
@@ -3308,7 +3315,10 @@ function renderSupporterView(el){
     const dbg=(key)=>{const p=(DC[key]||DC.u).split(':');return `background:${p[0]};color:${p[1]};border:1px solid ${p[2]}`;};
     if(debtRows.length){
       debtsHtml=`<div class="card" style="margin-bottom:12px">
-        <div class="card-title" style="margin-bottom:12px">⚠️ Должники (${debtRows.length} студентов)</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title">⚠️ Должники (${debtRows.length})</div>
+          <input type="text" value="${window._supDebtQ||''}" placeholder="Поиск..." style="border:1.5px solid #e0e4f0;border-radius:8px;padding:5px 10px;font-size:12px;width:120px;font-family:inherit" oninput="clearTimeout(window._supDT);window._supDT=setTimeout(()=>{window._supDebtQ=this.value.toLowerCase();renderSupporterView(document.getElementById('main'));},250)">
+        </div>
         ${debtRows.map(({s,g,tc,debts})=>`<div class="event-row">
           <div style="flex:1">
             <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111)">${s.name}</div>
@@ -4545,6 +4555,15 @@ async function loadData(){
   if(!D.students) D.students=[];
   if(!D.accounts) D.accounts=[];
   if(!D.archives) D.archives=[];
+  // Auto-close expired replacements
+  const today=new Date().toISOString().slice(0,10);
+  let expiredClosed=false;
+  (D.accounts||[]).filter(a=>a.role==='supporter').forEach(a=>{
+    (a.replacements||[]).forEach(r=>{
+      if(r.active&&r.dateTo&&r.dateTo<today){r.active=false;expiredClosed=true;}
+    });
+  });
+  if(expiredClosed) setTimeout(saveData,500);
   dataLoaded=true;
 }
 
