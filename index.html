@@ -696,7 +696,28 @@ function renderTeacher(el){
           <div><div class="gm-v">${avg}</div><div class="gm-l">Средний</div></div></div></div>`;
       }).join('')}</div></div>`;
   const other=groups.filter(g=>g.day!=='MWF'&&g.day!=='TTS');
+
+  // Personal card for logged-in teacher
+  const isOwnCabinet=curUser?.role==='teacher'&&curUser?.teacherId===t.id;
+  const totalStudents=groups.reduce((s,g)=>s+(g.students||[]).filter(x=>x.name).length,0);
+  const allOvs=[];groups.forEach(g=>(g.students||[]).forEach(s=>{const o=calcFinal(s,g.level);if(o!==null)allOvs.push(o);}));
+  const avgAll=allOvs.length?(allOvs.reduce((a,b)=>a+b,0)/allOvs.length).toFixed(1):'—';
+  const personalCard=isOwnCabinet?`
+    <div style="background:linear-gradient(135deg,#16213e,#0f3460);border-radius:16px;padding:20px 24px;margin-bottom:16px;color:white;display:flex;align-items:center;gap:16px">
+      <div style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0">${ini(t.name)}</div>
+      <div style="flex:1">
+        <div style="font-size:18px;font-weight:700;margin-bottom:4px">${t.name}</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <span style="font-size:12px;opacity:.8">📚 ${groups.length} групп</span>
+          <span style="font-size:12px;opacity:.8">👨‍🎓 ${totalStudents} студентов</span>
+          <span style="font-size:12px;opacity:.8">⭐ Средний: ${avgAll}</span>
+          ${t.phone?`<span style="font-size:12px;opacity:.8">📞 ${t.phone}</span>`:''}
+          ${t.lang?`<span style="font-size:12px;opacity:.8">${t.lang==='kk'?'🇺🇿 Каракалп':'🇷🇺 Рус'}</span>`:''}
+        </div>
+      </div>
+    </div>`:'';
   el.innerHTML=`
+    ${personalCard}
     <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">${t.name}</span></div>
     <div class="ph">
       <div><div class="pt">${t.name}</div><div class="ps">${groups.length} ${tr('grpCount')}</div></div>
@@ -2952,16 +2973,12 @@ function renderSupporterView(el){
   const a=(D.accounts||[]).find(x=>x.id===curUser?.accountId);
   if(!a){el.innerHTML=`<div class="ph"><div class="pt">Ошибка: аккаунт не найден</div></div>`;return;}
 
-  // Old-style supporter without supType — show debts + upgrade notice
-  if(!a.supType){
-    renderSupporter(el);
-    const notice=document.createElement('div');
-    notice.style.cssText='background:#E6F1FB;border:1.5px solid #B5D4F4;border-radius:12px;padding:14px 18px;margin:12px 16px;font-size:13px;color:#0C447C';
-    notice.innerHTML='ℹ️ Ваш профиль создан в старом формате. Обратитесь к администратору для обновления аккаунта — после этого откроется полный личный кабинет с историей замен и событий.';
-    const main=document.getElementById('main');
-    if(main) main.prepend(notice);
-    return;
-  }
+  // Auto-init missing fields for old-style supporters without supType
+  if(!a.supType) a.supType='eng-ru';
+  if(!a.demos) a.demos={};
+  if(!a.replacements) a.replacements=[];
+  if(!a.mockTests) a.mockTests=[];
+  if(!a.reports) a.reports=[];
 
   const activeReplace=(a.replacements||[]).find(r=>r.active);
   const replHistory=(a.replacements||[]).slice().reverse();
