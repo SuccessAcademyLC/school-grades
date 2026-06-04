@@ -541,7 +541,8 @@ function renderSidebar(){
   const scheduleLabel={'morning':'09–12','evening':'14–20','full':'09–20'};
   const supEl=document.getElementById('suplist');
   if(supEl) supEl.innerHTML=(supporters.length
-    ?`${isAdmin()?`<div style="padding:10px 12px 4px">
+    ?`${isAdmin()?`<div style="padding:10px 12px 4px;display:flex;flex-direction:column;gap:6px">
+        <button onclick="gotoPage('duties')" class="btn btn-sec btn-sm" style="width:100%;justify-content:center">📅 Расписание дежурств</button>
         <button onclick="gotoPage('sup_events')" class="btn btn-pri btn-sm" style="width:100%;justify-content:center">📋 Все события суппортеров</button>
       </div>`:''}
       ${supporters.map(a=>{
@@ -581,7 +582,8 @@ function renderMain(){
       return;
     }
     if(curUser?.role==='student'){renderStudentView(el);return;}
-    if(curPage==='sup_events') renderSupporterEvents(el);
+    if(curPage==='duties') renderDutyPage(el);
+    else if(curPage==='sup_events') renderSupporterEvents(el);
     else if(curPage==='accounts') renderAccounts(el);
     else if(curPage==='students') renderStudentsPage(el);
     else if(curPage==='rating') renderRating(el);
@@ -2417,24 +2419,6 @@ function gotoG(id){selG=id;view='group';curPage=null;renderAll();
 function gotoPage(p){curPage=p;view=null;renderMain();}
 
 // ── CRUD Teachers ─────────────────────────────────────────────────────────
-function renderSupporter(el){
-  const q=(window._supQ||'').toLowerCase();
-  const filter=window._supFilter||'all';
-
-  // Colors for each debt type
-  const DEBT_COLORS={u:'#e3f2fd:#1565c0:#90caf9',hw:'#f3e5f5:#6a1b9a:#ce93d8',at:'#fff3e0:#e65100:#ffb74d'};
-
-  async function refreshAndRender(){
-  const btn=document.getElementById('sup-refresh-btn');
-  if(btn){btn.textContent='⏳ Загрузка...';btn.disabled=true;}
-  await loadData();
-  const now=new Date();
-  window._supLastUpdate=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-  renderAll();
-  if(btn){btn.textContent='🔄 Обновить';btn.disabled=false;}
-  toast('Данные обновлены ✓','success');
-}
-
 function getDebts(s,level){
     const debts=[];
     const ok=v=>v!==null&&v!==undefined&&v!==''&&Number(v)>0;
@@ -2547,6 +2531,25 @@ function getDebts(s,level){
         </div>
       </div>`).join('')}`;
 }
+
+function renderSupporter(el){
+  const q=(window._supQ||'').toLowerCase();
+  const filter=window._supFilter||'all';
+
+  // Colors for each debt type
+  const DEBT_COLORS={u:'#e3f2fd:#1565c0:#90caf9',hw:'#f3e5f5:#6a1b9a:#ce93d8',at:'#fff3e0:#e65100:#ffb74d'};
+
+  async function refreshAndRender(){
+  const btn=document.getElementById('sup-refresh-btn');
+  if(btn){btn.textContent='⏳ Загрузка...';btn.disabled=true;}
+  await loadData();
+  const now=new Date();
+  window._supLastUpdate=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  renderAll();
+  if(btn){btn.textContent='🔄 Обновить';btn.disabled=false;}
+  toast('Данные обновлены ✓','success');
+}
+
 
 function renderStudentView(el){
   // Find student data
@@ -3307,6 +3310,126 @@ function cancelReplace(supId){
   sched();renderAccounts(document.getElementById('main'));toast('Замена снята','success');
 }
 
+// ── Duty Schedule ─────────────────────────────────────────────────────────
+
+function renderDutyPage(el){
+  const now=new Date();
+  const month=window._dutyMonth||(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+  const [yr,mo]=month.split('-').map(Number);
+  const daysInMonth=new Date(yr,mo,0).getDate();
+  const firstDay=(new Date(yr,mo-1,1).getDay()+6)%7; // Mon=0
+  const today=now.toISOString().slice(0,10);
+  const supporters=(D.accounts||[]).filter(a=>a.role==='supporter'&&a.supType!=='rus');
+  const monthName=new Date(yr,mo-1,1).toLocaleString('ru',{month:'long',year:'numeric'});
+
+  const prevMonth=new Date(yr,mo-2,1);
+  const nextMonth=new Date(yr,mo,1);
+  const prevStr=prevMonth.getFullYear()+'-'+String(prevMonth.getMonth()+1).padStart(2,'0');
+  const nextStr=nextMonth.getFullYear()+'-'+String(nextMonth.getMonth()+1).padStart(2,'0');
+
+  const duties=D.duties||{};
+
+  let calHtml='';
+  const heads=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  calHtml+=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">`;
+  heads.forEach(h=>calHtml+=`<div style="text-align:center;font-size:11px;color:var(--color-text-secondary);font-weight:500;padding:4px 0">${h}</div>`);
+  calHtml+=`</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">`;
+  for(let i=0;i<firstDay;i++) calHtml+=`<div></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=`${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const duty=duties[dateStr]||{};
+    const mSup=supporters.find(a=>a.id===duty.morning);
+    const eSup=supporters.find(a=>a.id===duty.evening);
+    const isToday=dateStr===today;
+    calHtml+=`<div onclick="showDutyEdit('${dateStr}')" style="border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 4px;cursor:pointer;min-height:64px;background:${isToday?'var(--color-background-info)':'var(--color-background-primary)'};transition:.15s" onmouseenter="this.style.borderColor='#4361ee'" onmouseleave="this.style.borderColor='var(--color-border-tertiary)'">
+      <div style="font-size:12px;font-weight:500;color:${isToday?'#0C447C':'var(--color-text-primary)'};text-align:center;margin-bottom:4px">${d}</div>
+      ${mSup?`<div style="font-size:10px;background:#EAF3DE;color:#27500A;border-radius:4px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${mSup.name}">☀ ${ini(mSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;margin-bottom:2px;border:1px dashed var(--color-border-tertiary)">☀ —</div>`}
+      ${eSup?`<div style="font-size:10px;background:#FAEEDA;color:#633806;border-radius:4px;padding:1px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${eSup.name}">🌙 ${ini(eSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;border:1px dashed var(--color-border-tertiary)">🌙 —</div>`}
+    </div>`;
+  }
+  calHtml+=`</div>`;
+
+  el.innerHTML=`
+    <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">Расписание дежурств</span></div>
+    <div class="ph">
+      <div><div class="pt">📅 Расписание дежурств</div><div class="ps">Утро 12:00–13:00 · Вечер 13:00–19:00</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <button onclick="window._dutyMonth='${prevStr}';gotoPage('duties')" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;font-size:13px">← </button>
+        <div style="font-size:15px;font-weight:500;color:var(--color-text-primary)">${monthName}</div>
+        <button onclick="window._dutyMonth='${nextStr}';gotoPage('duties')" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;font-size:13px"> →</button>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <span style="font-size:12px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#EAF3DE;border-radius:3px;display:inline-block"></span>☀ Утро (12–13)</span>
+        <span style="font-size:12px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#FAEEDA;border-radius:3px;display:inline-block"></span>🌙 Вечер (13–19)</span>
+        <span style="font-size:12px;color:var(--color-text-tertiary)">Нажмите на день чтобы назначить</span>
+      </div>
+      ${calHtml}
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px">Суппортеры (англ)</div>
+      ${supporters.map(a=>{
+        const myDays=Object.entries(D.duties||{}).filter(([d,v])=>d.startsWith(month)&&(v.morning===a.id||v.evening===a.id));
+        const mCount=myDays.filter(([d,v])=>v.morning===a.id).length;
+        const eCount=myDays.filter(([d,v])=>v.evening===a.id).length;
+        return `<div class="event-row">
+          <div class="t-av" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2b9348,#1b5e20);color:white;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini(a.name)}</div>
+          <div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${a.name}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${supTypeLabel(a.supType,true)}</div></div>
+          <div style="text-align:right;font-size:12px;color:var(--color-text-secondary)">
+            <span style="background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px;margin-right:4px">☀ ${mCount}</span>
+            <span style="background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px">🌙 ${eCount}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function showDutyEdit(dateStr){
+  if(!isAdmin()) return;
+  const supporters=(D.accounts||[]).filter(a=>a.role==='supporter'&&a.supType!=='rus');
+  const duty=(D.duties||{})[dateStr]||{};
+  const d=new Date(dateStr);
+  const label=d.toLocaleString('ru',{day:'numeric',month:'long',weekday:'long'});
+
+  openModal(`<div class="modal-title">📅 ${label}</div>
+    <div class="fg"><label class="fl">☀ Утреннее дежурство (12:00–13:00)</label>
+      <select class="fi" id="duty-m">
+        <option value="">— не назначен —</option>
+        ${supporters.map(a=>`<option value="${a.id}" ${duty.morning===a.id?'selected':''}>${a.name} (${supTypeLabel(a.supType,true)}${a.schedule?', '+(a.schedule==='morning'?'утро':a.schedule==='evening'?'вечер':'фулл'):''})</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg"><label class="fl">🌙 Вечернее дежурство (13:00–19:00)</label>
+      <select class="fi" id="duty-e">
+        <option value="">— не назначен —</option>
+        ${supporters.map(a=>`<option value="${a.id}" ${duty.evening===a.id?'selected':''}>${a.name} (${supTypeLabel(a.supType,true)}${a.schedule?', '+(a.schedule==='morning'?'утро':a.schedule==='evening'?'вечер':'фулл'):''})</option>`).join('')}
+      </select>
+    </div>
+    <div class="fa">
+      <button class="btn btn-dan btn-sm" onclick="clearDuty('${dateStr}')">Очистить</button>
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveDuty('${dateStr}')">Сохранить</button>
+    </div>`);
+}
+
+function saveDuty(dateStr){
+  if(!D.duties) D.duties={};
+  const m=document.getElementById('duty-m')?.value||'';
+  const e=document.getElementById('duty-e')?.value||'';
+  if(!m&&!e){delete D.duties[dateStr];}
+  else D.duties[dateStr]={morning:m||null,evening:e||null};
+  sched();closeModal();gotoPage('duties');toast('Дежурство сохранено ✓','success');
+}
+
+function clearDuty(dateStr){
+  if(!confirm('Очистить дежурство?')) return;
+  if(D.duties) delete D.duties[dateStr];
+  sched();closeModal();gotoPage('duties');toast('Дежурство очищено','success');
+}
+
 function renderSupporterView(el){
   const a=(D.accounts||[]).find(x=>x.id===curUser?.accountId);
   if(!a){el.innerHTML=`<div class="ph"><div class="pt">Ошибка: аккаунт не найден</div></div>`;return;}
@@ -3376,6 +3499,42 @@ function renderSupporterView(el){
       </div>
     </div>
 
+    ${(()=>{
+      const now2=new Date();
+      const todayStr=now2.toISOString().slice(0,10);
+      const tom=new Date(now2); tom.setDate(tom.getDate()+1);
+      const tomStr=tom.toISOString().slice(0,10);
+      const todayDuty=(D.duties||{})[todayStr]||{};
+      const tomDuty=(D.duties||{})[tomStr]||{};
+      const myTodayM=todayDuty.morning===a.id, myTodayE=todayDuty.evening===a.id;
+      const myTomM=tomDuty.morning===a.id, myTomE=tomDuty.evening===a.id;
+      const todayReplace=(a.replacements||[]).find(r=>r.active&&r.dateFrom<=todayStr&&r.dateTo>=todayStr);
+      const tomReplace=(a.replacements||[]).find(r=>r.active&&r.dateFrom<=tomStr&&r.dateTo>=tomStr)||
+                       (a.replacements||[]).find(r=>r.dateFrom===tomStr);
+      let alerts='';
+      if(todayReplace) alerts+=`<div style="background:#E6F1FB;border:1.5px solid #B5D4F4;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:20px">🔄</span>
+        <div><div style="font-size:13px;font-weight:500;color:#0C447C">Сегодня у вас замена!</div>
+        <div style="font-size:12px;color:#185FA5;margin-top:3px">Заменяете: ${todayReplace.teacherName} · ${todayReplace.groupName}</div></div>
+      </div>`;
+      if(tomReplace) alerts+=`<div style="background:#FAEEDA;border:1.5px solid #EF9F27;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:20px">⏰</span>
+        <div><div style="font-size:13px;font-weight:500;color:#633806">Завтра у вас замена!</div>
+        <div style="font-size:12px;color:#854F0B;margin-top:3px">Заменяете: ${tomReplace.teacherName} · ${tomReplace.groupName}</div></div>
+      </div>`;
+      if(myTodayM||myTodayE) alerts+=`<div style="background:#EAF3DE;border:1.5px solid #97C459;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:20px">📋</span>
+        <div><div style="font-size:13px;font-weight:500;color:#27500A">Сегодня вы дежурный!</div>
+        <div style="font-size:12px;color:#3B6D11;margin-top:3px">${myTodayM?'☀ Утро 12:00–13:00':''}${myTodayM&&myTodayE?' · ':''}${myTodayE?'🌙 Вечер 13:00–19:00':''}</div></div>
+      </div>`;
+      if(!todayReplace&&!tomReplace&&!myTodayM&&!myTodayE&&(myTomM||myTomE)) alerts+=`<div style="background:#F0F9FF;border:1.5px solid #B5D4F4;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:20px">📋</span>
+        <div><div style="font-size:13px;font-weight:500;color:#0C447C">Завтра вы дежурный!</div>
+        <div style="font-size:12px;color:#185FA5;margin-top:3px">${myTomM?'☀ Утро 12:00–13:00':''}${myTomM&&myTomE?' · ':''}${myTomE?'🌙 Вечер 13:00–19:00':''}</div></div>
+      </div>`;
+      return alerts;
+    })()}
+
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
       <div class="stat-card" style="text-align:center;padding:14px 10px">
         <div style="font-size:22px;font-weight:700;color:var(--color-text-primary,#111)">${replThisMonth.length}</div>
@@ -3400,6 +3559,31 @@ function renderSupporterView(el){
       <div style="font-size:14px;font-weight:500;color:var(--color-text-primary,#111);margin-bottom:4px">${activeReplace.teacherName}</div>
       <div style="font-size:12px;color:var(--color-text-secondary,#888)">${activeReplace.groupName}</div>
     </div>`:''}
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:12px">📅 Мои дежурства в ${new Date().toLocaleString('ru',{month:'long'})}</div>
+      ${(()=>{
+        const now3=new Date();
+        const month3=now3.getFullYear()+'-'+String(now3.getMonth()+1).padStart(2,'0');
+        const today3=now3.toISOString().slice(0,10);
+        const myDuties=Object.entries(D.duties||{}).filter(([d,v])=>d.startsWith(month3)&&(v.morning===a.id||v.evening===a.id)).sort(([a],[b])=>a.localeCompare(b));
+        if(!myDuties.length) return `<div style="font-size:13px;color:#bbb;padding:4px 0">Дежурств не назначено</div>`;
+        return myDuties.map(([dateStr,duty])=>{
+          const d=new Date(dateStr);
+          const isToday=dateStr===today3;
+          const lbl=d.toLocaleString('ru',{day:'numeric',month:'short',weekday:'short'});
+          const mShift=duty.morning===a.id;
+          const eShift=duty.evening===a.id;
+          return `<div class="event-row" style="${isToday?'background:var(--color-background-info);border-radius:8px;padding:8px;':''}">
+            <div style="font-size:13px;font-weight:${isToday?'500':'400'};color:${isToday?'#0C447C':'var(--color-text-primary)'};min-width:90px">${lbl}${isToday?' (сегодня)':''}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${mShift?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:3px 9px;border-radius:20px">☀ 12:00–13:00</span>`:''}
+              ${eShift?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:3px 9px;border-radius:20px">🌙 13:00–19:00</span>`:''}
+            </div>
+          </div>`;
+        }).join('');
+      })()}
+    </div>
 
     <div class="card" style="margin-bottom:12px">
       <div class="card-title" style="margin-bottom:12px">📋 Мои демо-уровни</div>
@@ -4592,6 +4776,7 @@ async function loadData(){
   if(!D.students) D.students=[];
   if(!D.accounts) D.accounts=[];
   if(!D.archives) D.archives=[];
+  if(!D.duties) D.duties={}; // {date: {morning: supId, evening: supId}}
   // Auto-close expired replacements
   const today=new Date().toISOString().slice(0,10);
   let expiredClosed=false;
