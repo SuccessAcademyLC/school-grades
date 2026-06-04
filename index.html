@@ -1,17 +1,17 @@
-<!DOCTYPE html><!-- build:1780322297 -->
+<!DOCTYPE html><!-- build:1780566952 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<meta name="app-version" content="1779775581">
+<meta http-equiv="Expires" content="1780566952">
+<meta name="app-version" content="1780566952">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Success Academy — Grades v2</title>
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780322297';
+  const APP_VERSION='1780566952';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -795,7 +795,9 @@ function gchRus(sid,field,idx,val){
     if(n!==null){
       const arr=s[field];
       const lastFilled=arr.reduce((last,v,i)=>v!==null?i:last,-1);
-      for(let i=0;i<lastFilled;i++){if(arr[i]===null||arr[i]===undefined) arr[i]=0;}
+      let autoFilled=0;
+      for(let i=0;i<lastFilled;i++){if(arr[i]===null||arr[i]===undefined){arr[i]=0;autoFilled++;}}
+      if(autoFilled>0) toast(`${autoFilled} пропущенных ячеек заполнено нулём`,'');
     }
   } else s[field]=n;
   const ov=calc(s,g.level);
@@ -1100,7 +1102,9 @@ function gch(sid,field,idx,val){
     if(n!==null){
       const arr=s[field];
       const lastFilled=arr.reduce((last,v,i)=>v!==null?i:last,-1);
-      for(let i=0;i<lastFilled;i++){if(arr[i]===null) arr[i]=0;}
+      let autoFilled=0;
+      for(let i=0;i<lastFilled;i++){if(arr[i]===null){arr[i]=0;autoFilled++;}}
+      if(autoFilled>0) toast(`${autoFilled} пропущенных ${field==='units'?'юнит':'ячеек'} заполнено нулём автоматически`,'');
     }
   } else s[field]=n;
   const ov=calc(s,g.level);
@@ -1564,7 +1568,8 @@ function renderAccounts(el){
   el.innerHTML=`
     <div class="ph">
       <div><div class="pt">${tr('accounts')}</div><div class="ps">${accs.length} аккаунтов</div></div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sec btn-sm" onclick="gotoPage('duties')">📅 Дежурства</button>
         <button class="btn btn-dan btn-sm" onclick="showAddAdmin()">Новый админ</button>
         <button class="btn btn-sec btn-sm" onclick="showAddTeacher()">Новый преподаватель</button>
         <button class="btn btn-pri btn-sm" onclick="showAddSupporter()">Новый supporter</button>
@@ -1596,7 +1601,10 @@ function renderAccounts(el){
       }).join('')}
     </div>
     <div class="card">
-      <div class="card-title" style="margin-bottom:14px">🤝 Supporters (${supporters.length})</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="card-title">🤝 Supporters (${supporters.length})</div>
+        <button class="btn btn-sec btn-sm" onclick="gotoPage('duties')">📅 Расписание дежурств</button>
+      </div>
       ${!supporters.length?`<div style="color:#bbb;font-size:13px;padding:10px 0">Нет аккаунтов supporters</div>`:''}
       ${supporters.map(a=>{
         const typeLabel=supTypeLabel(a.supType||'eng-ru',true)||'Англ (рус)';
@@ -2910,6 +2918,63 @@ function renderSupporterProfile(el){
       </div>`).join('')}
     </div>
 
+    <!-- Duties in current month -->
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title">📅 Дежурства в ${new Date().toLocaleString('ru',{month:'long'})}</div>
+        <button class="btn btn-sec btn-sm" onclick="gotoPage('duties')">Расписание →</button>
+      </div>
+      ${(()=>{
+        const now4=new Date();
+        const month4=now4.getFullYear()+'-'+String(now4.getMonth()+1).padStart(2,'0');
+        const myDuties=Object.entries(D.duties||{}).filter(([d,v])=>d.startsWith(month4)&&(v.morning===a.id||v.evening===a.id)).sort(([a],[b])=>a.localeCompare(b));
+        if(!myDuties.length) return `<div style="font-size:13px;color:#bbb;padding:4px 0">Дежурств не назначено</div>`;
+        return myDuties.map(([dateStr,duty])=>{
+          const d=new Date(dateStr);
+          const lbl=d.toLocaleString('ru',{day:'numeric',month:'short',weekday:'short'});
+          return `<div class="event-row">
+            <div style="font-size:12px;color:var(--color-text-secondary);min-width:90px">${lbl}</div>
+            <div style="display:flex;gap:6px">
+              ${duty.morning===a.id?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px">☀ 12–13</span>`:''}
+              ${duty.evening===a.id?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px">🌙 13–19</span>`:''}
+            </div>
+          </div>`;
+        }).join('');
+      })()}
+    </div>
+
+    <!-- Duties this month -->
+    ${(()=>{
+      const nowP=new Date();
+      const monthP=nowP.getFullYear()+'-'+String(nowP.getMonth()+1).padStart(2,'0');
+      const myDutiesP=Object.entries(D.duties||{}).filter(([d,v])=>d.startsWith(monthP)&&(v.morning===a.id||v.evening===a.id)).sort(([x],[y])=>x.localeCompare(y));
+      const mCount=myDutiesP.filter(([d,v])=>v.morning===a.id).length;
+      const eCount=myDutiesP.filter(([d,v])=>v.evening===a.id).length;
+      return `<div class="card" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title">📅 Дежурства в ${nowP.toLocaleString('ru',{month:'long'})} (${myDutiesP.length})</div>
+          <div style="display:flex;gap:6px">
+            <span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px">☀ ${mCount}</span>
+            <span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px">🌙 ${eCount}</span>
+            ${isAdmin()?`<button onclick="window._dutyFilterSup='${a.id}';gotoPage('duties')" style="font-size:11px;padding:2px 9px;border-radius:8px;border:0.5px solid #e0e4f0;background:white;cursor:pointer">Открыть</button>`:''}
+          </div>
+        </div>
+        ${!myDutiesP.length?`<div style="font-size:13px;color:#bbb;padding:4px 0">Дежурств не назначено</div>`:
+        myDutiesP.slice(0,6).map(([dateStr,duty])=>{
+          const d=new Date(dateStr);
+          const lbl=d.toLocaleString('ru',{day:'numeric',month:'short',weekday:'short'});
+          return `<div class="event-row">
+            <div style="font-size:12px;color:var(--color-text-secondary);min-width:100px">${lbl}</div>
+            <div style="display:flex;gap:5px">
+              ${duty.morning===a.id?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px">☀ 12–13</span>`:''}
+              ${duty.evening===a.id?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px">🌙 13–19</span>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+        ${myDutiesP.length>6?`<div style="font-size:12px;color:#888;padding:8px 0 0">... ещё ${myDutiesP.length-6} дежурств</div>`:''}
+      </div>`;
+    })()}
+
     <!-- Events -->
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -3313,6 +3378,9 @@ function cancelReplace(supId){
 // ── Duty Schedule ─────────────────────────────────────────────────────────
 
 function renderDutyPage(el){
+  if(!isAdmin()&&curUser?.role!=='supporter'){el.innerHTML=`<div class="ph"><div class="pt">Нет доступа</div></div>`;return;}
+  const canEdit2=isAdmin();
+  const filterSup=window._dutyFilterSup||'';
   const now=new Date();
   const month=window._dutyMonth||(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
   const [yr,mo]=month.split('-').map(Number);
@@ -3329,6 +3397,12 @@ function renderDutyPage(el){
 
   const duties=D.duties||{};
 
+  // Filter helper
+  const dayVisible=(duty)=>{
+    if(!filterSup) return true;
+    return duty.morning===filterSup||duty.evening===filterSup;
+  };
+
   let calHtml='';
   const heads=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   calHtml+=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">`;
@@ -3341,10 +3415,13 @@ function renderDutyPage(el){
     const mSup=supporters.find(a=>a.id===duty.morning);
     const eSup=supporters.find(a=>a.id===duty.evening);
     const isToday=dateStr===today;
-    calHtml+=`<div onclick="showDutyEdit('${dateStr}')" style="border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 4px;cursor:pointer;min-height:64px;background:${isToday?'var(--color-background-info)':'var(--color-background-primary)'};transition:.15s" onmouseenter="this.style.borderColor='#4361ee'" onmouseleave="this.style.borderColor='var(--color-border-tertiary)'">
+    const mHighlight=filterSup&&duty.morning===filterSup;
+    const eHighlight=filterSup&&duty.evening===filterSup;
+    const dimmed=filterSup&&!mHighlight&&!eHighlight?'opacity:.35;':'';
+    calHtml+=`<div onclick="showDutyEdit('${dateStr}')" style="border:0.5px solid ${mHighlight||eHighlight?'#4361ee':'var(--color-border-tertiary)'};border-radius:8px;padding:6px 4px;cursor:${canEdit2?'pointer':'default'};min-height:64px;background:${isToday?'var(--color-background-info)':'var(--color-background-primary)'};transition:.15s;${dimmed}">
       <div style="font-size:12px;font-weight:500;color:${isToday?'#0C447C':'var(--color-text-primary)'};text-align:center;margin-bottom:4px">${d}</div>
-      ${mSup?`<div style="font-size:10px;background:#EAF3DE;color:#27500A;border-radius:4px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${mSup.name}">☀ ${ini(mSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;margin-bottom:2px;border:1px dashed var(--color-border-tertiary)">☀ —</div>`}
-      ${eSup?`<div style="font-size:10px;background:#FAEEDA;color:#633806;border-radius:4px;padding:1px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${eSup.name}">🌙 ${ini(eSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;border:1px dashed var(--color-border-tertiary)">🌙 —</div>`}
+      ${mSup?`<div style="font-size:10px;background:${mHighlight?'#639922':'#EAF3DE'};color:${mHighlight?'white':'#27500A'};border-radius:4px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${mSup.name}">☀ ${ini(mSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;margin-bottom:2px;border:1px dashed var(--color-border-tertiary)">☀ —</div>`}
+      ${eSup?`<div style="font-size:10px;background:${eHighlight?'#BA7517':'#FAEEDA'};color:${eHighlight?'white':'#633806'};border-radius:4px;padding:1px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${eSup.name}">🌙 ${ini(eSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;border:1px dashed var(--color-border-tertiary)">🌙 —</div>`}
     </div>`;
   }
   calHtml+=`</div>`;
@@ -3353,6 +3430,13 @@ function renderDutyPage(el){
     <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">Расписание дежурств</span></div>
     <div class="ph">
       <div><div class="pt">📅 Расписание дежурств</div><div class="ps">Утро 12:00–13:00 · Вечер 13:00–19:00</div></div>
+    </div>
+    <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select class="fs" style="flex:1;min-width:150px" onchange="window._dutyFilterSup=this.value;renderMain()">
+        <option value="">Все суппортеры</option>
+        ${supporters.map(a=>`<option value="${a.id}" ${filterSup===a.id?'selected':''}>${a.name}</option>`).join('')}
+      </select>
+      ${filterSup?`<button onclick="window._dutyFilterSup='';renderMain()" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;font-size:13px">✕ Сбросить</button>`:''}
     </div>
 
     <div class="card" style="margin-bottom:12px">
@@ -3391,21 +3475,29 @@ function renderDutyPage(el){
 function showDutyEdit(dateStr){
   if(!isAdmin()) return;
   const supporters=(D.accounts||[]).filter(a=>a.role==='supporter'&&a.supType!=='rus');
+  // Sort: morning schedule first for morning slot, evening for evening slot
+  const morningOk=supporters.filter(a=>a.schedule==='morning'||a.schedule==='full');
+  const eveningOk=supporters.filter(a=>a.schedule==='evening'||a.schedule==='full');
   const duty=(D.duties||{})[dateStr]||{};
   const d=new Date(dateStr);
   const label=d.toLocaleString('ru',{day:'numeric',month:'long',weekday:'long'});
+  const schedIcon=s=>s.schedule==='morning'?'☀':s.schedule==='evening'?'🌙':'🕐';
+  const schedText=s=>s.schedule==='morning'?'утро':s.schedule==='evening'?'вечер':'фулл';
+
+  const buildOptions=(list,selectedId)=>`<option value="">— не назначен —</option>`+
+    list.map(a=>`<option value="${a.id}" ${selectedId===a.id?'selected':''}>${schedIcon(a)} ${a.name} (${supTypeLabel(a.supType,true)}, ${schedText(a)})</option>`).join('');
 
   openModal(`<div class="modal-title">📅 ${label}</div>
     <div class="fg"><label class="fl">☀ Утреннее дежурство (12:00–13:00)</label>
       <select class="fi" id="duty-m">
-        <option value="">— не назначен —</option>
-        ${supporters.map(a=>`<option value="${a.id}" ${duty.morning===a.id?'selected':''}>${a.name} (${supTypeLabel(a.supType,true)}${a.schedule?', '+(a.schedule==='morning'?'утро':a.schedule==='evening'?'вечер':'фулл'):''})</option>`).join('')}
+        <optgroup label="Рекомендуется (утро/фулл)">${buildOptions(morningOk,duty.morning)}</optgroup>
+        <optgroup label="Остальные">${buildOptions(supporters.filter(a=>a.schedule==='evening'),duty.morning)}</optgroup>
       </select>
     </div>
     <div class="fg"><label class="fl">🌙 Вечернее дежурство (13:00–19:00)</label>
       <select class="fi" id="duty-e">
-        <option value="">— не назначен —</option>
-        ${supporters.map(a=>`<option value="${a.id}" ${duty.evening===a.id?'selected':''}>${a.name} (${supTypeLabel(a.supType,true)}${a.schedule?', '+(a.schedule==='morning'?'утро':a.schedule==='evening'?'вечер':'фулл'):''})</option>`).join('')}
+        <optgroup label="Рекомендуется (вечер/фулл)">${buildOptions(eveningOk,duty.evening)}</optgroup>
+        <optgroup label="Остальные">${buildOptions(supporters.filter(a=>a.schedule==='morning'),duty.evening)}</optgroup>
       </select>
     </div>
     <div class="fa">
@@ -5152,7 +5244,7 @@ function showProfile(){
   }
 }
 
-function saveAdminProfile(){
+async function saveAdminProfile(){
   const name=document.getElementById('pp-name')?.value?.trim();
   const old=document.getElementById('pp-old')?.value;
   const nw=document.getElementById('pp-new')?.value?.trim();
@@ -5167,10 +5259,11 @@ function saveAdminProfile(){
   }
   // Change PIN if fields filled
   if(old||nw||cf){
-    if(old!==(D.settings?.pin||DPIN)){toast('Неверный текущий PIN','error');return;}
+    const pinOk=await checkPass(old,D.settings?.pin||DPIN);
+    if(!pinOk){toast('Неверный текущий PIN','error');return;}
     if(!nw||nw.length<4){toast('Новый PIN минимум 4 символа','error');return;}
     if(nw!==cf){toast('PIN-коды не совпадают','error');return;}
-    D.settings.pin=nw; changed=true;
+    D.settings.pin=await hashPass(nw); changed=true;
   }
   if(changed){closeModal();sched();toast('Профиль сохранён ✓','success');}
   else closeModal();
