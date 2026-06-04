@@ -379,9 +379,11 @@ body.dark .replace-card{border-color:#2d74da}
     <div class="sb-search"><input type="text" id="sb-q" placeholder="🔍 Поиск..." data-i18n-placeholder="searchPlaceholder" oninput="clearTimeout(window._sbTimer);window._sbTimer=setTimeout(()=>onSearch(this.value),400)"></div>
     <div class="sb-nav" id="sb-nav">
       <button class="sb-nav-btn active" onclick="sbTab('teachers',this)">👤</button>
+      <button class="sb-nav-btn" onclick="sbTab('supporters',this)">🤝</button>
       <button class="sb-nav-btn" onclick="sbTab('archives',this)">🗃</button>
     </div>
     <div id="sb-teachers"><div class="sb-hdr"><span data-i18n="teachers">Преподаватели</span></div><div id="tlist"></div></div>
+    <div id="sb-supporters" style="display:none"><div class="sb-hdr">Суппортеры</div><div id="suplist"></div></div>
     <div id="sb-archives" style="display:none"><div class="sb-hdr"><span data-i18n="archivesLbl">Архивы</span></div><div id="alist"></div></div>
     <div id="sb-sr" style="display:none"></div>
   </div>
@@ -517,12 +519,45 @@ function renderAll(){renderSidebar();renderMain();}
 
 function renderSidebar(){
   const teachers=isAdmin()?D.teachers:D.teachers.filter(t=>t.id===curUser?.teacherId);
+  const langBadge=t=>t.lang==='kk'?`<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px;margin-left:4px">КК</span>`:`<span style="font-size:10px;background:#EEEDFE;color:#3C3489;padding:1px 6px;border-radius:8px;margin-left:4px">РУС</span>`;
   document.getElementById('tlist').innerHTML=teachers.length
     ?teachers.map(t=>`<div class="t-item ${selT===t.id&&view==='teacher'?'active':''}" onclick="gotoT('${t.id}')">
         <div class="t-av">${ini(t.name)}</div>
-        <div><div class="t-name">${t.name}</div><div class="t-sub">${(t.groups||[]).length} ${tr('grpCount')}</div></div>
+        <div style="flex:1;min-width:0">
+          <div class="t-name">${t.name}${langBadge(t)}</div>
+          <div class="t-sub">${(t.groups||[]).length} ${tr('grpCount')}${t.phone?` · ${t.phone}`:''}</div>
+        </div>
       </div>`).join('')
     :'<div style="padding:16px;font-size:13px;color:#bbb">Нет преподавателей</div>';
+
+  // Supporters tab
+  const supporters=(D.accounts||[]).filter(a=>a.role==='supporter');
+  const scheduleLabel={'morning':'09–12','evening':'14–20','full':'09–20'};
+  const typeLabel={'eng-ru':'Англ (рус)','eng-kk':'Англ (кк)','rus':'Рус язык'};
+  const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'};
+  const supEl=document.getElementById('suplist');
+  if(supEl) supEl.innerHTML=supporters.length
+    ?supporters.map(a=>{
+        const active=(a.replacements||[]).find(r=>r.active);
+        const tl=typeLabel[a.supType||'eng-ru']||'Англ (рус)';
+        const tc=typeCls[a.supType||'eng-ru']||'sup-type-eng-ru';
+        return `<div class="t-item" onclick="showSupporterProfile('${a.id}')">
+          <div class="t-av" style="background:linear-gradient(135deg,#2b9348,#1b5e20)">${ini(a.name||a.login)}</div>
+          <div style="flex:1;min-width:0">
+            <div class="t-name" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+              ${a.name||a.login}
+              <span class="sup-type-badge ${tc}" style="font-size:10px">${tl}</span>
+            </div>
+            <div class="t-sub">
+              ${active?`<span style="color:#BA7517">На замене</span>`:'Свободен'}
+              ${a.schedule?` · ${scheduleLabel[a.schedule]||a.schedule}`:''}
+              ${a.phone?` · ${a.phone}`:''}
+            </div>
+          </div>
+        </div>`;
+      }).join('')
+    :'<div style="padding:16px;font-size:13px;color:#bbb">Нет суппортеров</div>';
+
   document.getElementById('alist').innerHTML=(D.archives||[]).length
     ?(D.archives||[]).slice().reverse().map(a=>`<div class="t-item ${selArch===a.id&&view==='archive'?'active':''}" onclick="gotoArch('${a.id}')">
         <div class="t-av arch">📦</div>
@@ -1605,8 +1640,21 @@ function showAddSupporter(){
         </label>
       </div>
     </div>
-    <div class="fg"><label class="fl">Логин</label>
-      <input type="text" class="fi" id="sup-login" placeholder="например: dilnoza">
+    <div class="fg"><label class="fl">График работы</label>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 8px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:12px;text-align:center">
+          <input type="radio" name="sup-schedule" value="morning" checked> 🌅<div>09:00–12:00</div>
+        </label>
+        <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 8px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:12px;text-align:center">
+          <input type="radio" name="sup-schedule" value="evening"> 🌆<div>14:00–20:00</div>
+        </label>
+        <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 8px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:12px;text-align:center">
+          <input type="radio" name="sup-schedule" value="full"> 🕐<div>09:00–20:00</div>
+        </label>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
+      <input type="text" class="fi" id="sup-phone" placeholder="+998 90 123 45 67">
     </div>
     <div class="fg"><label class="fl">Пароль</label>
       <input type="text" class="fi" id="sup-pass" placeholder="минимум 4 символа">
@@ -1620,11 +1668,13 @@ async function addSupporter(){
   const login=document.getElementById('sup-login')?.value?.trim();
   const pass=document.getElementById('sup-pass')?.value?.trim();
   const supType=document.querySelector('input[name="sup-type"]:checked')?.value||'eng-ru';
+  const schedule=document.querySelector('input[name="sup-schedule"]:checked')?.value||'morning';
+  const phone=document.getElementById('sup-phone')?.value?.trim()||'';
   if(!name||!login||!pass){toast('Заполните все поля','error');return;}
   if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
   if((D.accounts||[]).find(a=>a.login===login)){toast('Логин уже занят','error');return;}
   if(!D.accounts) D.accounts=[];
-  D.accounts.push({id:uid(),role:'supporter',name,login,password:await hashPass(pass),supType,demos:{},replacements:[],mockTests:[],reports:[]});
+  D.accounts.push({id:uid(),role:'supporter',name,login,password:await hashPass(pass),supType,schedule,phone,demos:{},replacements:[],mockTests:[],reports:[]});
   closeModal();renderAccounts(document.getElementById('main'));sched();toast('Supporter создан ✓','success');
 }
 
@@ -1660,6 +1710,22 @@ function showEditAccount(id){
         </label>
       </div>
     </div>`:''}
+    ${isSupporter?`<div class="fg"><label class="fl">График работы</label>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 8px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:12px;text-align:center">
+          <input type="radio" name="edit-sup-schedule" value="morning" ${(a.schedule||'morning')==='morning'?'checked':''}> 🌅<div>09:00–12:00</div>
+        </label>
+        <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 8px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:12px;text-align:center">
+          <input type="radio" name="edit-sup-schedule" value="evening" ${(a.schedule||'')==='evening'?'checked':''}> 🌆<div>14:00–20:00</div>
+        </label>
+        <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 8px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:12px;text-align:center">
+          <input type="radio" name="edit-sup-schedule" value="full" ${(a.schedule||'')==='full'?'checked':''}> 🕐<div>09:00–20:00</div>
+        </label>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
+      <input type="text" class="fi" id="ac-phone" value="${a.phone||''}" placeholder="+998 90 123 45 67">
+    </div>`:''}
     <div class="fg"><label class="fl">Новый логин</label>
       <div style="display:flex;gap:6px">
         <input type="text" class="fi" id="ac-l" value="${a.login}" style="flex:1">
@@ -1685,7 +1751,10 @@ async function editAccount(id){
   if(a.role==='supporter'){
     const newType=document.querySelector('input[name="edit-sup-type"]:checked')?.value;
     if(newType) a.supType=newType;
-    // Init missing fields for old-style supporters
+    const newSchedule=document.querySelector('input[name="edit-sup-schedule"]:checked')?.value;
+    if(newSchedule) a.schedule=newSchedule;
+    const ph=document.getElementById('ac-phone')?.value?.trim();
+    if(ph!==undefined) a.phone=ph;
     if(!a.demos) a.demos={};
     if(!a.replacements) a.replacements=[];
     if(!a.mockTests) a.mockTests=[];
@@ -2278,6 +2347,7 @@ function sbTab(tab,btn){
   document.querySelectorAll('.sb-nav-btn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
   document.getElementById('sb-teachers').style.display=tab==='teachers'?'block':'none';
+  document.getElementById('sb-supporters').style.display=tab==='supporters'?'block':'none';
   document.getElementById('sb-archives').style.display=tab==='archives'?'block':'none';
   document.getElementById('sb-sr').style.display='none';
   renderSidebar();
@@ -2669,8 +2739,10 @@ function showSupporterProfile(id){
   const reports=(a.reports||[]).slice().reverse();
 
   openModal(`<div class="modal-title">👤 ${a.name||a.login}</div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <span class="sup-type-badge ${typeCls}">${typeLabel}</span>
+      ${a.schedule?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 9px;border-radius:20px">🕐 ${'morning'===a.schedule?'09:00–12:00':'evening'===a.schedule?'14:00–20:00':'09:00–20:00'}</span>`:''}
+      ${a.phone?`<span style="font-size:12px;color:var(--color-text-secondary,#888)">📞 ${a.phone}</span>`:''}
       <span style="font-size:12px;color:#888">Замен: ${repls.length} · Событий: ${events.length}</span>
     </div>
     <div style="margin-bottom:16px">
@@ -2905,6 +2977,7 @@ function renderSupporterView(el){
         <div class="pt">👤 ${a.name||'Суппортер'}</div>
         <div class="ps" style="display:flex;align-items:center;gap:8px;margin-top:4px">
           <span class="sup-type-badge ${typeCls}">${typeLabel}</span>
+          ${a.schedule?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 9px;border-radius:20px">🕐 ${'morning'===a.schedule?'09:00–12:00':'evening'===a.schedule?'14:00–20:00':'09:00–20:00'}</span>`:''}
         </div>
       </div>
     </div>
@@ -3413,6 +3486,9 @@ function showAddTeacher(){
     <div class="fg"><label class="fl">Имя и фамилия</label>
       <input type="text" class="fi" id="tn" placeholder="Иванова Айгуль">
     </div>
+    <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
+      <input type="text" class="fi" id="t-phone" placeholder="+998 90 123 45 67">
+    </div>
     <div class="fg"><label class="fl">Язык преподавания</label>
       <div style="display:flex;gap:8px;margin-top:4px">
         <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
@@ -3441,12 +3517,13 @@ async function addT(){
   const login=document.getElementById('ac-l')?.value?.trim();
   const pass=document.getElementById('ac-p')?.value?.trim();
   const lang=document.querySelector('input[name="t-lang"]:checked')?.value||'ru';
+  const phone=document.getElementById('t-phone')?.value?.trim()||'';
   if(!n){toast('Введите имя','error');return;}
   if(!login||!pass){toast('Введите логин и пароль','error');return;}
   if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
   if((D.accounts||[]).find(a=>a.login===login)){toast('Логин уже занят','error');return;}
   const tid=uid();
-  D.teachers.push({id:tid,name:n,lang,groups:[]});
+  D.teachers.push({id:tid,name:n,lang,phone,groups:[]});
   if(!D.accounts) D.accounts=[];
   D.accounts.push({id:uid(),teacherId:tid,login,password:await hashPass(pass)});
   closeModal();renderAll();sched();toast(`${n} добавлен ✓`,'success');
@@ -3455,6 +3532,9 @@ function showEditT(id){
   const t=D.teachers.find(x=>x.id===id);
   openModal(`<div class="modal-title">Изменить преподавателя</div>
     <div class="fg"><label class="fl">Имя</label><input type="text" class="fi" id="tn" value="${t.name}"></div>
+    <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
+      <input type="text" class="fi" id="t-phone" value="${t.phone||''}" placeholder="+998 90 123 45 67">
+    </div>
     <div class="fg"><label class="fl">Язык преподавания</label>
       <div style="display:flex;gap:8px;margin-top:4px">
         <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
@@ -3469,7 +3549,7 @@ function showEditT(id){
       <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
       <button class="btn btn-pri" onclick="editT('${id}')">${tr('saveBtn')}</button></div>`);
 }
-function editT(id){const n=document.getElementById('tn')?.value?.trim();if(!n) return;const t=D.teachers.find(x=>x.id===id);if(t){t.name=n;t.lang=document.querySelector('input[name="t-lang"]:checked')?.value||t.lang||'ru';}closeModal();renderAll();sched();}
+function editT(id){const n=document.getElementById('tn')?.value?.trim();if(!n) return;const t=D.teachers.find(x=>x.id===id);if(t){t.name=n;t.lang=document.querySelector('input[name="t-lang"]:checked')?.value||t.lang||'ru';t.phone=document.getElementById('t-phone')?.value?.trim()||t.phone||'';}closeModal();renderAll();sched();}
 function delT(id){if(!confirm('Удалить преподавателя?')) return;D.teachers=D.teachers.filter(x=>x.id!==id);closeModal();goHome();sched();}
 
 // ── CRUD Groups ───────────────────────────────────────────────────────────
