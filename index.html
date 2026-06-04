@@ -368,10 +368,10 @@ body.dark .replace-card{border-color:#2d74da}
 </div>
 
 <div class="teacher-bar" id="sup-bar" style="display:none;background:#1b5e20;border-bottom:2px solid #4caf50">
-  <span id="sup-bar-name">🤝 Supporter</span> — <span id='sup-bar-text'>только незакрытые тесты студентов</span>
+  <span id="sup-bar-name">🤝 Supporter</span>
 </div>
 <div class="teacher-bar" id="tch-bar" style="display:none">
-  <span id="tch-bar-name"></span> — <span id='tch-bar-text'>только ваши группы отображаются</span>
+  <span id="tch-bar-name"></span>
 </div>
 
 <div class="layout">
@@ -2750,9 +2750,11 @@ function supCanReplace(a,t,g){
   if(a.supType==='rus') return isRus;
   if(isRus) return false;
   const isHighLevel=['pre-intermediate','intermediate','upper-intermediate'].includes(g.level);
-  if(isHighLevel) return true; // any eng supporter for pre-int+
+  if(isHighLevel) return true;
   // Beg/Elem: check teacher lang matches supporter lang
-  const tLang=t.lang||'ru';
+  // If teacher has no lang set — show to all eng supporters
+  const tLang=t.lang||null;
+  if(!tLang) return true;
   if(a.supType==='eng-ru') return tLang==='ru';
   if(a.supType==='eng-kk') return tLang==='kk';
   return false;
@@ -3300,42 +3302,40 @@ function renderSupporterView(el){
 
   // Build debts filtered by supporter type
   let debtsHtml='';
-  try{
-    const debtRows=[];
-    const debtQ=(window._supDebtQ||'').toLowerCase();
-    D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
-      if(!supCanReplace(a,tc,g)) return;
-      (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
-        if(debtQ&&!s.name.toLowerCase().includes(debtQ)) return;
-        const debts=getDebts(s,g.level);
-        if(debts.length) debtRows.push({s,g,tc,debts});
-      });
-    }));
-    const DC={u:'#e3f2fd:#1565c0:#90caf9',hw:'#f3e5f5:#6a1b9a:#ce93d8',at:'#fff3e0:#e65100:#ffb74d'};
-    const dbg=(key)=>{const p=(DC[key]||DC.u).split(':');return `background:${p[0]};color:${p[1]};border:1px solid ${p[2]}`;};
-    if(debtRows.length){
-      debtsHtml=`<div class="card" style="margin-bottom:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div class="card-title">⚠️ Должники (${debtRows.length})</div>
-          <input type="text" value="${window._supDebtQ||''}" placeholder="Поиск..." style="border:1.5px solid #e0e4f0;border-radius:8px;padding:5px 10px;font-size:12px;width:120px;font-family:inherit" oninput="clearTimeout(window._supDT);window._supDT=setTimeout(()=>{window._supDebtQ=this.value.toLowerCase();renderSupporterView(document.getElementById('main'));},250)">
+  const debtRows=[];
+  const debtQ=(window._supDebtQ||'').toLowerCase();
+  D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+    if(!supCanReplace(a,tc,g)) return;
+    (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
+      if(debtQ&&!s.name.toLowerCase().includes(debtQ)) return;
+      const debts=getDebts(s,g.level);
+      if(debts.length) debtRows.push({s,g,tc,debts});
+    });
+  }));
+  const DC={u:'#e3f2fd:#1565c0:#90caf9',hw:'#f3e5f5:#6a1b9a:#ce93d8',at:'#fff3e0:#e65100:#ffb74d'};
+  const dbg=(key)=>{const p=(DC[key]||DC.u).split(':');return `background:${p[0]};color:${p[1]};border:1px solid ${p[2]}`;};
+  if(debtRows.length){
+    debtsHtml=`<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title">⚠️ Должники (${debtRows.length})</div>
+        <input type="text" value="${window._supDebtQ||''}" placeholder="Поиск..." style="border:1.5px solid #e0e4f0;border-radius:8px;padding:5px 10px;font-size:12px;width:120px;font-family:inherit" oninput="clearTimeout(window._supDT);window._supDT=setTimeout(()=>{window._supDebtQ=this.value.toLowerCase();renderSupporterView(document.getElementById('main'));},250)">
+      </div>
+      ${debtRows.map(({s,g,tc,debts})=>`<div class="event-row">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111)">${s.name}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary,#888)">${tc.name} · ${g.day} ${g.time} · ${g.level}</div>
         </div>
-        ${debtRows.map(({s,g,tc,debts})=>`<div class="event-row">
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111)">${s.name}</div>
-            <div style="font-size:11px;color:var(--color-text-secondary,#888)">${tc.name} · ${g.day} ${g.time} · ${g.level}</div>
-          </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:200px">
-            ${debts.map(d=>`<span style="font-size:11px;padding:2px 7px;border-radius:10px;${dbg(d.key)}">${d.label}</span>`).join('')}
-          </div>
-        </div>`).join('')}
-      </div>`;
-    } else {
-      debtsHtml=`<div class="card" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;padding:14px 18px">
-        <span style="font-size:18px">✅</span>
-        <span style="font-size:13px;color:var(--color-text-secondary,#888)">Должников нет</span>
-      </div>`;
-    }
-  }catch(err){debtsHtml='';}
+        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:200px">
+          ${debts.map(d=>`<span style="font-size:11px;padding:2px 7px;border-radius:10px;${dbg(d.key)}">${d.label}</span>`).join('')}
+        </div>
+      </div>`).join('')}
+    </div>`;
+  } else {
+    debtsHtml=`<div class="card" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;padding:14px 18px">
+      <span style="font-size:18px">✅</span>
+      <span style="font-size:13px;color:var(--color-text-secondary,#888)">Должников нет</span>
+    </div>`;
+  }
 
   el.innerHTML=`
     <div class="ph">
