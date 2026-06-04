@@ -535,10 +535,7 @@ function renderMain(){
   const el=document.getElementById('main');
   try{
     if(curUser?.role==='supporter'){
-      const a=(D.accounts||[]).find(x=>x.id===curUser?.accountId);
-      // Check if supporter has supType — new system
-      if(a&&a.supType) renderSupporterView(el);
-      else renderSupporter(el);
+      renderSupporterView(el);
       return;
     }
     if(curUser?.role==='student'){renderStudentView(el);return;}
@@ -1645,10 +1642,24 @@ async function addAccount(){
 function showEditAccount(id){
   const a=D.accounts.find(x=>x.id===id);if(!a) return;
   const tc=D.teachers.find(x=>x.id===a.teacherId);
+  const isSupporter=a.role==='supporter';
   openModal(`<div class="modal-title">Изменить аккаунт</div>
     <div style="background:#f8f9fb;border-radius:10px;padding:12px;margin-bottom:20px;font-size:13px">
       <b>${tc?tc.name:a.name||a.login}</b> · логин: <code>${a.login}</code>
     </div>
+    ${isSupporter?`<div class="fg"><label class="fl">Тип суппортера</label>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="edit-sup-type" value="eng-ru" ${(a.supType||'eng-ru')==='eng-ru'?'checked':''}> Англ (русскоговорящий)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="edit-sup-type" value="eng-kk" ${(a.supType||'')==='eng-kk'?'checked':''}> Англ (каракалпакоговорящий)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="edit-sup-type" value="rus" ${(a.supType||'')==='rus'?'checked':''}> Русский язык
+        </label>
+      </div>
+    </div>`:''}
     <div class="fg"><label class="fl">Новый логин</label>
       <div style="display:flex;gap:6px">
         <input type="text" class="fi" id="ac-l" value="${a.login}" style="flex:1">
@@ -1671,6 +1682,15 @@ async function editAccount(id){
   const pass=document.getElementById('ac-p')?.value?.trim();
   if(login) a.login=login;
   if(pass&&pass.length>=4) a.password=await hashPass(pass);
+  if(a.role==='supporter'){
+    const newType=document.querySelector('input[name="edit-sup-type"]:checked')?.value;
+    if(newType) a.supType=newType;
+    // Init missing fields for old-style supporters
+    if(!a.demos) a.demos={};
+    if(!a.replacements) a.replacements=[];
+    if(!a.mockTests) a.mockTests=[];
+    if(!a.reports) a.reports=[];
+  }
   closeModal();renderAccounts(document.getElementById('main'));sched();toast('Обновлено ✓','success');
 }
 function delAccount(id){
@@ -2858,33 +2878,64 @@ function cancelReplace(supId){
 
 function renderSupporterView(el){
   const a=(D.accounts||[]).find(x=>x.id===curUser?.accountId);
-  if(!a){el.innerHTML=`<div class="ph"><div class="pt">Загрузка...</div></div>`;return;}
+  if(!a){el.innerHTML=`<div class="ph"><div class="pt">Ошибка: аккаунт не найден</div></div>`;return;}
+
+  // Old-style supporter without supType — show debts + upgrade notice
+  if(!a.supType){
+    renderSupporter(el);
+    const notice=document.createElement('div');
+    notice.style.cssText='background:#E6F1FB;border:1.5px solid #B5D4F4;border-radius:12px;padding:14px 18px;margin:12px 16px;font-size:13px;color:#0C447C';
+    notice.innerHTML='ℹ️ Ваш профиль создан в старом формате. Обратитесь к администратору для обновления аккаунта — после этого откроется полный личный кабинет с историей замен и событий.';
+    const main=document.getElementById('main');
+    if(main) main.prepend(notice);
+    return;
+  }
+
   const activeReplace=(a.replacements||[]).find(r=>r.active);
   const replHistory=(a.replacements||[]).slice().reverse();
   const events=(a.mockTests||[]).slice().reverse();
   const levels=supLevels(a);
   const typeLabel={'eng-ru':'Англ (русскоговорящий)','eng-kk':'Англ (каракалпакоговорящий)','rus':'Русский язык'}[a.supType||'eng-ru'];
   const typeCls={'eng-ru':'sup-type-eng-ru','eng-kk':'sup-type-eng-kk','rus':'sup-type-rus'}[a.supType||'eng-ru'];
+  const demoDone=levels.filter(l=>(a.demos||{})[l]).length;
 
   el.innerHTML=`
     <div class="ph">
-      <div><div class="pt">👤 ${a.name||'Суппортер'}</div>
-        <div class="ps"><span class="sup-type-badge ${typeCls}">${typeLabel}</span></div>
+      <div>
+        <div class="pt">👤 ${a.name||'Суппортер'}</div>
+        <div class="ps" style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <span class="sup-type-badge ${typeCls}">${typeLabel}</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+      <div class="stat-card" style="text-align:center;padding:14px 10px">
+        <div style="font-size:22px;font-weight:700;color:var(--color-text-primary,#111)">${replHistory.length}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Замен всего</div>
+      </div>
+      <div class="stat-card" style="text-align:center;padding:14px 10px">
+        <div style="font-size:22px;font-weight:700;color:var(--color-text-primary,#111)">${events.length}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Мок/AT/Демо</div>
+      </div>
+      <div class="stat-card" style="text-align:center;padding:14px 10px">
+        <div style="font-size:22px;font-weight:700;color:var(--color-text-primary,#111)">${demoDone}/${levels.length}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary,#888);margin-top:3px">Демо-уровней</div>
       </div>
     </div>
 
     ${activeReplace?`
-    <div class="replace-card">
+    <div class="replace-card" style="margin-bottom:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <span style="background:#E6F1FB;color:#0C447C;font-size:12px;font-weight:500;padding:4px 12px;border-radius:20px">🔄 Вы на замене</span>
         <span style="font-size:12px;color:var(--color-text-secondary,#888)">${activeReplace.dateFrom} — ${activeReplace.dateTo}</span>
       </div>
-      <div style="font-size:14px;font-weight:500;color:var(--color-text-primary,#111);margin-bottom:6px">${activeReplace.teacherName}</div>
+      <div style="font-size:14px;font-weight:500;color:var(--color-text-primary,#111);margin-bottom:4px">${activeReplace.teacherName}</div>
       <div style="font-size:12px;color:var(--color-text-secondary,#888)">${activeReplace.groupName}</div>
     </div>`:''}
 
     <div class="card" style="margin-bottom:12px">
-      <div class="card-title" style="margin-bottom:12px">📋 Мои демо-уроки</div>
+      <div class="card-title" style="margin-bottom:12px">📋 Мои демо-уровни</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${levels.map(l=>`<span class="demo-chip ${(a.demos||{})[l]?'demo-chip-ok':'demo-chip-no'}">${(a.demos||{})[l]?'✓ ':''} ${SUP_LEVEL_LABELS[l]}</span>`).join('')}
       </div>
@@ -2898,15 +2949,16 @@ function renderSupporterView(el){
           <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111)">${r.teacherName}</div>
           <div style="font-size:12px;color:var(--color-text-secondary,#888)">${r.groupName}</div>
         </div>
-        <div style="text-align:right">
+        <div style="text-align:right;flex-shrink:0">
           <div style="font-size:11px;color:var(--color-text-secondary,#888)">${r.dateFrom} — ${r.dateTo}</div>
           ${r.withoutDemo?`<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px">без демо</span>`:''}
+          ${r.active?`<span style="font-size:10px;background:#E6F1FB;color:#0C447C;padding:1px 6px;border-radius:8px">активна</span>`:''}
         </div>
       </div>`).join('')}
     </div>
 
     <div class="card" style="margin-bottom:12px">
-      <div class="card-title" style="margin-bottom:12px">📝 Мок и AT тесты (${events.length})</div>
+      <div class="card-title" style="margin-bottom:12px">📝 Мок / AT / Демо (${events.length})</div>
       ${!events.length?`<div style="font-size:13px;color:#bbb;padding:8px 0">Событий ещё не было</div>`:
       events.map(e=>`<div class="event-row">
         <div style="flex:1">
@@ -4057,33 +4109,6 @@ async function loadData(){
   if(!D.accounts) D.accounts=[];
   if(!D.archives) D.archives=[];
   dataLoaded=true;
-  // Seed test supporter if not exists
-  await seedTestSupporter();
-}
-
-async function seedTestSupporter(){
-  if((D.accounts||[]).find(a=>a.login==='gulzada')) return;
-  if(!D.accounts) D.accounts=[];
-  const hashed=await hashPass('1234');
-  D.accounts.push({
-    id:uid(),role:'supporter',name:'Gulzada',login:'gulzada',password:hashed,
-    supType:'eng-ru',
-    demos:{beginner:true,elementary:true,'pre-intermediate':false,intermediate:false,'upper-intermediate':false},
-    replacements:[
-      {id:uid(),teacherName:'Алибек Жумаев',groupName:'MWF 09:00 beginner',groupIds:[],dateFrom:'2025-05-01',dateTo:'2025-05-05',withoutDemo:false,active:false,createdAt:'2025-05-01'},
-      {id:uid(),teacherName:'Зарина Асанова',groupName:'TTS 14:00 elementary',groupIds:[],dateFrom:'2025-05-20',dateTo:'2025-05-21',withoutDemo:true,active:false,createdAt:'2025-05-20'},
-      {id:uid(),teacherName:'Алибек Жумаев',groupName:'MWF 09:00 beginner',groupIds:[],dateFrom:'2025-06-05',dateTo:'2025-06-10',withoutDemo:false,active:true,createdAt:'2025-06-05'}
-    ],
-    mockTests:[
-      {id:uid(),type:'mock',groupName:'Алибек Жумаев · MWF 09:00',level:'beginner',date:'2025-05-26',createdAt:'2025-05-26'},
-      {id:uid(),type:'at',groupName:'Зарина Асанова · TTS 11:00',level:'elementary',date:'2025-06-02',createdAt:'2025-06-02'},
-      {id:uid(),type:'demo',groupName:'Нодира Юсупова · MWF 14:00',level:'beginner',date:'2025-04-15',createdAt:'2025-04-15'}
-    ],
-    reports:[
-      {id:uid(),groupName:'AT Elementary TTS 11:00',text:'В задании 3 неверный вариант ответа — все варианты одинаковые',date:'2025-06-01',status:'new',createdAt:'2025-06-01'}
-    ]
-  });
-  sched();
 }
 
 function fixFirebaseArrays(obj){
