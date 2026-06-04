@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780574508';
+  const APP_VERSION='1780574737';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -627,22 +627,34 @@ async function loadData(){
 
 function fixFirebaseArrays(obj){
   if(!obj||typeof obj!=='object') return;
+  const toArr=v=>(v&&!Array.isArray(v)&&typeof v==='object')?Object.values(v):v;
   ['teachers','students','accounts','archives'].forEach(k=>{
-    if(obj[k]&&!Array.isArray(obj[k])){
-      obj[k]=Object.values(obj[k]);
-    }
+    if(obj[k]) obj[k]=toArr(obj[k]);
   });
-  if(obj.teachers) obj.teachers.forEach(t=>{
-    if(t.groups&&!Array.isArray(t.groups)) t.groups=Object.values(t.groups);
-    if(t.groups) t.groups.forEach(g=>{
-      if(g.students&&!Array.isArray(g.students)) g.students=Object.values(g.students);
+  if(Array.isArray(obj.teachers)) obj.teachers.forEach(t=>{
+    if(t.groups) t.groups=toArr(t.groups);
+    if(Array.isArray(t.groups)) t.groups.forEach(g=>{
+      if(g.students) g.students=toArr(g.students);
+      if(Array.isArray(g.students)) g.students.forEach(s=>{
+        if(!s) return;
+        // Fix all student grade arrays
+        ['units','homework','achievements','conversations','vocabulary','presentations'].forEach(k=>{
+          if(s[k]) s[k]=toArr(s[k]);
+        });
+        // units_grammar, units_vocab
+        ['units_grammar','units_vocab'].forEach(k=>{
+          if(s[k]) s[k]=toArr(s[k]);
+        });
+      });
     });
   });
-  if(obj.accounts) obj.accounts.forEach(a=>{
+  if(Array.isArray(obj.accounts)) obj.accounts.forEach(a=>{
     ['replacements','mockTests','reports'].forEach(k=>{
-      if(a[k]&&!Array.isArray(a[k])) a[k]=Object.values(a[k]);
+      if(a[k]) a[k]=toArr(a[k]);
     });
+    if(a.demos&&typeof a.demos==='object'&&!Array.isArray(a.demos)){/* keep as object */}
   });
+  if(obj.duties&&typeof obj.duties==='object'){/* keep as object - it's a map by date */}
 }
 
 // ── Groups / navigation helpers ───────────────────────────────────────────
