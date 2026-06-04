@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780574737';
+  const APP_VERSION='1780575334';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1601,6 +1601,92 @@ function nameBlur(sid,rowIdx,inp){
 function nameKey(e,sid,idx,inp){if(e.key==='Enter') inp.blur();}
 
 // ── Student actions ───────────────────────────────────────────────────────
+function showHideStudent(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
+  if(s.hidden){
+    s.hidden=false;delete s.hideReason;delete s.hiddenBy;
+    renderGroup(document.getElementById('main'));sched();toast('Студент показан ✓','success');
+    return;
+  }
+  openModal(`<div class="modal-title">👁 Скрыть студента</div>
+    <div class="fg"><label class="fl">Причина</label>
+      <input type="text" class="fi" id="hide-reason" placeholder="Например: Академический отпуск">
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-ora" onclick="confirmHideStudent('${sid}')">Скрыть</button></div>`);
+  setTimeout(()=>document.getElementById('hide-reason')?.focus(),80);
+}
+
+function confirmHideStudent(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
+  const reason=document.getElementById('hide-reason')?.value?.trim()||'Не указана';
+  s.hidden=true;s.hideReason=reason;s.hiddenBy=curUser?.name||'Преподаватель';
+  closeModal();renderGroup(document.getElementById('main'));sched();toast('Студент скрыт','success');
+}
+
+function unhideStudent(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
+  s.hidden=false;delete s.hideReason;delete s.hiddenBy;
+  renderGroup(document.getElementById('main'));sched();toast('Студент восстановлен ✓','success');
+}
+
+function adminArchiveHidden(sid,tid,gid){
+  const t=D.teachers.find(x=>x.id===tid);
+  const g=(t?.groups||[]).find(x=>x.id===gid);if(!g) return;
+  const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
+  if(!D.archives) D.archives=[];
+  const arch=D.archives.find(a=>a.label==='Скрытые студенты')||{id:uid(),label:'Скрытые студенты',date:new Date().toLocaleDateString('ru'),teachers:[]};
+  if(!D.archives.includes(arch)) D.archives.push(arch);
+  let at=arch.teachers.find(x=>x.id===tid);
+  if(!at){at={id:tid,name:t.name,groups:[]};arch.teachers.push(at);}
+  let ag=at.groups.find(x=>x.id===gid);
+  if(!ag){ag={...g,students:[]};at.groups.push(ag);}
+  ag.students.push({...s});
+  g.students=g.students.filter(x=>x.id!==sid);
+  renderAll();sched();toast('Студент архивирован ✓','success');
+}
+
+function adminRestoreHidden(sid,tid,gid){
+  const t=D.teachers.find(x=>x.id===tid);
+  const g=(t?.groups||[]).find(x=>x.id===gid);if(!g) return;
+  const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
+  s.hidden=false;delete s.hideReason;delete s.hiddenBy;
+  renderAll();sched();toast('Студент восстановлен ✓','success');
+}
+
+function showPromoteGroup(){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  openModal(`<div class="modal-title">🎓 Завершить группу</div>
+    <div class="modal-desc">Группа будет заархивирована. Выберите что сделать со студентами.</div>
+    <div class="fg"><label class="fl">Архив — название</label>
+      <input type="text" class="fi" id="prm-label" value="${new Date().toLocaleDateString('ru')} — ${g.day} ${g.time} ${lvl(g.level)}">
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="promoteGroup()">🎓 Завершить и архивировать</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('prm-label')?.focus(),80);
+}
+
+function promoteGroup(){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const label=document.getElementById('prm-label')?.value?.trim()||'Архив';
+  const snap=JSON.parse(JSON.stringify([t]));
+  if(!D.archives) D.archives=[];
+  D.archives.push({id:uid(),label,date:new Date().toLocaleDateString('ru'),teachers:snap});
+  t.groups=t.groups.filter(x=>x.id!==selG);
+  selG=null;view='teacher';
+  closeModal();renderAll();sched();toast('Группа завершена и архивирована ✓','success');
+}
+
 function delStudent(sid){
   if(!sid||!confirm('Удалить студента из группы?')) return;
   const t=D.teachers.find(x=>x.id===selT);
