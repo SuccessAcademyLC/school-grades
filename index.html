@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780641751';
+  const APP_VERSION='1780642101';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2160,14 +2160,74 @@ async function addAccount(){
   D.accounts.push({id:uid(),teacherId:tid,login,password:await hashPass(pass)});
   closeModal();renderAccounts(document.getElementById('main'));sched();toast('Аккаунт создан ✓','success');
 }
+function showEditT(id){
+  const t=D.teachers.find(x=>x.id===id);if(!t) return;
+  openModal(`<div class="modal-title">✏️ Изменить преподавателя</div>
+    <div class="fg"><label class="fl">Имя и фамилия</label>
+      <input type="text" class="fi" id="et-name" value="${t.name||''}">
+    </div>
+    <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
+      <input type="text" class="fi" id="et-phone" value="${t.phone||''}" placeholder="+998 90 123 45 67">
+    </div>
+    <div class="fg"><label class="fl">Направление</label>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="et-lang" value="ru" ${(t.lang||'ru')==='ru'?'checked':''}> Англ (русскоговорящий)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="et-lang" value="kk" ${t.lang==='kk'?'checked':''}> Англ (каракалпакоговорящий)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="radio" name="et-lang" value="rus" ${t.lang==='rus'?'checked':''}> Русский язык
+        </label>
+      </div>
+    </div>
+    <div class="fa">
+      <button class="btn btn-dan btn-sm" onclick="confirmDelT('${id}')">Удалить</button>
+      <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
+      <button class="btn btn-pri" onclick="editT('${id}')">${tr('saveBtn')}</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('et-name')?.focus(),80);
+}
+
+function editT(id){
+  const t=D.teachers.find(x=>x.id===id);if(!t) return;
+  const name=document.getElementById('et-name')?.value?.trim();
+  if(!name){toast('Введите имя','error');return;}
+  t.name=name;
+  t.phone=document.getElementById('et-phone')?.value?.trim()||t.phone||'';
+  t.lang=document.querySelector('input[name="et-lang"]:checked')?.value||t.lang||'ru';
+  closeModal();renderAll();sched();toast('Преподаватель обновлён ✓','success');
+}
+
 function showEditAccount(id){
   const a=D.accounts.find(x=>x.id===id);if(!a) return;
   const tc=D.teachers.find(x=>x.id===a.teacherId);
   const isSupporter=a.role==='supporter';
+  const isTeacher=!!tc;
   openModal(`<div class="modal-title">Изменить аккаунт</div>
     <div style="background:#f8f9fb;border-radius:10px;padding:12px;margin-bottom:20px;font-size:13px">
       <b>${tc?tc.name:a.name||a.login}</b> · логин: <code>${a.login}</code>
     </div>
+    ${isTeacher?`<div class="fg"><label class="fl">Имя преподавателя</label>
+      <input type="text" class="fi" id="ac-tname" value="${tc.name||''}">
+    </div>
+    <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
+      <input type="text" class="fi" id="ac-tphone" value="${tc.phone||''}" placeholder="+998 90 123 45 67">
+    </div>
+    <div class="fg"><label class="fl">Направление</label>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="ac-tlang" value="ru" ${(tc.lang||'ru')==='ru'?'checked':''}> Англ (русскоговорящий)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="ac-tlang" value="kk" ${tc.lang==='kk'?'checked':''}> Англ (каракалпакоговорящий)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="ac-tlang" value="rus" ${tc.lang==='rus'?'checked':''}> Русский язык
+        </label>
+      </div>
+    </div>`:''}
     ${isSupporter?`<div class="fg"><label class="fl">Тип суппортера</label>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
         <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px">
@@ -2215,10 +2275,20 @@ function showEditAccount(id){
 }
 async function editAccount(id){
   const a=D.accounts.find(x=>x.id===id);if(!a) return;
+  const tc=D.teachers.find(x=>x.id===a.teacherId);
   const login=document.getElementById('ac-l')?.value?.trim();
   const pass=document.getElementById('ac-p')?.value?.trim();
   if(login) a.login=login;
   if(pass&&pass.length>=4) a.password=await hashPass(pass);
+  // Save teacher fields
+  if(tc){
+    const tname=document.getElementById('ac-tname')?.value?.trim();
+    if(tname) tc.name=tname;
+    const tphone=document.getElementById('ac-tphone')?.value?.trim();
+    if(tphone!==undefined) tc.phone=tphone;
+    const tlang=document.querySelector('input[name="ac-tlang"]:checked')?.value;
+    if(tlang) tc.lang=tlang;
+  }
   if(a.role==='supporter'){
     const newType=document.querySelector('input[name="edit-sup-type"]:checked')?.value;
     if(newType) a.supType=newType;
