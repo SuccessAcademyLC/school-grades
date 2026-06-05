@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780646565';
+  const APP_VERSION='1780649131';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -250,7 +250,9 @@ body.dark tbody td{border-color:#2a2d3a}
 body.dark tbody td.nc,body.dark tbody td.nmc{background:#1a1d27}
 body.dark tbody tr:hover td{background:#1e2340!important}
 body.dark tbody tr.empty-row td{background:#141620}
-body.dark .gi{color:#e8eaf0;border-color:#2a2d3a;background:#1e2133}
+body.dark .gi{color:#e8eaf0;border-color:#1e2133;background:#1e2133}
+body.dark .gi:hover{border-color:#3a3d50;background:#252838}
+body.dark .gi:focus{border-color:#4361ee;background:#1a1d2e;box-shadow:0 0 0 2px rgba(67,97,238,.2)}
 body.dark .ni{color:#e8eaf0}
 body.dark .modal{background:#1a1d27;color:#e8eaf0}
 body.dark .fi,body.dark .fs{background:#141620;border-color:#2a2d3a;color:#e8eaf0}
@@ -804,18 +806,19 @@ function applyLogo(){
   const img=document.getElementById('logo-img');
   const loginName=document.getElementById('login-org-name');
   const loginBadge=document.getElementById('login-logo-badge');
-  if(logo){
-    if(img){img.src=logo;img.style.display='block';}
-    if(txt) txt.style.display='none';
-  } else {
-    if(img) img.style.display='none';
-    if(txt){
+  if(txt){
+    if(logo){
+      // Show image + name together, hide old badge
+      txt.style.display='flex';
+      txt.innerHTML=`<img src="${logo}" style="height:32px;border-radius:6px;object-fit:contain"><span>${name}</span>`;
+    } else {
       txt.style.display='flex';
       txt.innerHTML=`<div class="logo-badge">${name.substring(0,2).toUpperCase()}</div><span>${name}</span>`;
     }
   }
+  if(img) img.style.display='none'; // always hide separate img element
   if(loginName) loginName.textContent=name;
-  if(loginBadge&&logo){loginBadge.src=logo;}
+  if(loginBadge&&logo) loginBadge.src=logo;
 }
 
 function showCreateArchive(){
@@ -4853,6 +4856,27 @@ function loadAndRestoreSession(){
     }
     clearSession();
   }
+}
+
+function showQRPublicView(tid,gid){
+  const t=D.teachers.find(x=>x.id===tid);
+  const g=(t?.groups||[]).find(x=>x.id===gid);
+  if(!g||!t){
+    document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#888">Группа не найдена</div>`;
+    return;
+  }
+  // Set up minimal viewer session
+  curUser={role:'viewer'};
+  selT=tid;selG=gid;view='group';
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  // Hide admin/teacher bars
+  ['adm-bar','tch-bar','sup-bar'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  // Hide sidebar
+  const sb=document.getElementById('sidebar');if(sb)sb.style.display='none';
+  // Apply logo
+  applyLogo();
+  renderMain();
 }
 
 async function initApp(){
