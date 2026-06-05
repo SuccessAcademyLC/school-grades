@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780637396';
+  const APP_VERSION='1780641099';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -489,7 +489,7 @@ function applyTheme(){
 // Apply i18n and theme immediately
 const DPIN='1234';
 const SHEETS_WEBHOOK='https://script.google.com/macros/s/AKfycbxZgmqmKZudaFSjK-XAg1pf4kMQe0xwpEPGr_4HoGShuU3Tg91cb2AjgxjmIvxD5Sil/exec';
-const SHEETS_DELAY=10*60*1000; // 10 minutes
+const SHEETS_DELAY=1*60*1000; // 1 minute
 // Firebase Realtime Database - default URL
 const FIREBASE_DEFAULT='https://ongoingassessment-262b7-default-rtdb.firebaseio.com';
 let FIREBASE_URL=localStorage.getItem('firebase_url')||FIREBASE_DEFAULT;
@@ -1535,9 +1535,11 @@ function scheduleSheets(){
 async function syncToSheets(){
   const rows=[];
   D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+    // Skip russian language groups entirely
+    if(RUS_LEVELS.includes(g.level)) return;
     const tName=tc.name;
     const gName=`${lvl(g.level)} ${g.day} ${g.time}`;
-    // Unit Tests
+    // Unit Tests (beginner/elementary only)
     if(['beginner','elementary'].includes(g.level)){
       (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
         (s.units||[]).forEach((v,i)=>{
@@ -1554,7 +1556,7 @@ async function syncToSheets(){
         });
       });
     }
-    // Achievement Tests (all levels)
+    // Achievement Tests (english groups only)
     (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
       (s.achievements||[]).forEach((v,i)=>{
         const score=Number(v);
@@ -2896,7 +2898,9 @@ function gotoPage(p){curPage=p;view=null;renderMain();}
 // ── CRUD Teachers ─────────────────────────────────────────────────────────
 function getDebts(s,level){
     const debts=[];
-    const ok=v=>v!==null&&v!==undefined&&v!==''&&Number(v)>0;
+    // filled = has any value including 0; passed = has value > 0
+    const filled=v=>v!==null&&v!==undefined&&v!=='';
+    const passed=v=>filled(v)&&Number(v)>0;
 
     // Russian language debt detection
     if(RUS_LEVELS&&RUS_LEVELS.includes(level)){
@@ -2905,11 +2909,11 @@ function getDebts(s,level){
       const convs=s.conversations||[];
       const hws=s.homework||[];
       const vocabs=s.vocabulary||[];
-      // For each completed conversation - check if HW and Vocab are done
+      // For each completed conversation (including 0) - check if HW and Vocab are done
       for(let i=0;i<cfg.conv;i++){
-        if(ok(convs[i])){
-          if(!ok(hws[i]))   debts.push({key:'hw',label:`ДЗ${i+1}`});
-          if(!ok(vocabs[i])) debts.push({key:'at',label:`Сл${i+1}`});
+        if(filled(convs[i])){
+          if(!filled(hws[i]))   debts.push({key:'hw',label:`ДЗ${i+1}`});
+          if(!filled(vocabs[i])) debts.push({key:'at',label:`Сл${i+1}`});
         }
       }
       return debts;
@@ -2918,34 +2922,29 @@ function getDebts(s,level){
     const startU=(s.startUnit||1)-1;
     const startA=(s.startAT||1)-1;
 
-    // Unit Tests: debt only if:
-    // 1. Empty AND a LATER unit has a score
-    // 2. AND index >= startUnit (student joined from this unit)
+    // Unit Tests: debt if empty AND a later unit has a value (including 0)
     const units=s.units||Array(12).fill(null);
     let lastFilledUnit=-1;
-    for(let i=11;i>=0;i--){if(ok(units[i])){lastFilledUnit=i;break;}}
+    for(let i=11;i>=0;i--){if(filled(units[i])){lastFilledUnit=i;break;}}
     for(let i=startU;i<lastFilledUnit;i++){
-      if(!ok(units[i])) debts.push({key:'u',label:`U${i+1}`});
+      if(!filled(units[i])) debts.push({key:'u',label:`U${i+1}`});
     }
 
-    // Achievement Tests: debt if empty AND later AT has score AND >= startAT
+    // Achievement Tests
     const ats=s.achievements||Array(5).fill(null);
     let lastFilledAT=-1;
-    for(let i=4;i>=0;i--){if(ok(ats[i])){lastFilledAT=i;break;}}
+    for(let i=4;i>=0;i--){if(filled(ats[i])){lastFilledAT=i;break;}}
     for(let i=startA;i<lastFilledAT;i++){
-      if(!ok(ats[i])) debts.push({key:'at',label:`AT${i+1}`});
+      if(!filled(ats[i])) debts.push({key:'at',label:`AT${i+1}`});
     }
 
     // Homework <-> AT bidirectional check
     const hws=s.homework||Array(5).fill(null);
-    // Find last filled HW
     let lastFilledHW=-1;
-    for(let i=4;i>=0;i--){if(ok(hws[i])){lastFilledHW=i;break;}}
+    for(let i=4;i>=0;i--){if(filled(hws[i])){lastFilledHW=i;break;}}
     for(let i=startA;i<=Math.max(lastFilledAT,lastFilledHW);i++){
-      const hasAT=ok(ats[i]), hasHW=ok(hws[i]);
-      // AT done but no HW → HW debt
+      const hasAT=filled(ats[i]), hasHW=filled(hws[i]);
       if(hasAT&&!hasHW) debts.push({key:'hw',label:`HW${i+1}`});
-      // HW done but no AT → AT debt (student did HW but missed AT)
       if(hasHW&&!hasAT&&i<=lastFilledAT) debts.push({key:'at',label:`AT${i+1} (нет)`});
     }
 
