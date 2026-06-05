@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780641569';
+  const APP_VERSION='1780641751';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2909,9 +2909,13 @@ function getDebts(s,level){
       const convs=s.conversations||[];
       const hws=s.homework||[];
       const vocabs=s.vocabulary||[];
-      // For each completed conversation (including 0) - check if HW and Vocab are done
       for(let i=0;i<cfg.conv;i++){
-        if(filled(convs[i])){
+        // 0 in any cell = debt regardless of other cells
+        if(filled(convs[i])&&Number(convs[i])===0) debts.push({key:'u',label:`Р${i+1}`});
+        if(filled(hws[i])&&Number(hws[i])===0)     debts.push({key:'hw',label:`ДЗ${i+1}`});
+        if(filled(vocabs[i])&&Number(vocabs[i])===0) debts.push({key:'at',label:`Сл${i+1}`});
+        // If conversation passed but HW or Vocab missing
+        if(passed(convs[i])){
           if(!filled(hws[i]))   debts.push({key:'hw',label:`ДЗ${i+1}`});
           if(!filled(vocabs[i])) debts.push({key:'at',label:`Сл${i+1}`});
         }
