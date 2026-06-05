@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780633717';
+  const APP_VERSION='1780636802';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -518,6 +518,9 @@ const LANGS={
     excel:'Excel',search:'🔍 Поиск',settings:'⚙️ Настройки',
     adminMode:'✅ Режим администратора',
     cancel:'Отмена',saveBtn:'Сохранить',createBtn:'Создать',
+    addBtn:'Добавить',
+    sortName:'По имени',sortOverall:'По Overall',sortUnit:'По Unit',sortFinal:'По Final',
+    startType:'Начните вводить...',
     grpCount:'групп',stuCount:'студентов',stuSuffix:'студентов',grpSuffix:'групп',
     sorting:'Сортировка:',notFoundSearch:'Ничего не найдено',
     mwfLabel:'📅 MWF — Пн · Ср · Пт',ttsLabel:'📅 TTS — Вт · Чт · Сб',otherLabel:'📅 Другие',
@@ -538,6 +541,9 @@ const LANGS={
     excel:'Excel',search:'🔍 Search',settings:'⚙️ Settings',
     adminMode:'✅ Admin mode',
     cancel:'Cancel',saveBtn:'Save',createBtn:'Create',
+    addBtn:'Add',
+    sortName:'By name',sortOverall:'By Overall',sortUnit:'By Unit',sortFinal:'By Final',
+    startType:'Start typing...',
     grpCount:'groups',stuCount:'students',stuSuffix:'students',grpSuffix:'groups',
     sorting:'Sort:',notFoundSearch:'Not found',
     mwfLabel:'📅 MWF — Mon · Wed · Fri',ttsLabel:'📅 TTS — Tue · Thu · Sat',otherLabel:'📅 Other',
@@ -627,7 +633,8 @@ async function loadData(){
 
 function fixFirebaseArrays(obj){
   if(!obj||typeof obj!=='object') return;
-  const toArr=v=>(v&&!Array.isArray(v)&&typeof v==='object')?Object.values(v):v;
+  const toArr=v=>(v&&!Array.isArray(v)&&typeof v==='object')?Object.values(v):(Array.isArray(v)?v:v!=null?[v]:[]);
+  const padArr=(arr,len)=>{if(!arr) return Array(len).fill(null);while(arr.length<len) arr.push(null);return arr;};
   ['teachers','students','accounts','archives'].forEach(k=>{
     if(obj[k]) obj[k]=toArr(obj[k]);
   });
@@ -637,14 +644,15 @@ function fixFirebaseArrays(obj){
       if(g.students) g.students=toArr(g.students);
       if(Array.isArray(g.students)) g.students.forEach(s=>{
         if(!s) return;
-        // Fix all student grade arrays
-        ['units','homework','achievements','conversations','vocabulary','presentations'].forEach(k=>{
-          if(s[k]) s[k]=toArr(s[k]);
-        });
-        // units_grammar, units_vocab
-        ['units_grammar','units_vocab'].forEach(k=>{
-          if(s[k]) s[k]=toArr(s[k]);
-        });
+        s.units=padArr(toArr(s.units),12);
+        s.homework=padArr(toArr(s.homework),5);
+        s.achievements=padArr(toArr(s.achievements),5);
+        // Russian
+        if(s.conversations) s.conversations=padArr(toArr(s.conversations),10);
+        if(s.vocabulary) s.vocabulary=padArr(toArr(s.vocabulary),10);
+        if(s.presentations) s.presentations=padArr(toArr(s.presentations),2);
+        if(s.units_grammar) s.units_grammar=padArr(toArr(s.units_grammar),12);
+        if(s.units_vocab) s.units_vocab=padArr(toArr(s.units_vocab),12);
       });
     });
   });
@@ -652,9 +660,7 @@ function fixFirebaseArrays(obj){
     ['replacements','mockTests','reports'].forEach(k=>{
       if(a[k]) a[k]=toArr(a[k]);
     });
-    if(a.demos&&typeof a.demos==='object'&&!Array.isArray(a.demos)){/* keep as object */}
   });
-  if(obj.duties&&typeof obj.duties==='object'){/* keep as object - it's a map by date */}
 }
 
 // ── Groups / navigation helpers ───────────────────────────────────────────
@@ -1313,9 +1319,9 @@ function srow(s,num,g,ed,archMode){
   const namecell=ed
     ?`<input class="ni" type="text" value="${s?s.name:''}" placeholder="Введите имя..." onblur="nameBlur('${sid}',${num-1},this)" onkeydown="nameKey(event,'${sid}',${num-1},this)" onfocus="this.select()">`
     :(s?.name?`<span class="name-link" onclick="clickStudent('${sid}')">${s.name}</span>`:'<span style="color:#ddd">—</span>');
-  const us=s?(s.units||Array(12).fill(null)):Array(12).fill(null);
-  const hw=s?(s.homework||Array(5).fill(null)):Array(5).fill(null);
-  const at=s?(s.achievements||Array(5).fill(null)):Array(5).fill(null);
+  const us=s?(Array.isArray(s.units)?s.units:Array(12).fill(null)).concat(Array(12).fill(null)).slice(0,12):Array(12).fill(null);
+  const hw=s?(Array.isArray(s.homework)?s.homework:Array(5).fill(null)).concat(Array(5).fill(null)).slice(0,5):Array(5).fill(null);
+  const at=s?(Array.isArray(s.achievements)?s.achievements:Array(5).fill(null)).concat(Array(5).fill(null)).slice(0,5):Array(5).fill(null);
   return `<tr class="${empty?'empty-row':''}">
     <td class="nc">${num}</td>
     <td class="nmc">${namecell}</td>
