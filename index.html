@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780633300';
+  const APP_VERSION='1780633717';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3310,19 +3310,20 @@ function showDutyEdit(dateStr){
   const eveningOk=supporters.filter(a=>a.schedule==='evening'||a.schedule==='full');
   const schedIcon=s=>s.schedule==='morning'?'У':s.schedule==='evening'?'П':'Ф';
   const schedText=s=>s.schedule==='morning'?'утро':s.schedule==='evening'?'послеобед':'фулл';
-  const buildOptions=(list,selectedId)=>`<option value="">— не назначен —</option>`+
-    list.map(a=>`<option value="${a.id}" ${selectedId===a.id?'selected':''}>${schedIcon(a)} ${a.name} (${supTypeLabel(a.supType,true)}, ${schedText(a)})</option>`).join('');
+  const buildOptions=(list,selectedId)=>list.map(a=>`<option value="${a.id}" ${selectedId===a.id?'selected':''}>${a.name} (${supTypeLabel(a.supType,true)}, ${schedText(a)})</option>`).join('');
   openModal(`<div class="modal-title">📅 ${label}</div>
     <div class="fg"><label class="fl">Утреннее дежурство (12:00–13:00)</label>
       <select class="fi" id="duty-m">
+        <option value="">— не назначен —</option>
         <optgroup label="Рекомендуется (утро/фулл)">${buildOptions(morningOk,duty.morning)}</optgroup>
-        <optgroup label="Остальные">${buildOptions(supporters.filter(a=>a.schedule==='evening'),duty.morning)}</optgroup>
+        ${supporters.filter(a=>a.schedule==='evening').length?`<optgroup label="Остальные">${buildOptions(supporters.filter(a=>a.schedule==='evening'),duty.morning)}</optgroup>`:''}
       </select>
     </div>
     <div class="fg"><label class="fl">Послеобеденное дежурство (13:00–19:00)</label>
       <select class="fi" id="duty-e">
+        <option value="">— не назначен —</option>
         <optgroup label="Рекомендуется (послеобед/фулл)">${buildOptions(eveningOk,duty.evening)}</optgroup>
-        <optgroup label="Остальные">${buildOptions(supporters.filter(a=>a.schedule==='morning'),duty.evening)}</optgroup>
+        ${supporters.filter(a=>a.schedule==='morning').length?`<optgroup label="Остальные">${buildOptions(supporters.filter(a=>a.schedule==='morning'),duty.evening)}</optgroup>`:''}
       </select>
     </div>
     <div class="fa">
