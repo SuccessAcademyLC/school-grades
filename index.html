@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780642257';
+  const APP_VERSION='1780642457';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3007,20 +3007,22 @@ function getDebts(s,level){
     const startU=(s.startUnit||1)-1;
     const startA=(s.startAT||1)-1;
 
-    // Unit Tests: debt if empty AND a later unit has a value (including 0)
+    // Unit Tests: 0 = debt; empty after later filled = debt
     const units=s.units||Array(12).fill(null);
     let lastFilledUnit=-1;
     for(let i=11;i>=0;i--){if(filled(units[i])){lastFilledUnit=i;break;}}
-    for(let i=startU;i<lastFilledUnit;i++){
-      if(!filled(units[i])) debts.push({key:'u',label:`U${i+1}`});
+    for(let i=startU;i<=lastFilledUnit;i++){
+      if(!filled(units[i])) debts.push({key:'u',label:`U${i+1}`});         // empty gap
+      else if(Number(units[i])===0) debts.push({key:'u',label:`U${i+1}`}); // zero
     }
 
-    // Achievement Tests
+    // Achievement Tests: 0 = debt; empty after later filled = debt
     const ats=s.achievements||Array(5).fill(null);
     let lastFilledAT=-1;
     for(let i=4;i>=0;i--){if(filled(ats[i])){lastFilledAT=i;break;}}
-    for(let i=startA;i<lastFilledAT;i++){
+    for(let i=startA;i<=lastFilledAT;i++){
       if(!filled(ats[i])) debts.push({key:'at',label:`AT${i+1}`});
+      else if(Number(ats[i])===0) debts.push({key:'at',label:`AT${i+1}`});
     }
 
     // Homework <-> AT bidirectional check
@@ -3028,9 +3030,17 @@ function getDebts(s,level){
     let lastFilledHW=-1;
     for(let i=4;i>=0;i--){if(filled(hws[i])){lastFilledHW=i;break;}}
     for(let i=startA;i<=Math.max(lastFilledAT,lastFilledHW);i++){
-      const hasAT=filled(ats[i]), hasHW=filled(hws[i]);
-      if(hasAT&&!hasHW) debts.push({key:'hw',label:`HW${i+1}`});
-      if(hasHW&&!hasAT&&i<=lastFilledAT) debts.push({key:'at',label:`AT${i+1} (нет)`});
+      const hasAT=filled(ats[i])&&Number(ats[i])!==0;
+      const hasHW=filled(hws[i])&&Number(hws[i])!==0;
+      const zeroAT=filled(ats[i])&&Number(ats[i])===0;
+      const zeroHW=filled(hws[i])&&Number(hws[i])===0;
+      // AT done but HW missing or zero
+      if(hasAT&&!filled(hws[i])) debts.push({key:'hw',label:`HW${i+1}`});
+      if(hasAT&&zeroHW&&!debts.find(d=>d.label===`HW${i+1}`)) debts.push({key:'hw',label:`HW${i+1}`});
+      // HW done but AT missing
+      if(hasHW&&!filled(ats[i])&&i<=lastFilledAT) debts.push({key:'at',label:`AT${i+1} (нет)`});
+      // Zero in HW
+      if(zeroHW&&!debts.find(d=>d.label===`HW${i+1}`)) debts.push({key:'hw',label:`HW${i+1}`});
     }
 
     return debts;
