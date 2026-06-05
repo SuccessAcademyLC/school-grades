@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780642457';
+  const APP_VERSION='1780642937';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -750,9 +750,20 @@ function confirmDelT(tid){
 }
 
 function showSettings(){
+  const currentLogo=D.settings?.orgLogo||'';
   openModal(`<div class="modal-title">⚙️ Настройки</div>
     <div class="fg"><label class="fl">Название организации</label>
       <input type="text" class="fi" id="org-name" value="${D.settings?.orgName||'Success Academy'}">
+    </div>
+    <div class="fg"><label class="fl">Логотип</label>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+        ${currentLogo?`<img src="${currentLogo}" style="height:36px;border-radius:6px;object-fit:contain;border:1px solid #e0e4f0">`:'<div style="width:36px;height:36px;border-radius:6px;background:#f0f4ff;display:flex;align-items:center;justify-content:center;font-size:11px;color:#888">нет</div>'}
+        <div style="flex:1">
+          <input type="file" id="org-logo-file" accept="image/*" style="font-size:12px;width:100%" onchange="previewOrgLogo(this)">
+          <div id="org-logo-preview" style="margin-top:6px"></div>
+        </div>
+        ${currentLogo?`<button onclick="D.settings.orgLogo='';applyLogo();closeModal();sched();toast('Лого удалён','success')" style="padding:4px 10px;border-radius:6px;border:1px solid #fcc;background:#fff5f5;color:#c00;font-size:12px;cursor:pointer">✕</button>`:''}
+      </div>
     </div>
     <div class="fg"><label class="fl">URL Firebase</label>
       <input type="text" class="fi" id="fb-url" value="${FIREBASE_URL||''}" placeholder="https://...firebaseio.com">
@@ -761,10 +772,22 @@ function showSettings(){
       <button class="btn btn-pri" onclick="applySettings()">Сохранить</button></div>`);
 }
 
+function previewOrgLogo(input){
+  const file=input.files[0];if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const preview=document.getElementById('org-logo-preview');
+    if(preview) preview.innerHTML=`<img src="${e.target.result}" style="height:32px;border-radius:6px;object-fit:contain;border:1px solid #e0e4f0">`;
+    window._pendingLogo=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function applySettings(){
   const orgName=document.getElementById('org-name')?.value?.trim();
   const fbUrl=(document.getElementById('fb-url')?.value||'').trim().replace(/\/+$/,'');
   if(orgName) D.settings.orgName=orgName;
+  if(window._pendingLogo){D.settings.orgLogo=window._pendingLogo;window._pendingLogo=null;}
   if(fbUrl){FIREBASE_URL=fbUrl;localStorage.setItem('firebase_url',fbUrl);D.settings.firebaseUrl=fbUrl;}
   applyLogo();closeModal();toast('Сохранено ✓','success');saveData();
 }
@@ -776,10 +799,21 @@ const FILE='index.html';
 
 function applyLogo(){
   const name=D.settings?.orgName||'Success Academy';
+  const logo=D.settings?.orgLogo||'';
   const txt=document.getElementById('logo-text');
+  const img=document.getElementById('logo-img');
   const loginName=document.getElementById('login-org-name');
-  if(txt) txt.innerHTML=`<div class="logo-badge">${name.substring(0,2).toUpperCase()}</div><span>${name}</span>`;
+  const loginBadge=document.getElementById('login-logo-badge');
+  if(txt){
+    if(logo){
+      txt.innerHTML=`<img src="${logo}" style="height:32px;border-radius:6px;object-fit:contain"><span>${name}</span>`;
+    } else {
+      txt.innerHTML=`<div class="logo-badge">${name.substring(0,2).toUpperCase()}</div><span>${name}</span>`;
+    }
+  }
+  if(img){if(logo){img.src=logo;img.style.display='block';}else{img.style.display='none';}}
   if(loginName) loginName.textContent=name;
+  if(loginBadge&&logo){loginBadge.src=logo;loginBadge.style.display='block';}
 }
 
 function showCreateArchive(){
@@ -2126,6 +2160,9 @@ function showAddSupporter(){
     </div>
     <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
       <input type="text" class="fi" id="sup-phone" placeholder="+998 90 123 45 67">
+    </div>
+    <div class="fg"><label class="fl">Логин</label>
+      <input type="text" class="fi" id="sup-login" placeholder="например: jansaya">
     </div>
     <div class="fg"><label class="fl">Пароль</label>
       <input type="text" class="fi" id="sup-pass" placeholder="минимум 4 символа">
@@ -3804,17 +3841,17 @@ function renderGroupDebts(g){
   };
 
   return `
-    <div style="margin-top:14px;background:var(--color-background-primary,white);border:0.5px solid var(--color-border-tertiary,#e8eaf0);border-radius:12px;padding:1.25rem">
+    <div style="margin-top:14px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:1.25rem">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <span style="font-size:13px;font-weight:500;color:var(--color-text-secondary,#666)">Должники группы</span>
+        <span style="font-size:13px;font-weight:500;color:var(--color-text-secondary)">Должники группы</span>
         <span style="margin-left:auto;background:#FAEEDA;color:#633806;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:500">${debtors.length} ${debtors.length===1?'студент':debtors.length<5?'студента':'студентов'}</span>
       </div>
       ${debtors.map(({s,debts})=>`
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary,#f0f0f0)">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
           <div style="width:32px;height:32px;border-radius:50%;background:#FAEEDA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#633806;flex-shrink:0">${ini(s.name)}</div>
           <div>
-            <div style="font-size:13px;font-weight:500;color:var(--color-text-primary,#111);margin-bottom:5px">${s.name}</div>
+            <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:5px">${s.name}</div>
             <div style="display:flex;gap:5px;flex-wrap:wrap">
               ${debts.map(d=>`<span style="font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;${tagStyle[d.type]||tagStyle.u}">${d.label}</span>`).join('')}
             </div>
