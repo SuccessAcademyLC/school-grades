@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780649131';
+  const APP_VERSION='1780655858';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -268,7 +268,9 @@ body.dark .pt{color:#e8eaf0}
 body.dark .card-title{color:#e8eaf0}
 body.dark .gc-name{color:#e8eaf0}
 body.dark .name-link{color:#c5cae9}
-body.dark .modal-bg{background:rgba(0,0,0,.7)}
+body.dark .debt-card-outer{background:#1e2133!important;box-shadow:0 2px 8px rgba(0,0,0,.3)!important}
+body.dark .debt-card-inner{background:#252838!important}
+body.dark .debt-stu-name{color:#e8eaf0!important}
 body.dark .sb-nav{border-color:#2a2d3a}
 body.dark .sb-nav-btn{color:#5a6080}
 body.dark .sb-nav-btn.active{color:#7986cb}
@@ -939,6 +941,9 @@ function renderMain(){
   const el=document.getElementById('main');
   try{
     if(curUser?.role==='supporter'){
+      if(curPage==='sup_debts'){renderSupDebtsPage(el);return;}
+      if(curPage==='sup_events'){renderSupporterEvents(el);return;}
+      if(curPage==='duties'){renderDutyPage(el);return;}
       renderSupporterView(el);
       return;
     }
@@ -3016,7 +3021,11 @@ function gotoG(id){selG=id;view='group';curPage=null;renderAll();
     },80);
   }
 }
-function gotoPage(p){curPage=p;view=null;renderMain();}
+function gotoPage(p){
+  curPage=p;
+  if(!p) view=curUser?.role==='supporter'?'supporter':(view||'home');
+  renderMain();
+}
 
 // ── CRUD Teachers ─────────────────────────────────────────────────────────
 function getDebts(s,level){
@@ -3838,30 +3847,32 @@ function renderGroupDebts(g){
     </div>`;
 
   const tagStyle={
-    u:'background:#E6F1FB;color:#0C447C',
-    at:'background:#FAEEDA;color:#633806',
-    hw:'background:#FBEAF0;color:#72243E',
-    vocab:'background:#EEEDFE;color:#3C3489',
-    conv:'background:#EAF3DE;color:#27500A'
+    u:'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd',
+    at:'background:#ffedd5;color:#9a3412;border:1px solid #fdba74',
+    hw:'background:#fce7f3;color:#9d174d;border:1px solid #f9a8d4',
+    vocab:'background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd',
+    conv:'background:#dcfce7;color:#166534;border:1px solid #86efac'
   };
 
   return `
-    <div style="margin-top:14px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:1.25rem">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+    <div style="margin-top:14px;background:#ffffff;border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.08)" class="debt-card-outer">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <span style="font-size:13px;font-weight:500;color:var(--color-text-secondary)">Должники группы</span>
-        <span style="margin-left:auto;background:#FAEEDA;color:#633806;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:500">${debtors.length} ${debtors.length===1?'студент':debtors.length<5?'студента':'студентов'}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--color-text-primary)">Должники группы</span>
+        <span style="margin-left:auto;background:#FAEEDA;color:#633806;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:600">${debtors.length} ${debtors.length===1?'студент':debtors.length<5?'студента':'студентов'}</span>
       </div>
-      ${debtors.map(({s,debts})=>`
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
-          <div style="width:32px;height:32px;border-radius:50%;background:#FAEEDA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#633806;flex-shrink:0">${ini(s.name)}</div>
-          <div>
-            <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:5px">${s.name}</div>
-            <div style="display:flex;gap:5px;flex-wrap:wrap">
-              ${debts.map(d=>`<span style="font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;${tagStyle[d.type]||tagStyle.u}">${d.label}</span>`).join('')}
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${debtors.map(({s,debts})=>`
+          <div style="background:#f8f9fb;border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px" class="debt-card-inner">
+            <div style="width:30px;height:30px;border-radius:50%;background:#FAEEDA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#633806;flex-shrink:0">${ini(s.name)}</div>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:500;color:#111;margin-bottom:6px" class="debt-stu-name">${s.name}</div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                ${debts.map(d=>`<span style="font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;${tagStyle[d.type]||tagStyle.u}">${d.label}</span>`).join('')}
+              </div>
             </div>
-          </div>
-        </div>`).join('')}
+          </div>`).join('')}
+      </div>
     </div>`;
 }
 
