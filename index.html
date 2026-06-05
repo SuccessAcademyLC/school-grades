@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780636802';
+  const APP_VERSION='1780637396';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3428,6 +3428,9 @@ function renderRating(el){
   const scoreColor=v=>v===null?'#bbb':v>=75?'#1b5e20':v>=70?'#e65100':'#b71c1c';
   const scoreBg=v=>v===null?'#f5f5f5':v>=75?'#e8f5e9':v>=70?'#fff8e1':'#ffebee';
   const isRusLevel=l=>RUS_LEVELS.includes(l);
+  const okv=v=>v!==null&&v!==undefined&&v!==''&&!isNaN(Number(v));
+  const avg=arr=>{const a=(arr||[]).filter(okv).map(Number);return a.length?a.reduce((s,v)=>s+v,0)/a.length:null;};
+
   const rows=[];
   const collectFrom=(teachers,isArch)=>teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
     if(lang==='ru'&&!isRusLevel(g.level)) return;
@@ -3435,15 +3438,23 @@ function renderRating(el){
     if(levelFilter!=='all'&&g.level!==levelFilter) return;
     (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
       const overall=calcFinal(s,g.level);
-      rows.push({s,g,tc,overall,isArchive:isArch,tcName:tc.name});
+      const unitAvg=avg(s.units||[]);
+      const atAvg=avg(s.achievements||[]);
+      const hasCompleted=isRusLevel(g.level)?okv(s.finalConversation):(okv(s.final)&&okv(s.speaking));
+      rows.push({s,g,tc,overall,unitAvg,atAvg,hasCompleted,isArchive:isArch,tcName:tc.name});
     });
   }));
   collectFrom(D.teachers,false);
   if(showArchive)(D.archives||[]).forEach(a=>collectFrom(a.teachers||[],true));
-  rows.sort((a,b)=>(b.overall??-1)-(a.overall??-1));
+  rows.sort((a,b)=>{
+    if(tab==='unit') return (b.unitAvg??-1)-(a.unitAvg??-1);
+    if(tab==='at') return (b.atAvg??-1)-(a.atAvg??-1);
+    return (b.overall??-1)-(a.overall??-1);
+  });
   const searchQ=(window._ratingSearch||'').toLowerCase();
   const filtered=searchQ?rows.filter(r=>r.s.name.toLowerCase().includes(searchQ)||r.tcName.toLowerCase().includes(searchQ)):rows;
-  const levels=[...new Set(D.teachers.flatMap(t=>(t.groups||[]).map(g=>g.level)))].sort();
+  const levels=[...new Set(D.teachers.flatMap(t=>(t.groups||[]).map(g=>g.level)).filter(l=>lang==='ru'?isRusLevel(l):!isRusLevel(l)))].sort();
+  const tabBtn=(key,label)=>`<button onclick="window._ratingTab='${key}';renderMain()" style="padding:6px 16px;border-radius:20px;border:1.5px solid ${tab===key?'#4361ee':'#e0e4f0'};background:${tab===key?'#eef2ff':'var(--color-background-primary)'};color:${tab===key?'#4361ee':'var(--color-text-secondary)'};font-size:12px;font-weight:${tab===key?600:400};cursor:pointer">${label}</button>`;
   el.innerHTML=`
     <div class="ph"><div><div class="pt">🏆 Рейтинг студентов</div><div class="ps">${filtered.length} студентов</div></div></div>
     <div class="card" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -3451,7 +3462,7 @@ function renderRating(el){
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input type="text" value="${window._ratingSearch||''}" placeholder="Поиск по имени..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="clearTimeout(window._rt);window._rt=setTimeout(()=>{window._ratingSearch=this.value;renderMain();},250)">
       </div>
-      <select class="fs" onchange="window._ratingLang=this.value;renderMain()">
+      <select class="fs" onchange="window._ratingLang=this.value;window._ratingLevel='all';renderMain()">
         <option value="en" ${lang==='en'?'selected':''}>English</option>
         <option value="ru" ${lang==='ru'?'selected':''}>Русский язык</option>
       </select>
@@ -3463,21 +3474,34 @@ function renderRating(el){
         <input type="checkbox" ${showArchive?'checked':''} onchange="window._ratingArchive=this.checked;renderMain()" style="accent-color:#4361ee"> С архивом
       </label>
     </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+      ${tabBtn('overall','Overall')}
+      ${lang==='en'?tabBtn('unit','Unit Tests'):''}
+      ${lang==='en'?tabBtn('at','Achievement Tests'):''}
+    </div>
     <div class="card">
-      ${!filtered.length?`<div style="padding:30px;text-align:center;color:#bbb">Нет данных</div>`:
-      filtered.map((r,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
-        <div style="font-size:15px;min-width:28px;text-align:center">${medal(i)}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${r.s.name}</div>
-          <div style="font-size:11px;color:var(--color-text-secondary)">${r.tcName} · ${r.g.day} ${r.g.time} · ${lvl(r.g.level)}${r.isArchive?' · 📦':''}</div>
-        </div>
-        <div style="font-size:15px;font-weight:700;background:${scoreBg(r.overall)};color:${scoreColor(r.overall)};padding:3px 12px;border-radius:8px;min-width:50px;text-align:center">
-          ${r.overall!==null?r.overall.toFixed(1):'—'}
-        </div>
-      </div>`).join('')}
+      ${!filtered.length?`<div style="padding:30px;text-align:center;color:#bbb">Нет данных</div>`:`
+      <div style="display:grid;grid-template-columns:32px 1fr ${tab!=='overall'?'80px ':''} 80px;padding:6px 0;border-bottom:1.5px solid var(--color-border-secondary);font-size:11px;font-weight:600;color:var(--color-text-secondary)">
+        <div>#</div><div>Студент</div>${tab!=='overall'?`<div style="text-align:center">${tab==='unit'?'Unit avg':'AT avg'}</div>`:''}
+        <div style="text-align:center">Overall</div>
+      </div>
+      ${filtered.map((r,i)=>{
+        const secScore=tab==='unit'?r.unitAvg:tab==='at'?r.atAvg:null;
+        const ovStyle=r.hasCompleted?`background:${scoreBg(r.overall)};color:${scoreColor(r.overall)}`:`background:#f5f5f5;color:#aaa`;
+        return `<div style="display:grid;grid-template-columns:32px 1fr ${tab!=='overall'?'80px ':''} 80px;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <div style="font-size:14px;text-align:center">${medal(i)}</div>
+          <div style="min-width:0">
+            <div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${r.s.name}</div>
+            <div style="font-size:11px;color:var(--color-text-secondary)">${r.tcName} · ${r.g.day} ${r.g.time} · ${lvl(r.g.level)}${r.isArchive?' · 📦':''}</div>
+          </div>
+          ${tab!=='overall'?`<div style="text-align:center;font-size:13px;font-weight:600;background:${scoreBg(secScore)};color:${scoreColor(secScore)};padding:2px 8px;border-radius:6px;margin:0 4px">${secScore!==null?secScore.toFixed(1):'—'}</div>`:''}
+          <div style="text-align:center"><span style="font-size:13px;font-weight:700;padding:3px 10px;border-radius:8px;${ovStyle}" title="${r.hasCompleted?'':'Нет Final/SPT'}">${r.overall!==null?r.overall.toFixed(1):'—'}${!r.hasCompleted&&r.overall!==null?' *':''}</span></div>
+        </div>`;
+      }).join('')}
+      ${filtered.some(r=>!r.hasCompleted)?`<div style="font-size:11px;color:#bbb;padding:8px 0 0">* Overall без учёта — Final/SPT не сданы</div>`:''}
+      `}
     </div>`;
 }
-
 function renderSupporter(el){
   // Collect results
   const results=[];
