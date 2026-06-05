@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780632881';
+  const APP_VERSION='1780633300';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3189,8 +3189,8 @@ function renderSupporterView(el){
   let alerts='';
   if(todayReplace) alerts+=`<div style="background:#E6F1FB;border:1.5px solid #B5D4F4;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px"><span style="font-size:20px">🔄</span><div><div style="font-size:13px;font-weight:500;color:#0C447C">Сегодня у вас замена!</div><div style="font-size:12px;color:#185FA5;margin-top:3px">Заменяете: ${todayReplace.teacherName} · ${todayReplace.groupName}</div></div></div>`;
   if(tomReplace&&!todayReplace) alerts+=`<div style="background:#FAEEDA;border:1.5px solid #EF9F27;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px"><span style="font-size:20px">⏰</span><div><div style="font-size:13px;font-weight:500;color:#633806">Завтра у вас замена!</div><div style="font-size:12px;color:#854F0B;margin-top:3px">Заменяете: ${tomReplace.teacherName} · ${tomReplace.groupName}</div></div></div>`;
-  if(todayDuty.morning===a.id||todayDuty.evening===a.id) alerts+=`<div style="background:#EAF3DE;border:1.5px solid #97C459;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px"><span style="font-size:20px">📋</span><div><div style="font-size:13px;font-weight:500;color:#27500A">Сегодня вы дежурный!</div><div style="font-size:12px;color:#3B6D11;margin-top:3px">${todayDuty.morning===a.id?'☀ Утро 12:00–13:00':''}${todayDuty.morning===a.id&&todayDuty.evening===a.id?' · ':''}${todayDuty.evening===a.id?'🌙 Вечер 13:00–19:00':''}</div></div></div>`;
-  else if(tomDuty.morning===a.id||tomDuty.evening===a.id) alerts+=`<div style="background:#F0F9FF;border:1.5px solid #B5D4F4;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px"><span style="font-size:20px">📋</span><div><div style="font-size:13px;font-weight:500;color:#0C447C">Завтра вы дежурный!</div><div style="font-size:12px;color:#185FA5;margin-top:3px">${tomDuty.morning===a.id?'☀ Утро 12:00–13:00':''}${tomDuty.evening===a.id?'🌙 Вечер 13:00–19:00':''}</div></div></div>`;
+  if(todayDuty.morning===a.id||todayDuty.evening===a.id) alerts+=`<div style="background:#EAF3DE;border:1.5px solid #97C459;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px"><span style="font-size:20px">📋</span><div><div style="font-size:13px;font-weight:500;color:#27500A">Сегодня вы дежурный!</div><div style="font-size:12px;color:#3B6D11;margin-top:3px">${todayDuty.morning===a.id?'☀ Утро 12:00–13:00':''}${todayDuty.morning===a.id&&todayDuty.evening===a.id?' · ':''}${todayDuty.evening===a.id?'🌙 Послеобед 13:00–19:00':''}</div></div></div>`;
+  else if(tomDuty.morning===a.id||tomDuty.evening===a.id) alerts+=`<div style="background:#F0F9FF;border:1.5px solid #B5D4F4;border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;gap:10px"><span style="font-size:20px">📋</span><div><div style="font-size:13px;font-weight:500;color:#0C447C">Завтра вы дежурный!</div><div style="font-size:12px;color:#185FA5;margin-top:3px">${tomDuty.morning===a.id?'☀ Утро 12:00–13:00':''}${tomDuty.evening===a.id?'🌙 Послеобед 13:00–19:00':''}</div></div></div>`;
   const debtRows=[];
   D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
     if(!supCanReplace(a,tc,g)) return;
@@ -3231,7 +3231,7 @@ function renderSupporterView(el){
         const lbl=d.toLocaleString('ru',{day:'numeric',month:'short',weekday:'short'});
         return `<div class="event-row" style="${isToday?'background:var(--color-background-info);border-radius:8px;padding:6px 8px':''}">
           <div style="font-size:13px;font-weight:${isToday?500:400};color:${isToday?'#0C447C':'var(--color-text-primary)'};min-width:90px">${lbl}${isToday?' (сегодня)':''}</div>
-          <div style="display:flex;gap:5px">${duty.morning===a.id?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:20px">☀ 12–13</span>`:''}${duty.evening===a.id?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:20px">🌙 13–19</span>`:''}</div>
+          <div style="display:flex;gap:5px">${duty.morning===a.id?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:20px">12–13</span>`:''}${duty.evening===a.id?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:20px">13–19</span>`:''}</div>
         </div>`;
       }).join('')}
     </div>
@@ -3298,7 +3298,7 @@ function showDutyEdit(dateStr){
         </div>
         <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#FAEEDA;border-radius:10px">
           <span style="font-size:18px">🌙</span>
-          <div><div style="font-size:12px;color:#633806;font-weight:500">Вечер 13:00–19:00</div>
+          <div><div style="font-size:12px;color:#633806;font-weight:500">Послеобед 13:00–19:00</div>
           <div style="font-size:14px;font-weight:500;color:#4a2800">${eSup?eSup.name:'Не назначен'}</div></div>
         </div>
       </div>
@@ -3308,20 +3308,20 @@ function showDutyEdit(dateStr){
 
   const morningOk=supporters.filter(a=>a.schedule==='morning'||a.schedule==='full');
   const eveningOk=supporters.filter(a=>a.schedule==='evening'||a.schedule==='full');
-  const schedIcon=s=>s.schedule==='morning'?'☀':s.schedule==='evening'?'🌙':'🕐';
-  const schedText=s=>s.schedule==='morning'?'утро':s.schedule==='evening'?'вечер':'фулл';
+  const schedIcon=s=>s.schedule==='morning'?'У':s.schedule==='evening'?'П':'Ф';
+  const schedText=s=>s.schedule==='morning'?'утро':s.schedule==='evening'?'послеобед':'фулл';
   const buildOptions=(list,selectedId)=>`<option value="">— не назначен —</option>`+
     list.map(a=>`<option value="${a.id}" ${selectedId===a.id?'selected':''}>${schedIcon(a)} ${a.name} (${supTypeLabel(a.supType,true)}, ${schedText(a)})</option>`).join('');
   openModal(`<div class="modal-title">📅 ${label}</div>
-    <div class="fg"><label class="fl">☀ Утреннее дежурство (12:00–13:00)</label>
+    <div class="fg"><label class="fl">Утреннее дежурство (12:00–13:00)</label>
       <select class="fi" id="duty-m">
         <optgroup label="Рекомендуется (утро/фулл)">${buildOptions(morningOk,duty.morning)}</optgroup>
         <optgroup label="Остальные">${buildOptions(supporters.filter(a=>a.schedule==='evening'),duty.morning)}</optgroup>
       </select>
     </div>
-    <div class="fg"><label class="fl">🌙 Вечернее дежурство (13:00–19:00)</label>
+    <div class="fg"><label class="fl">Послеобеденное дежурство (13:00–19:00)</label>
       <select class="fi" id="duty-e">
-        <optgroup label="Рекомендуется (вечер/фулл)">${buildOptions(eveningOk,duty.evening)}</optgroup>
+        <optgroup label="Рекомендуется (послеобед/фулл)">${buildOptions(eveningOk,duty.evening)}</optgroup>
         <optgroup label="Остальные">${buildOptions(supporters.filter(a=>a.schedule==='morning'),duty.evening)}</optgroup>
       </select>
     </div>
@@ -3373,13 +3373,13 @@ function showDutyQueue(){
     <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:16px">Задайте порядок суппортеров. При заполнении месяца они чередуются по очереди.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div>
-        <div style="font-size:12px;font-weight:600;color:#27500A;background:#EAF3DE;padding:6px 10px;border-radius:8px;margin-bottom:8px">☀ Утро (12–13)</div>
+        <div style="font-size:12px;font-weight:600;color:#27500A;background:#EAF3DE;padding:6px 10px;border-radius:8px;margin-bottom:8px">Утро (12–13)</div>
         <div id="q-morning-list">${renderList('morning')}</div>
         ${notInM.length?`<select id="q-add-morning" class="fi" style="margin-top:8px;font-size:12px"><option value="">+ Добавить</option>${notInM.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select>
         <button onclick="dutyQueueAdd('morning')" style="width:100%;margin-top:4px;padding:5px;border-radius:6px;border:0.5px solid #e0e4f0;background:white;cursor:pointer;font-size:12px">Добавить</button>`:''}
       </div>
       <div>
-        <div style="font-size:12px;font-weight:600;color:#633806;background:#FAEEDA;padding:6px 10px;border-radius:8px;margin-bottom:8px">🌙 Вечер (13–19)</div>
+        <div style="font-size:12px;font-weight:600;color:#633806;background:#FAEEDA;padding:6px 10px;border-radius:8px;margin-bottom:8px">Послеобед (13–19)</div>
         <div id="q-evening-list">${renderList('evening')}</div>
         ${notInE.length?`<select id="q-add-evening" class="fi" style="margin-top:8px;font-size:12px"><option value="">+ Добавить</option>${notInE.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select>
         <button onclick="dutyQueueAdd('evening')" style="width:100%;margin-top:4px;padding:5px;border-radius:6px;border:0.5px solid #e0e4f0;background:white;cursor:pointer;font-size:12px">Добавить</button>`:''}
@@ -3930,8 +3930,8 @@ function renderSupporterProfile(el){
           return `<div class="event-row">
             <div style="font-size:12px;color:var(--color-text-secondary);min-width:90px">${lbl}</div>
             <div style="display:flex;gap:6px">
-              ${duty.morning===a.id?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px">☀ 12–13</span>`:''}
-              ${duty.evening===a.id?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px">🌙 13–19</span>`:''}
+              ${duty.morning===a.id?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px">12–13</span>`:''}
+              ${duty.evening===a.id?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px">13–19</span>`:''}
             </div>
           </div>`;
         }).join('');
@@ -3961,8 +3961,8 @@ function renderSupporterProfile(el){
           return `<div class="event-row">
             <div style="font-size:12px;color:var(--color-text-secondary);min-width:100px">${lbl}</div>
             <div style="display:flex;gap:5px">
-              ${duty.morning===a.id?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px">☀ 12–13</span>`:''}
-              ${duty.evening===a.id?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px">🌙 13–19</span>`:''}
+              ${duty.morning===a.id?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px">12–13</span>`:''}
+              ${duty.evening===a.id?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px">13–19</span>`:''}
             </div>
           </div>`;
         }).join('')}
@@ -4419,8 +4419,8 @@ function renderDutyPage(el){
         <span style="font-size:12px;font-weight:500;color:${isToday?'#0C447C':'var(--color-text-primary)'}">${d}</span>
         ${isManual?`<span style="font-size:8px;background:#eef2ff;color:#4361ee;border-radius:3px;padding:0 3px">✎</span>`:''}
       </div>
-      ${mSup?`<div style="font-size:10px;background:${mHighlight?'#639922':'#EAF3DE'};color:${mHighlight?'white':'#27500A'};border-radius:4px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${mSup.name}">☀ ${ini(mSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;margin-bottom:2px;border:1px dashed var(--color-border-tertiary)">☀ —</div>`}
-      ${eSup?`<div style="font-size:10px;background:${eHighlight?'#BA7517':'#FAEEDA'};color:${eHighlight?'white':'#633806'};border-radius:4px;padding:1px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${eSup.name}">🌙 ${ini(eSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;border:1px dashed var(--color-border-tertiary)">🌙 —</div>`}
+      ${mSup?`<div style="font-size:10px;background:${mHighlight?'#639922':'#EAF3DE'};color:${mHighlight?'white':'#27500A'};border-radius:4px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${mSup.name}">${ini(mSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;margin-bottom:2px;border:1px dashed var(--color-border-tertiary)">— утро</div>`}
+      ${eSup?`<div style="font-size:10px;background:${eHighlight?'#BA7517':'#FAEEDA'};color:${eHighlight?'white':'#633806'};border-radius:4px;padding:1px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${eSup.name}">${ini(eSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;border:1px dashed var(--color-border-tertiary)">— пообед</div>`}
     </div>`;
   }
   calHtml+=`</div>`;
@@ -4429,7 +4429,7 @@ function renderDutyPage(el){
   el.innerHTML=`
     <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">Расписание дежурств</span></div>
     <div class="ph">
-      <div><div class="pt">📅 Расписание дежурств</div><div class="ps">Утро 12:00–13:00 · Вечер 13:00–19:00</div></div>
+      <div><div class="pt">📅 Расписание дежурств</div><div class="ps">Утро 12:00–13:00 · Послеобед 13:00–19:00</div></div>
       ${isAdmin()?`<div style="display:flex;gap:8px">
         <button onclick="showDutyQueue()" style="padding:7px 14px;border-radius:8px;border:1.5px solid #4361ee;background:#eef2ff;color:#4361ee;cursor:pointer;font-size:13px;font-weight:500">🔄 Очередь</button>
         <button onclick="fillMonthFromQueue('${month}')" style="padding:7px 14px;border-radius:8px;border:1.5px solid #27500A;background:#EAF3DE;color:#27500A;cursor:pointer;font-size:13px;font-weight:500">⚡ Заполнить месяц</button>
@@ -4449,8 +4449,8 @@ function renderDutyPage(el){
         <button onclick="window._dutyMonth='${nextStr}';gotoPage('duties')" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;font-size:13px"> →</button>
       </div>
       <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <span style="font-size:12px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#EAF3DE;border-radius:3px;display:inline-block"></span>☀ Утро (12–13)</span>
-        <span style="font-size:12px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#FAEEDA;border-radius:3px;display:inline-block"></span>🌙 Вечер (13–19)</span>
+        <span style="font-size:12px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#EAF3DE;border-radius:3px;display:inline-block"></span>Утро (12–13)</span>
+        <span style="font-size:12px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#FAEEDA;border-radius:3px;display:inline-block"></span>Послеобед (13–19)</span>
         <span style="font-size:12px;color:var(--color-text-tertiary)">Нажмите на день чтобы назначить</span>
         ${isAdmin()?`<span style="font-size:12px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#eef2ff;border:1.5px solid #4361ee;border-radius:3px;display:inline-block"></span>✎ Изменено вручную</span>`:''}
       </div>
