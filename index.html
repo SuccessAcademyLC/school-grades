@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780642101';
+  const APP_VERSION='1780642257';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2182,6 +2182,12 @@ function showEditT(id){
         </label>
       </div>
     </div>
+    <div class="fg"><label class="fl">Новый пароль <span style="font-size:11px;color:#888;font-weight:400">(оставьте пустым чтобы не менять)</span></label>
+      <div style="display:flex;gap:6px">
+        <input type="text" class="fi" id="et-pass" placeholder="Введите новый пароль..." style="flex:1">
+        <button onclick="navigator.clipboard.writeText(document.getElementById('et-pass').value).then(()=>toast('Пароль скопирован ✓','success'))" style="padding:6px 10px;border-radius:8px;border:1px solid #e0e0e0;background:white;font-size:12px;cursor:pointer">📋</button>
+      </div>
+    </div>
     <div class="fa">
       <button class="btn btn-dan btn-sm" onclick="confirmDelT('${id}')">Удалить</button>
       <button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
@@ -2190,13 +2196,18 @@ function showEditT(id){
   setTimeout(()=>document.getElementById('et-name')?.focus(),80);
 }
 
-function editT(id){
+async function editT(id){
   const t=D.teachers.find(x=>x.id===id);if(!t) return;
   const name=document.getElementById('et-name')?.value?.trim();
   if(!name){toast('Введите имя','error');return;}
   t.name=name;
   t.phone=document.getElementById('et-phone')?.value?.trim()||t.phone||'';
   t.lang=document.querySelector('input[name="et-lang"]:checked')?.value||t.lang||'ru';
+  const pass=document.getElementById('et-pass')?.value?.trim();
+  if(pass&&pass.length>=4){
+    const acc=(D.accounts||[]).find(a=>a.teacherId===id);
+    if(acc) acc.password=await hashPass(pass);
+  }
   closeModal();renderAll();sched();toast('Преподаватель обновлён ✓','success');
 }
 
