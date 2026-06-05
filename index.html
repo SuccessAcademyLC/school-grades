@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780641099';
+  const APP_VERSION='1780641569';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3672,78 +3672,25 @@ function renderStudentView(el){
 
 function countGroupDebts(g){
   if(!g||window._qrViewMode) return 0;
-  const ok=v=>v!==null&&v!==undefined&&v!==''&&Number(v)>0;
+  const filled=v=>v!==null&&v!==undefined&&v!=='';
   const isRus=RUS_LEVELS.includes(g.level);
   let total=0;
   (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
-    if(isRus){
-      const cfg=RUS_CFG[g.level];if(!cfg) return;
-      const convs=s.conversations||[],hws=s.homework||[],vocabs=s.vocabulary||[];
-      for(let i=0;i<cfg.conv;i++){
-        if(ok(convs[i])){if(!ok(hws[i])||!ok(vocabs[i])) total++;}
-      }
-    } else {
-      const startU=(s.startUnit||1)-1,startA=(s.startAT||1)-1;
-      const units=s.units||Array(12).fill(null);
-      let lastU=-1;for(let i=11;i>=0;i--){if(ok(units[i])){lastU=i;break;}}
-      for(let i=startU;i<lastU;i++){if(!ok(units[i])) total++;}
-      const ats=s.achievements||Array(5).fill(null);
-      let lastA=-1;for(let i=4;i>=0;i--){if(ok(ats[i])){lastA=i;break;}}
-      for(let i=startA;i<lastA;i++){if(!ok(ats[i])) total++;}
-      const hws=s.homework||Array(5).fill(null);
-      let lastHW=-1;for(let i=4;i>=0;i--){if(ok(hws[i])){lastHW=i;break;}}
-      for(let i=startA;i<=Math.max(lastA,lastHW);i++){
-        const hasAT=ok(ats[i]),hasHW=ok(hws[i]);
-        if((hasAT&&!hasHW)||(hasHW&&!hasAT)) total++;
-      }
-    }
+    total+=getDebts(s,g.level).length;
   });
   return total;
 }
 
 function renderGroupDebts(g){
-  // Only for admin and teacher, hidden in QR view
   if(window._qrViewMode) return '';
   if(!isAdmin()&&curUser?.role!=='teacher') return '';
 
-  const ok=v=>v!==null&&v!==undefined&&v!==''&&Number(v)>0;
   const isRus=RUS_LEVELS.includes(g.level);
   const students=(g.students||[]).filter(s=>s&&s.name&&!s.hidden);
 
   const debtors=[];
   students.forEach(s=>{
-    const debts=[];
-    if(isRus){
-      const cfg=RUS_CFG[g.level];if(!cfg) return;
-      const convs=s.conversations||[];
-      const hws=s.homework||[];
-      const vocabs=s.vocabulary||[];
-      for(let i=0;i<cfg.conv;i++){
-        if(ok(convs[i])){
-          if(!ok(hws[i]))   debts.push({type:'hw',label:`ДЗ${i+1}`});
-          if(!ok(vocabs[i])) debts.push({type:'vocab',label:`Сл${i+1}`});
-        }
-      }
-    } else {
-      const startU=(s.startUnit||1)-1;
-      const startA=(s.startAT||1)-1;
-      const units=s.units||Array(12).fill(null);
-      let lastU=-1;
-      for(let i=11;i>=0;i--){if(ok(units[i])){lastU=i;break;}}
-      for(let i=startU;i<lastU;i++){if(!ok(units[i])) debts.push({type:'u',label:`U${i+1}`});}
-      const ats=s.achievements||Array(5).fill(null);
-      let lastA=-1;
-      for(let i=4;i>=0;i--){if(ok(ats[i])){lastA=i;break;}}
-      for(let i=startA;i<lastA;i++){if(!ok(ats[i])) debts.push({type:'at',label:`AT${i+1}`});}
-      const hws=s.homework||Array(5).fill(null);
-      let lastHW=-1;
-      for(let i=4;i>=0;i--){if(ok(hws[i])){lastHW=i;break;}}
-      for(let i=startA;i<=Math.max(lastA,lastHW);i++){
-        const hasAT=ok(ats[i]),hasHW=ok(hws[i]);
-        if(hasAT&&!hasHW) debts.push({type:'hw',label:`HW${i+1}`});
-        if(hasHW&&!hasAT) debts.push({type:'at',label:`AT${i+1}`});
-      }
-    }
+    const debts=getDebts(s,g.level).map(d=>({type:d.key,label:d.label}));
     if(debts.length) debtors.push({s,debts});
   });
 
