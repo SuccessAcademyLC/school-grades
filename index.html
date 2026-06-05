@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780631826';
+  const APP_VERSION='1780632881';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -900,6 +900,7 @@ function renderMain(){
     if(curUser?.role==='student'){renderStudentView(el);return;}
     if(curPage==='duties') renderDutyPage(el);
     else if(curPage==='sup_events') renderSupporterEvents(el);
+    else if(curPage==='sup_debts') renderSupDebtsPage(el);
     else if(curPage==='debts') renderDebtsPage(el);
     else if(curPage==='accounts') renderAccounts(el);
     else if(curPage==='students') renderStudentsPage(el);
@@ -2947,6 +2948,83 @@ function getDebts(s,level){
 
 
 // ── Debts Page ────────────────────────────────────────────────────────────
+function renderSupDebtsPage(el){
+  const supId=window._debtsSupFilter||curUser?.accountId;
+  const a=(D.accounts||[]).find(x=>x.id===supId);
+  const q=(window._supDebtsQ||'').toLowerCase();
+  const filterType=window._supDebtsType||'all';
+  const filterLevel=window._supDebtsLevel||'all';
+
+  const DEBT_COLORS={u:'#e3f2fd:#1565c0:#90caf9',hw:'#f3e5f5:#6a1b9a:#ce93d8',at:'#fff3e0:#e65100:#ffb74d'};
+  const dbg=key=>{const p=(DEBT_COLORS[key]||DEBT_COLORS.u).split(':');return `background:${p[0]};color:${p[1]};border:1px solid ${p[2]}`;};
+
+  const allRows=[];
+  D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+    if(a&&!supCanReplace(a,tc,g)) return;
+    (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
+      const debts=getDebts(s,g.level);
+      if(!debts.length) return;
+      if(filterType!=='all'&&!debts.find(d=>d.key===filterType)) return;
+      if(filterLevel!=='all'&&g.level!==filterLevel) return;
+      if(q&&!s.name.toLowerCase().includes(q)&&!tc.name.toLowerCase().includes(q)) return;
+      const shown=filterType==='all'?debts:debts.filter(d=>d.key===filterType);
+      allRows.push({s,g,tc,debts,shown});
+    });
+  }));
+  allRows.sort((a,b)=>b.shown.length-a.shown.length);
+
+  const levels=[...new Set(allRows.map(r=>r.g.level))].sort();
+
+  el.innerHTML=`
+    <div class="bc">
+      <span class="bc-l" onclick="gotoPage(null);view='supporter';renderAll()">Мой кабинет</span>
+      <span class="bc-s">›</span>
+      <span class="bc-c">Должники</span>
+    </div>
+    <div class="ph">
+      <div><div class="pt">⚠️ Должники</div>
+        <div class="ps">${allRows.length} студентов · ${allRows.reduce((s,r)=>s+r.shown.length,0)} незакрытых тестов</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;align-items:center;gap:6px;background:var(--color-background-secondary);border-radius:8px;padding:5px 10px;flex:1;min-width:160px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" value="${window._supDebtsQ||''}" placeholder="Поиск по имени..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="clearTimeout(window._supDT2);window._supDT2=setTimeout(()=>{window._supDebtsQ=this.value;renderMain();},250)">
+        </div>
+        <select class="fs" style="min-width:130px" onchange="window._supDebtsType=this.value;renderMain()">
+          <option value="all" ${filterType==='all'?'selected':''}>Все типы</option>
+          <option value="u" ${filterType==='u'?'selected':''}>Unit Tests</option>
+          <option value="at" ${filterType==='at'?'selected':''}>AT / Словарь</option>
+          <option value="hw" ${filterType==='hw'?'selected':''}>Homework</option>
+        </select>
+        <select class="fs" style="min-width:120px" onchange="window._supDebtsLevel=this.value;renderMain()">
+          <option value="all">Все уровни</option>
+          ${levels.map(l=>`<option value="${l}" ${filterLevel===l?'selected':''}>${lvl(l)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    ${!allRows.length
+      ?`<div class="card" style="text-align:center;padding:40px">
+          <div style="font-size:32px;margin-bottom:12px">✅</div>
+          <div style="font-size:15px;font-weight:500">Должников нет</div>
+          <div style="font-size:13px;color:var(--color-text-secondary);margin-top:6px">Все студенты сдали тесты</div>
+        </div>`
+      :`<div class="card">
+        ${allRows.map(r=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${r.s.name}</div>
+            <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${r.tc.name} · ${r.g.day} ${r.g.time} · <span class="lp lv-${lvc(r.g.level)}" style="font-size:10px;padding:1px 6px">${lvl(r.g.level)}</span></div>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:55%">
+            ${r.shown.map(d=>`<span style="font-size:11px;padding:2px 7px;border-radius:10px;${dbg(d.key)};white-space:nowrap">${d.label}</span>`).join('')}
+          </div>
+        </div>`).join('')}
+      </div>`}`;
+}
+
 function renderDebtsPage(el){
   const q=(window._debtsQ||'').toLowerCase();
   const filterType=window._debtsType||'all';
@@ -3162,16 +3240,15 @@ function renderSupporterView(el){
       <div style="display:flex;gap:6px;flex-wrap:wrap">${levels.map(l=>`<span class="demo-chip ${(a.demos||{})[l]?'demo-chip-ok':'demo-chip-no'}">${(a.demos||{})[l]?'✓ ':''} ${SUP_LEVEL_LABELS[l]}</span>`).join('')}</div>
     </div>
     <div class="card" style="margin-bottom:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div class="card-title">⚠️ Должники (${debtRows.length})</div>
-        <input type="text" value="${window._supDebtQ||''}" placeholder="Поиск..." style="border:1.5px solid #e0e4f0;border-radius:8px;padding:5px 10px;font-size:12px;width:120px" oninput="clearTimeout(window._supDT);window._supDT=setTimeout(()=>{window._supDebtQ=this.value.toLowerCase();renderSupporterView(document.getElementById('main'));},250)">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="card-title">⚠️ Должники</div>
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-top:4px">${debtRows.length} студентов с незакрытыми тестами</div>
+        </div>
+        <button onclick="window._debtsSupFilter=\'${a.id}\';gotoPage(\'sup_debts\')" style="padding:9px 18px;border-radius:10px;border:none;background:#FAEEDA;color:#633806;font-size:13px;font-weight:600;cursor:pointer">
+          Открыть →
+        </button>
       </div>
-      ${!debtRows.length?`<div style="font-size:13px;color:#bbb">Должников нет ✅</div>`:
-      debtRows.map(({s,g,tc,debts})=>`<div class="event-row">
-        <div style="flex:1"><div style="font-size:13px;font-weight:500">${s.name}</div>
-        <div style="font-size:11px;color:var(--color-text-secondary)">${tc.name} · ${g.day} ${g.time} · ${g.level}</div></div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap">${debts.map(d=>`<span style="font-size:11px;padding:2px 7px;border-radius:10px;${dbg(d.key)}">${d.label}</span>`).join('')}</div>
-      </div>`).join('')}
     </div>
     <div class="card" style="margin-bottom:12px">
       <div class="card-title" style="margin-bottom:12px">🔄 История замен (${replHistory.length})</div>
