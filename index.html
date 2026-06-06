@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780739641';
+  const APP_VERSION='1780740017';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -632,6 +632,100 @@ const LANGS={
 };
 const t=tr;
 function tr(k){try{return(LANGS[curLang]||LANGS.ru)[k]||k;}catch(e){return k;}}
+
+function countGroupDebts(g){
+  if(!g||window._qrViewMode) return 0;
+  return (g.students||[]).filter(s=>s&&s.name&&!s.hidden).reduce((t,s)=>t+getDebts(s,g.level).length,0);
+}
+
+function renderGroupDebts(g){
+  if(window._qrViewMode) return '';
+  if(!isAdmin()&&curUser?.role!=='teacher') return '';
+  const debtors=[];
+  (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
+    const debts=getDebts(s,g.level).map(d=>({type:d.key,label:d.label}));
+    if(debts.length) debtors.push({s,debts});
+  });
+  if(!debtors.length) return `<div style="margin-top:12px;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f0fdf4;border-radius:10px;font-size:13px;color:#166534">✅ Должников нет — все тесты сданы</div>`;
+  const tagStyle={u:'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd',at:'background:#ffedd5;color:#9a3412;border:1px solid #fdba74',hw:'background:#fce7f3;color:#9d174d;border:1px solid #f9a8d4',vocab:'background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd',conv:'background:#dcfce7;color:#166534;border:1px solid #86efac'};
+  return `<div style="margin-top:14px;background:#ffffff;border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.08)" class="debt-card-outer">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span style="font-size:13px;font-weight:600;color:var(--color-text-primary)">Должники группы</span>
+      <span style="margin-left:auto;background:#FAEEDA;color:#633806;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:600">${debtors.length} ${debtors.length===1?'студент':debtors.length<5?'студента':'студентов'}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${debtors.map(({s,debts})=>`<div style="background:#f8f9fb;border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px" class="debt-card-inner">
+        <div style="width:30px;height:30px;border-radius:50%;background:#FAEEDA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#633806;flex-shrink:0">${ini(s.name)}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500;color:#111;margin-bottom:6px" class="debt-stu-name">${s.name}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${debts.map(d=>`<span style="font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;${tagStyle[d.type]||tagStyle.u}">${d.label}</span>`).join('')}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function showProfile(){
+  const isAdm=curUser?.role==='admin';
+  const isTch=curUser?.role==='teacher';
+  const isSup=curUser?.role==='supporter';
+  if(isAdm){
+    openModal(`<div class="modal-title">👑 Профиль администратора</div>
+      <div class="fg"><label class="fl">Имя</label><input type="text" class="fi" id="pp-name" value="${D.settings?.adminName||'Администратор'}"></div>
+      <div style="background:#f8f9fb;border-radius:12px;padding:16px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:#4361ee;margin-bottom:12px">🔐 Смена PIN-кода</div>
+        <div class="fg" style="margin-bottom:10px"><label class="fl">Текущий PIN</label><input type="password" class="fi" id="pp-old" placeholder="Текущий PIN"></div>
+        <div class="fg" style="margin-bottom:10px"><label class="fl">Новый PIN</label><input type="password" class="fi" id="pp-new" placeholder="Мин. 4 символа"></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">Подтвердите PIN</label><input type="password" class="fi" id="pp-confirm" placeholder="Повторите PIN"></div>
+      </div>
+      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+        <button class="btn btn-pri" onclick="saveAdminProfile()">Сохранить</button></div>`);
+  } else if(isTch){
+    const acc=(D.accounts||[]).find(a=>a.id===curUser.accountId);
+    openModal(`<div class="modal-title">👤 Мой профиль</div>
+      <div class="fg"><label class="fl">Новый пароль</label><input type="password" class="fi" id="pp-new" placeholder="Мин. 4 символа"></div>
+      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+        <button class="btn btn-pri" onclick="saveTeacherProfile()">Сохранить</button></div>`);
+  } else if(isSup){
+    openModal(`<div class="modal-title">🤝 Мой профиль</div>
+      <div class="fg"><label class="fl">Новый пароль</label><input type="password" class="fi" id="pp-new" placeholder="Мин. 4 символа"></div>
+      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+        <button class="btn btn-pri" onclick="saveSupporterProfile()">Сохранить</button></div>`);
+  }
+}
+
+async function saveAdminProfile(){
+  const name=document.getElementById('pp-name')?.value?.trim();
+  const old=document.getElementById('pp-old')?.value;
+  const nw=document.getElementById('pp-new')?.value?.trim();
+  const cf=document.getElementById('pp-confirm')?.value?.trim();
+  let changed=false;
+  if(name){D.settings.adminName=name;curUser.name=name;changed=true;}
+  if(old||nw||cf){
+    const pinOk=await checkPass(old,D.settings?.pin||DPIN);
+    if(!pinOk){toast('Неверный текущий PIN','error');return;}
+    if(!nw||nw.length<4){toast('Новый PIN минимум 4 символа','error');return;}
+    if(nw!==cf){toast('PIN-коды не совпадают','error');return;}
+    D.settings.pin=await hashPass(nw);changed=true;
+  }
+  if(changed){closeModal();sched();toast('Профиль сохранён ✓','success');}
+  else closeModal();
+}
+
+async function saveTeacherProfile(){
+  const acc=(D.accounts||[]).find(a=>a.id===curUser.accountId);if(!acc) return;
+  const nw=document.getElementById('pp-new')?.value?.trim();
+  if(nw&&nw.length>=4){acc.password=await hashPass(nw);sched();toast('Пароль изменён ✓','success');}
+  closeModal();
+}
+
+async function saveSupporterProfile(){
+  const acc=(D.accounts||[]).find(a=>a.id===curUser.accountId);if(!acc) return;
+  const nw=document.getElementById('pp-new')?.value?.trim();
+  if(nw&&nw.length>=4){acc.password=await hashPass(nw);sched();toast('Пароль изменён ✓','success');}
+  closeModal();
+}
 
 function supLevels(a){
   if(!a) return [];
