@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780724822';
+  const APP_VERSION='1780739641';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -557,6 +557,7 @@ const LEVELS=['beginner','elementary','pre-intermediate','intermediate','upper-i
 const LEVEL_ORDER=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
 const SUP_LEVELS_ENG=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
 const SUP_LEVELS_RUS=['rus-1','rus-2','rus-3','rus-4'];
+const SUP_LEVEL_LABELS={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int','intermediate':'Intermediate','upper-intermediate':'Upper-Int','rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4'};
 const DPIN='1234';
 const SHEETS_WEBHOOK='https://script.google.com/macros/s/AKfycbxZgmqmKZudaFSjK-XAg1pf4kMQe0xwpEPGr_4HoGShuU3Tg91cb2AjgxjmIvxD5Sil/exec';
 const SHEETS_DELAY=1*60*1000; // 1 minute
@@ -631,6 +632,12 @@ const LANGS={
 };
 const t=tr;
 function tr(k){try{return(LANGS[curLang]||LANGS.ru)[k]||k;}catch(e){return k;}}
+
+function supLevels(a){
+  if(!a) return [];
+  if(a.supType==='rus') return SUP_LEVELS_RUS||RUS_LEVELS;
+  return SUP_LEVELS_ENG||['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+}
 
 function supTypeLabel(type,short=false){
   if(short){const m={'eng-ru':'Англ (рус)','eng-kk':'Англ (кк)','rus':'Рус яз'};return m[type]||type||'—';}
