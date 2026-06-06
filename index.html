@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780723668';
+  const APP_VERSION='1780724256';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3986,6 +3986,381 @@ async function initApp(){
 }
 
 function renderAll(){renderSidebar();renderMain();}
+
+// ── Duty Page ──────────────────────────────────────────────────────────────
+function renderDutyPage(el){
+  if(!isAdmin()&&curUser?.role!=='supporter'){el.innerHTML=`<div class="ph"><div class="pt">Нет доступа</div></div>`;return;}
+  const canEdit2=isAdmin();
+  const filterSup=window._dutyFilterSup||'';
+  const now=new Date();
+  const month=window._dutyMonth||(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+  const [yr,mo]=month.split('-').map(Number);
+  const daysInMonth=new Date(yr,mo,0).getDate();
+  const today=now.toISOString().slice(0,10);
+  const supporters=(D.accounts||[]).filter(a=>a.role==='supporter'&&a.supType!=='rus');
+  const monthName=new Date(yr,mo-1,1).toLocaleString('ru',{month:'long',year:'numeric'});
+  const prevMonth=new Date(yr,mo-2,1);
+  const nextMonth=new Date(yr,mo,1);
+  const prevStr=prevMonth.getFullYear()+'-'+String(prevMonth.getMonth()+1).padStart(2,'0');
+  const nextStr=nextMonth.getFullYear()+'-'+String(nextMonth.getMonth()+1).padStart(2,'0');
+  const duties=D.duties||{};
+  const firstDay=(new Date(yr,mo-1,1).getDay()+6)%7;
+  let calHtml='';
+  const heads=['Пн','Вт','Ср','Чт','Пт','Сб'];
+  calHtml+=`<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:4px">`;
+  heads.forEach(h=>calHtml+=`<div style="text-align:center;font-size:11px;color:var(--color-text-secondary);font-weight:500;padding:4px 0">${h}</div>`);
+  calHtml+=`</div><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px">`;
+  const offset=Math.min(firstDay,5);
+  for(let i=0;i<offset;i++) calHtml+=`<div></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const dow=new Date(yr,mo-1,d).getDay();
+    if(dow===0) continue;
+    const dateStr=`${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const duty=duties[dateStr]||{};
+    const mSup=supporters.find(a=>a.id===duty.morning);
+    const eSup=supporters.find(a=>a.id===duty.evening);
+    const isToday=dateStr===today;
+    const mHighlight=filterSup&&duty.morning===filterSup;
+    const eHighlight=filterSup&&duty.evening===filterSup;
+    const dimmed=filterSup&&!mHighlight&&!eHighlight?'opacity:.35;':'';
+    const isManual=(duty.morning||duty.evening)&&duty._auto===false;
+    calHtml+=`<div onclick="${canEdit2?`showDutyEdit('${dateStr}')`:''}" style="border:${isManual?'1.5px solid #4361ee':'0.5px solid var(--color-border-tertiary)'};border-radius:8px;padding:6px 4px;cursor:${canEdit2?'pointer':'default'};min-height:64px;background:${isToday?'var(--color-background-info)':'var(--color-background-primary)'};${dimmed}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:12px;font-weight:500;color:${isToday?'#0C447C':'var(--color-text-primary)'}">${d}</span>
+        ${isManual?`<span style="font-size:8px;background:#eef2ff;color:#4361ee;border-radius:3px;padding:0 3px">✎</span>`:''}
+      </div>
+      ${mSup?`<div style="font-size:10px;background:${mHighlight?'#639922':'#EAF3DE'};color:${mHighlight?'white':'#27500A'};border-radius:4px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${ini(mSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;margin-bottom:2px;border:1px dashed var(--color-border-tertiary)">— утро</div>`}
+      ${eSup?`<div style="font-size:10px;background:${eHighlight?'#BA7517':'#FAEEDA'};color:${eHighlight?'white':'#633806'};border-radius:4px;padding:1px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${ini(eSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;border:1px dashed var(--color-border-tertiary)">— пообед</div>`}
+    </div>`;
+  }
+  calHtml+=`</div>`;
+  el.innerHTML=`
+    <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">Расписание дежурств</span></div>
+    <div class="ph">
+      <div><div class="pt">📅 Расписание дежурств</div><div class="ps">Утро 12:00–13:00 · Послеобед 13:00–19:00</div></div>
+      ${isAdmin()?`<div style="display:flex;gap:8px">
+        <button onclick="showDutyQueue()" style="padding:7px 14px;border-radius:8px;border:1.5px solid #4361ee;background:#eef2ff;color:#4361ee;cursor:pointer;font-size:13px;font-weight:500">🔄 Очередь</button>
+        <button onclick="fillMonthFromQueue('${month}')" style="padding:7px 14px;border-radius:8px;border:1.5px solid #27500A;background:#EAF3DE;color:#27500A;cursor:pointer;font-size:13px;font-weight:500">⚡ Заполнить месяц</button>
+      </div>`:''}
+    </div>
+    <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select class="fs" style="flex:1;min-width:150px" onchange="window._dutyFilterSup=this.value;renderMain()">
+        <option value="">Все суппортеры</option>
+        ${supporters.map(a=>`<option value="${a.id}" ${filterSup===a.id?'selected':''}>${a.name}</option>`).join('')}
+      </select>
+      ${filterSup?`<button onclick="window._dutyFilterSup='';renderMain()" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;font-size:13px">✕ Сбросить</button>`:''}
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <button onclick="window._dutyMonth='${prevStr}';gotoPage('duties')" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer">←</button>
+        <div style="font-size:15px;font-weight:500">${monthName}</div>
+        <button onclick="window._dutyMonth='${nextStr}';gotoPage('duties')" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer">→</button>
+      </div>
+      ${calHtml}
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px">Суппортеры (англ)</div>
+      ${supporters.map(a=>{
+        const myDays=Object.entries(D.duties||{}).filter(([d,v])=>d.startsWith(month)&&(v.morning===a.id||v.evening===a.id));
+        const mC=myDays.filter(([d,v])=>v.morning===a.id).length;
+        const eC=myDays.filter(([d,v])=>v.evening===a.id).length;
+        return `<div class="event-row">
+          <div class="t-av" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2b9348,#1b5e20);color:white;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini(a.name)}</div>
+          <div style="flex:1"><div style="font-size:13px;font-weight:500">${a.name}</div><div style="font-size:11px;color:var(--color-text-secondary)">${supTypeLabel(a.supType,true)}</div></div>
+          <span style="background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px;font-size:12px;margin-right:4px">☀ ${mC}</span>
+          <span style="background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px;font-size:12px">🌙 ${eC}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── Supporter Events Page ──────────────────────────────────────────────────
+function renderSupporterEvents(el){
+  const filterSup=window._supEvFilter||'';
+  const filterType=window._supEvType||'all';
+  const now=new Date();
+  const filterMonth=window._supEvMonth||(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+  const supporters=(D.accounts||[]).filter(a=>a.role==='supporter');
+  let events=[];
+  supporters.forEach(a=>{
+    (a.replacements||[]).forEach(r=>{if(!filterSup||a.id===filterSup)if(!filterType||filterType==='all'||filterType==='replace')events.push({...r,supId:a.id,supName:a.name,evType:'replace'});});
+    (a.mockTests||[]).forEach(r=>{if(!filterSup||a.id===filterSup)if(!filterType||filterType==='all'||filterType===r.type)events.push({...r,supId:a.id,supName:a.name,evType:r.type||'mock'});});
+  });
+  if(filterMonth) events=events.filter(e=>(e.date||e.dateFrom||'').startsWith(filterMonth));
+  events.sort((a,b)=>(a.date||a.dateFrom||'').localeCompare(b.date||b.dateFrom||''));
+  el.innerHTML=`
+    <div class="ph"><div><div class="pt">📝 События суппортеров</div><div class="ps">${events.length} событий</div></div>
+      ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAddGlobalEvent()">+ Событие</button>`:''}
+    </div>
+    <div class="card" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <select class="fs" style="flex:1" onchange="window._supEvFilter=this.value;renderMain()">
+        <option value="">Все суппортеры</option>
+        ${supporters.map(a=>`<option value="${a.id}" ${filterSup===a.id?'selected':''}>${a.name}</option>`).join('')}
+      </select>
+      <select class="fs" style="flex:1" onchange="window._supEvType=this.value;renderMain()">
+        <option value="all">Все типы</option>
+        <option value="replace">Замены</option>
+        <option value="mock">Мок-тест</option>
+        <option value="at">AT</option>
+        <option value="demo">Демо</option>
+      </select>
+      <input type="month" class="fs" value="${filterMonth}" style="flex:1" onchange="window._supEvMonth=this.value;renderMain()">
+    </div>
+    <div class="card">
+      ${!events.length?`<div style="padding:20px;text-align:center;color:#bbb">Нет событий</div>`:''}
+      ${events.map(e=>`<div class="event-row">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${e.supName}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">${e.evType==='replace'?`Замена: ${e.groupName||'—'} · ${e.dateFrom||''}–${e.dateTo||''}`:`${e.type||e.evType}: ${e.groupName||''} · ${e.date||''}`}</div>
+        </div>
+        ${isAdmin()?`<button onclick="delSupEvent('${e.supId}','${e.id}')" style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid #fcc;background:#fff5f5;color:#c00;cursor:pointer">✕</button>`:''}
+      </div>`).join('')}
+    </div>`;
+}
+
+// ── Supporter Assignment Functions ─────────────────────────────────────────
+function showAssignReplace(supId){
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  const today=new Date().toISOString().slice(0,10);
+  const teachers=D.teachers.filter(t=>supCanReplace(a,t,{level:'beginner'})||t.groups.some(g=>supCanReplace(a,t,g)));
+  let groupOptions='';
+  teachers.forEach(t=>(t.groups||[]).forEach(g=>{
+    if(supCanReplace(a,t,g)) groupOptions+=`<option value="${g.id}|${t.id}">${t.name} — ${lvl(g.level)} ${g.day} ${g.time}</option>`;
+  }));
+  openModal(`<div class="modal-title">📅 Назначить замену — ${a.name}</div>
+    <div class="fg"><label class="fl">Группа</label>
+      <select class="fi" id="rep-group"><option value="">Выберите группу...</option>${groupOptions}</select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Дата начала</label><input type="date" class="fi" id="rep-from" value="${today}"></div>
+      <div class="fg"><label class="fl">Дата конца</label><input type="date" class="fi" id="rep-to" value="${today}"></div>
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="confirmAssignReplace('${supId}')">Назначить</button></div>`);
+}
+
+function confirmAssignReplace(supId){
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  const sel=document.getElementById('rep-group')?.value;
+  const dateFrom=document.getElementById('rep-from')?.value;
+  const dateTo=document.getElementById('rep-to')?.value;
+  if(!sel){toast('Выберите группу','error');return;}
+  if(!dateFrom||!dateTo){toast('Укажите даты','error');return;}
+  const [gid,tid]=sel.split('|');
+  const tc=D.teachers.find(t=>t.id===tid);
+  const g=(tc?.groups||[]).find(x=>x.id===gid);
+  if(!a.replacements) a.replacements=[];
+  const overlap=a.replacements.find(r=>r.active&&r.dateFrom<=dateTo&&r.dateTo>=dateFrom);
+  if(overlap){toast(`Пересечение с заменой ${overlap.dateFrom}–${overlap.dateTo}`,'error');return;}
+  a.replacements.push({id:uid(),groupId:gid,teacherId:tid,groupName:`${tc?.name||''} — ${lvl(g?.level||'')} ${g?.day||''} ${g?.time||''}`,dateFrom,dateTo,active:true});
+  closeModal();sched();toast('Замена назначена ✓','success');renderAll();
+}
+
+function showAssignEvent(supId){
+  const today=new Date().toISOString().slice(0,10);
+  openModal(`<div class="modal-title">📝 Добавить событие</div>
+    <div class="fg"><label class="fl">Тип</label>
+      <select class="fi" id="ev-type">
+        <option value="mock">Мок-тест</option>
+        <option value="at">Achievement Test</option>
+        <option value="demo">Демо-урок</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Группа / Описание</label><input type="text" class="fi" id="ev-group" placeholder="Название группы или описание"></div>
+    <div class="fg"><label class="fl">Дата</label><input type="date" class="fi" id="ev-date" value="${today}"></div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="confirmAssignEvent('${supId}')">Сохранить</button></div>`);
+}
+
+function confirmAssignEvent(supId){
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  const type=document.getElementById('ev-type')?.value||'mock';
+  const groupName=document.getElementById('ev-group')?.value?.trim()||'';
+  const date=document.getElementById('ev-date')?.value;
+  if(!date){toast('Укажите дату','error');return;}
+  if(!a.mockTests) a.mockTests=[];
+  a.mockTests.push({id:uid(),type,groupName,date});
+  closeModal();sched();toast('Событие добавлено ✓','success');renderAll();
+}
+
+function showEditReplace(supId,evId){
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  const r=(a.replacements||[]).find(x=>x.id===evId);if(!r) return;
+  openModal(`<div class="modal-title">✏️ Изменить замену</div>
+    <div class="fg"><label class="fl">Группа</label><input type="text" class="fi" id="er-group" value="${r.groupName||''}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Дата начала</label><input type="date" class="fi" id="er-from" value="${r.dateFrom||''}"></div>
+      <div class="fg"><label class="fl">Дата конца</label><input type="date" class="fi" id="er-to" value="${r.dateTo||''}"></div>
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveEditReplace('${supId}','${evId}')">Сохранить</button></div>`);
+}
+
+function saveEditReplace(supId,evId){
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  const r=(a.replacements||[]).find(x=>x.id===evId);if(!r) return;
+  r.groupName=document.getElementById('er-group')?.value?.trim()||r.groupName;
+  r.dateFrom=document.getElementById('er-from')?.value||r.dateFrom;
+  r.dateTo=document.getElementById('er-to')?.value||r.dateTo;
+  closeModal();sched();toast('Сохранено ✓','success');renderAll();
+}
+
+function showEditEvent(supId,evId){
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  const e=(a.mockTests||[]).find(x=>x.id===evId);if(!e) return;
+  openModal(`<div class="modal-title">✏️ Изменить событие</div>
+    <div class="fg"><label class="fl">Группа / Описание</label><input type="text" class="fi" id="ee-group" value="${e.groupName||''}"></div>
+    <div class="fg"><label class="fl">Дата</label><input type="date" class="fi" id="ee-date" value="${e.date||''}"></div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveEditEvent('${supId}','${evId}')">Сохранить</button></div>`);
+}
+
+function saveEditEvent(supId,evId){
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  const e=(a.mockTests||[]).find(x=>x.id===evId);if(!e) return;
+  e.groupName=document.getElementById('ee-group')?.value?.trim()||e.groupName;
+  e.date=document.getElementById('ee-date')?.value||e.date;
+  closeModal();sched();toast('Сохранено ✓','success');renderAll();
+}
+
+function delSupEvent(supId,evId){
+  if(!confirm('Удалить событие?')) return;
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  a.replacements=(a.replacements||[]).filter(x=>x.id!==evId);
+  a.mockTests=(a.mockTests||[]).filter(x=>x.id!==evId);
+  sched();toast('Удалено','success');renderAll();
+}
+
+function supToggleDemo(supId,level){
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  if(!a.demos) a.demos={};
+  a.demos[level]=!a.demos[level];
+  sched();renderAll();
+}
+
+function submitSupReport(supId){
+  const text=document.getElementById('sup-report-text')?.value?.trim();
+  if(!text){toast('Введите текст','error');return;}
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  if(!a.reports) a.reports=[];
+  a.reports.push({id:uid(),text,date:new Date().toISOString().slice(0,10),resolved:false});
+  document.getElementById('sup-report-text').value='';
+  sched();toast('Отчёт отправлен ✓','success');renderAll();
+}
+
+function showAddGlobalEvent(){
+  const supporters=(D.accounts||[]).filter(a=>a.role==='supporter');
+  openModal(`<div class="modal-title">📝 Добавить событие</div>
+    <div class="fg"><label class="fl">Суппортер</label>
+      <select class="fi" id="ge-sup">
+        ${supporters.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Тип</label>
+      <select class="fi" id="ge-type">
+        <option value="mock">Мок-тест</option>
+        <option value="at">Achievement Test</option>
+        <option value="demo">Демо-урок</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Группа / Описание</label><input type="text" class="fi" id="ge-group" placeholder="Описание"></div>
+    <div class="fg"><label class="fl">Дата</label><input type="date" class="fi" id="ge-date" value="${new Date().toISOString().slice(0,10)}"></div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveGlobalEvent()">Сохранить</button></div>`);
+}
+
+function saveGlobalEvent(){
+  const supId=document.getElementById('ge-sup')?.value;
+  const type=document.getElementById('ge-type')?.value||'mock';
+  const groupName=document.getElementById('ge-group')?.value?.trim()||'';
+  const date=document.getElementById('ge-date')?.value;
+  if(!supId||!date){toast('Заполните все поля','error');return;}
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  if(!a.mockTests) a.mockTests=[];
+  a.mockTests.push({id:uid(),type,groupName,date});
+  closeModal();sched();toast('Событие добавлено ✓','success');renderAll();
+}
+
+// ── Rating Page ────────────────────────────────────────────────────────────
+function renderRating(el){
+  const tab=window._ratingTab||'overall';
+  const levelFilter=window._ratingLevel||'all';
+  const showArchive=window._ratingArchive||false;
+  const lang=window._ratingLang||'en';
+  const medal=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+  const sc=v=>v===null?'#bbb':v>=75?'#1b5e20':v>=70?'#e65100':'#b71c1c';
+  const sb=v=>v===null?'#f5f5f5':v>=75?'#e8f5e9':v>=70?'#fff8e1':'#ffebee';
+  const isRusL=l=>RUS_LEVELS.includes(l);
+  const okv=v=>v!==null&&v!==undefined&&v!==''&&!isNaN(Number(v));
+  const avg=arr=>{const a=(arr||[]).filter(okv).map(Number);return a.length?a.reduce((s,v)=>s+v,0)/a.length:null;};
+  const rows=[];
+  const collect=(teachers,isArch)=>teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+    if(lang==='ru'&&!isRusL(g.level)) return;
+    if(lang==='en'&&isRusL(g.level)) return;
+    if(levelFilter!=='all'&&g.level!==levelFilter) return;
+    (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
+      const overall=calcFinal(s,g.level);
+      const unitAvg=avg(s.units||[]);
+      const atAvg=avg(s.achievements||[]);
+      const done=isRusL(g.level)?okv(s.finalConversation):(okv(s.final)&&okv(s.speaking));
+      rows.push({s,g,tc,overall,unitAvg,atAvg,done,isArch,tcName:tc.name});
+    });
+  }));
+  collect(D.teachers,false);
+  if(showArchive)(D.archives||[]).forEach(a=>collect(a.teachers||[],true));
+  rows.sort((a,b)=>{
+    if(tab==='unit') return (b.unitAvg??-1)-(a.unitAvg??-1);
+    if(tab==='at') return (b.atAvg??-1)-(a.atAvg??-1);
+    return (b.overall??-1)-(a.overall??-1);
+  });
+  const q=(window._ratingSearch||'').toLowerCase();
+  const filtered=q?rows.filter(r=>r.s.name.toLowerCase().includes(q)||r.tcName.toLowerCase().includes(q)):rows;
+  const levels=[...new Set(D.teachers.flatMap(t=>(t.groups||[]).map(g=>g.level)).filter(l=>lang==='ru'?isRusL(l):!isRusL(l)))].sort();
+  const tabBtn=(key,label)=>`<button onclick="window._ratingTab='${key}';renderMain()" style="padding:6px 16px;border-radius:20px;border:1.5px solid ${tab===key?'#4361ee':'#e0e4f0'};background:${tab===key?'#eef2ff':'var(--color-background-primary)'};color:${tab===key?'#4361ee':'var(--color-text-secondary)'};font-size:12px;font-weight:${tab===key?600:400};cursor:pointer">${label}</button>`;
+  el.innerHTML=`
+    <div class="ph"><div><div class="pt">🏆 Рейтинг студентов</div><div class="ps">${filtered.length} студентов</div></div></div>
+    <div class="card" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <div style="display:flex;align-items:center;gap:6px;background:var(--color-background-secondary);border-radius:8px;padding:5px 10px;flex:1;min-width:160px">
+        <input type="text" value="${window._ratingSearch||''}" placeholder="Поиск..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="clearTimeout(window._rt);window._rt=setTimeout(()=>{window._ratingSearch=this.value;renderMain();},250)">
+      </div>
+      <select class="fs" onchange="window._ratingLang=this.value;window._ratingLevel='all';renderMain()">
+        <option value="en" ${lang==='en'?'selected':''}>English</option>
+        <option value="ru" ${lang==='ru'?'selected':''}>Русский язык</option>
+      </select>
+      <select class="fs" onchange="window._ratingLevel=this.value;renderMain()">
+        <option value="all">Все уровни</option>
+        ${levels.map(l=>`<option value="${l}" ${levelFilter===l?'selected':''}>${lvl(l)}</option>`).join('')}
+      </select>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+        <input type="checkbox" ${showArchive?'checked':''} onchange="window._ratingArchive=this.checked;renderMain()" style="accent-color:#4361ee"> С архивом
+      </label>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+      ${tabBtn('overall','Overall')}
+      ${lang==='en'?tabBtn('unit','Unit Tests'):''}
+      ${lang==='en'?tabBtn('at','Achievement Tests'):''}
+    </div>
+    <div class="card">
+      ${!filtered.length?`<div style="padding:30px;text-align:center;color:#bbb">Нет данных</div>`:`
+      <div style="display:grid;grid-template-columns:32px 1fr ${tab!=='overall'?'80px ':''} 80px;padding:6px 0;border-bottom:1.5px solid var(--color-border-secondary);font-size:11px;font-weight:600;color:var(--color-text-secondary)">
+        <div>#</div><div>Студент</div>${tab!=='overall'?`<div style="text-align:center">${tab==='unit'?'Unit avg':'AT avg'}</div>`:''}
+        <div style="text-align:center">Overall</div>
+      </div>
+      ${filtered.map((r,i)=>{
+        const sec=tab==='unit'?r.unitAvg:tab==='at'?r.atAvg:null;
+        const ovS=r.done?`background:${sb(r.overall)};color:${sc(r.overall)}`:`background:#f5f5f5;color:#aaa`;
+        return `<div style="display:grid;grid-template-columns:32px 1fr ${tab!=='overall'?'80px ':''} 80px;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <div style="font-size:14px;text-align:center">${medal(i)}</div>
+          <div><div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${r.s.name}</div>
+            <div style="font-size:11px;color:var(--color-text-secondary)">${r.tcName} · ${lvl(r.g.level)}${r.isArch?' 📦':''}</div></div>
+          ${tab!=='overall'?`<div style="text-align:center;font-size:13px;font-weight:600;background:${sb(sec)};color:${sc(sec)};padding:2px 8px;border-radius:6px;margin:0 4px">${sec!==null?sec.toFixed(1):'—'}</div>`:''}
+          <div style="text-align:center"><span style="font-size:13px;font-weight:700;padding:3px 10px;border-radius:8px;${ovS}">${r.overall!==null?r.overall.toFixed(1):'—'}${!r.done&&r.overall!==null?' *':''}</span></div>
+        </div>`;
+      }).join('')}
+      ${filtered.some(r=>!r.done)?`<div style="font-size:11px;color:#bbb;padding:8px 0 0">* Final/SPT не сданы</div>`:''}
+      `}
+    </div>`;
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
