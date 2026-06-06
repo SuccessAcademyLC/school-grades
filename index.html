@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780722655';
+  const APP_VERSION='1780723108';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -619,6 +619,23 @@ const LANGS={
 };
 const t=tr;
 function tr(k){try{return(LANGS[curLang]||LANGS.ru)[k]||k;}catch(e){return k;}}
+
+function supTypeLabel(type,short=false){
+  if(short){const m={'eng-ru':'Англ (рус)','eng-kk':'Англ (кк)','rus':'Рус яз'};return m[type]||type||'—';}
+  const m={'eng-ru':'Англ (русскоговорящий)','eng-kk':'Англ (каракалпакоговорящий)','rus':'Русский язык'};
+  return m[type]||type||'—';
+}
+function supTypeCls(type){
+  const m={'eng-ru':'badge-blue','eng-kk':'badge-orange','rus':'badge-purple'};return m[type]||'badge-blue';
+}
+function supCanReplace(a,tc,g){
+  if(!a||!tc||!g) return false;
+  const isRus=RUS_LEVELS.includes(g.level);
+  if(a.supType==='rus') return isRus;
+  if(a.supType==='eng-ru') return !isRus&&(tc.lang==='ru'||tc.lang==='rus');
+  if(a.supType==='eng-kk') return !isRus&&tc.lang==='kk';
+  return false;
+}
 
 // ── Toast ─────────────────────────────────────────────────────────────────
 function toast(msg,type){
