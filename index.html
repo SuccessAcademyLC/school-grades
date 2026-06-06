@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780745309';
+  const APP_VERSION='1780746185';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2321,6 +2321,17 @@ function renderSupporterProfile(el){
             ${duty.morning===a.id?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px">Утро</span>`:''}
             ${duty.evening===a.id?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px">Послеобед</span>`:''}
           </div></div>`;}).join('')}
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px">📋 Демо-уровни</div>
+      ${(()=>{
+        const supLvls=RUS_LEVELS.includes((D.accounts||[]).find(x=>x.id===id)?.supType)?RUS_LEVELS:['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+        return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${supLvls.map(l=>`
+          <span onclick="${isAdmin()?`supToggleDemo('${id}','${l}')`:''}" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;cursor:${isAdmin()?'pointer':'default'};${(a.demos||{})[l]?'background:#EAF3DE;color:#27500A;border:1.5px solid #86efac':'background:var(--color-background-secondary);color:var(--color-text-tertiary);border:1px solid var(--color-border-tertiary)'}">
+            ${(a.demos||{})[l]?'✓ ':''}${SUP_LEVEL_LABELS[l]}
+          </span>`).join('')}</div>
+        ${isAdmin()?`<div style="font-size:11px;color:var(--color-text-secondary)">Нажмите на уровень чтобы отметить/снять</div>`:''}`;
+      })()}
     </div>
     <div class="card">
       <div class="card-title" style="margin-bottom:12px">📝 События (${events.length})</div>
