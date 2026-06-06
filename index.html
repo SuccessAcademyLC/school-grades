@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780740017';
+  const APP_VERSION='1780742448';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3430,7 +3430,7 @@ function renderSupDebtsPage(el){
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <div style="display:flex;align-items:center;gap:6px;background:var(--color-background-secondary);border-radius:8px;padding:5px 10px;flex:1;min-width:160px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input type="text" value="${window._supDebtsQ||''}" placeholder="Поиск по имени..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="clearTimeout(window._supDT2);window._supDT2=setTimeout(()=>{window._supDebtsQ=this.value;renderMain();},250)">
+          <input type="text" value="${window._supDebtsQ||''}" placeholder="Поиск по имени..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" id="sup-debts-search-inp" oninput="clearTimeout(window._supDT2);window._supDT2=setTimeout(()=>{window._supDebtsQ=this.value;window._supDebtsSearchPos=this.selectionStart;renderMain();},150)">
         </div>
         <select class="fs" style="min-width:130px" onchange="window._supDebtsType=this.value;renderMain()">
           <option value="all" ${filterType==='all'?'selected':''}>Все типы</option>
@@ -3462,6 +3462,8 @@ function renderSupDebtsPage(el){
           </div>
         </div>`).join('')}
       </div>`}`;
+  // Restore search focus
+  if(window._supDebtsQ){const inp=document.getElementById('sup-debts-search-inp');if(inp){inp.focus();try{inp.setSelectionRange(inp.value.length,inp.value.length);}catch(e){}}}
 }
 
 function renderDebtsPage(el){
@@ -3545,7 +3547,7 @@ function renderDebtsPage(el){
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <div style="display:flex;align-items:center;gap:6px;background:var(--color-background-secondary);border-radius:8px;padding:5px 10px;flex:1;min-width:160px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input type="text" value="${window._debtsQ||''}" placeholder="Поиск по имени..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="clearTimeout(window._debtsT);window._debtsT=setTimeout(()=>{window._debtsQ=this.value;renderMain();},250)">
+          <input type="text" value="${window._debtsQ||''}" placeholder="Поиск по имени..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" id="debts-search-inp" oninput="clearTimeout(window._debtsT);window._debtsT=setTimeout(()=>{window._debtsQ=this.value;window._debtsSearchPos=this.selectionStart;const v=this.value;renderMain();},150)">
         </div>
         <select class="fs" style="min-width:130px" onchange="window._debtsType=this.value;renderMain()">
           <option value="all" ${filterType==='all'?'selected':''}>Все типы</option>
@@ -3574,6 +3576,8 @@ function renderDebtsPage(el){
       <div style="font-size:15px;font-weight:500;color:var(--color-text-primary)">Долгов нет</div>
       <div style="font-size:13px;color:var(--color-text-secondary);margin-top:6px">Все студенты сдали тесты</div>
     </div>`:groupedHtml}`;
+  // Restore search focus
+  if(window._debtsQ){const inp=document.getElementById('debts-search-inp');if(inp){inp.focus();try{inp.setSelectionRange(inp.value.length,inp.value.length);}catch(e){}}}
 }
 
 function debtRow(r,dbg){
