@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780724256';
+  const APP_VERSION='1780724822';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3765,17 +3765,24 @@ function fillMonthFromQueue(month){
   if(!D.duties) D.duties={};
   const mQueue=q.morning||[];
   const eQueue=q.evening||[];
-  let mPtr=0,ePtr=0,filled=0;
+
+  // Сначала удаляем все авто-дни этого месяца
+  Object.keys(D.duties).forEach(d=>{
+    if(d.startsWith(month)&&D.duties[d]._auto!==false) delete D.duties[d];
+  });
+
+  // Заполняем с 0 — день 1 = индекс 0, день 2 = индекс 1...
+  let mPtr=0, ePtr=0, filled=0;
   for(let d=1;d<=daysInMonth;d++){
     const dateStr=`${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     if(new Date(yr,mo-1,d).getDay()===0) continue; // skip Sunday
     const existing=D.duties[dateStr];
-    if(existing&&existing._auto===false) continue; // skip manual
+    if(existing&&existing._auto===false) continue; // preserve manual
     const mId=mQueue.length?mQueue[mPtr%mQueue.length]:null;
     const eId=eQueue.length?eQueue[ePtr%eQueue.length]:null;
     D.duties[dateStr]={morning:mId||null,evening:eId||null,_auto:true};
-    if(mId) mPtr++;
-    if(eId) ePtr++;
+    mPtr++;
+    ePtr++;
     filled++;
   }
   sched();gotoPage('duties');toast(`${filled} дней заполнено ✓`,'success');
