@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780742448';
+  const APP_VERSION='1780745309';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3399,7 +3399,12 @@ function renderSupDebtsPage(el){
 
   const allRows=[];
   D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
-    if(a&&!supCanReplace(a,tc,g)) return;
+    // Filter by level type: rus supporter sees only rus groups, eng sees only eng groups
+    if(a){
+      const isRusGrp=RUS_LEVELS.includes(g.level);
+      if(a.supType==='rus'&&!isRusGrp) return;
+      if(a.supType!=='rus'&&isRusGrp) return;
+    }
     (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
       const debts=getDebts(s,g.level);
       if(!debts.length) return;
@@ -3679,8 +3684,33 @@ function renderSupporterView(el){
       }).join('')}
     </div>
     <div class="card" style="margin-bottom:12px">
-      <div class="card-title" style="margin-bottom:12px">📋 Мои демо-уровни</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">${levels.map(l=>`<span class="demo-chip ${(a.demos||{})[l]?'demo-chip-ok':'demo-chip-no'}">${(a.demos||{})[l]?'✓ ':''} ${SUP_LEVEL_LABELS[l]}</span>`).join('')}</div>
+      <div class="card-title" style="margin-bottom:12px">🎯 Поиск групп для демо-урока</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <select class="fs" style="flex:1;min-width:140px" onchange="window._demoLevelFilter=this.value;renderMain()">
+          <option value="">Выберите уровень...</option>
+          ${levels.map(l=>`<option value="${l}" ${window._demoLevelFilter===l?'selected':''}>${SUP_LEVEL_LABELS[l]}</option>`).join('')}
+        </select>
+        ${window._demoLevelFilter?`<button onclick="window._demoLevelFilter='';renderMain()" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;font-size:13px">✕</button>`:''}
+      </div>
+      ${(()=>{
+        const sel=window._demoLevelFilter;
+        if(!sel) return `<div style="font-size:13px;color:var(--color-text-secondary);text-align:center;padding:12px 0">Выберите уровень чтобы увидеть группы</div>`;
+        const groups=[];
+        D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
+          if(g.level===sel) groups.push({g,tc});
+        }));
+        if(!groups.length) return `<div style="font-size:13px;color:#bbb;text-align:center;padding:12px 0">Групп этого уровня нет</div>`;
+        return groups.map(({g,tc})=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#4361ee,#3a0ca3);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${ini(tc.name)}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:var(--color-text-primary)">${tc.name}</div>
+            <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${g.day} · ${g.time} · <span style="background:#eef2ff;color:#4361ee;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:500">${SUP_LEVEL_LABELS[g.level]}</span></div>
+          </div>
+          <div style="font-size:12px;color:var(--color-text-secondary);text-align:right">
+            <div style="font-weight:500">${(g.students||[]).filter(s=>s&&s.name&&!s.hidden).length} студ.</div>
+          </div>
+        </div>`).join('');
+      })()}
     </div>
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between">
