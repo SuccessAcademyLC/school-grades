@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780657129';
+  const APP_VERSION='1780720255';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -230,16 +230,21 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .tab-btn{flex:1;padding:10px;font-size:13px;font-weight:600;color:#888;border:none;background:transparent;cursor:pointer;transition:.15s}
 .tab-btn.active{background:#4361ee;color:white}
 @media(max-width:768px){
-  /* Sidebar */
-  .sidebar{position:fixed;left:-264px;top:56px;height:calc(100vh - 56px);z-index:50;transition:.3s;box-shadow:4px 0 16px rgba(0,0,0,.1)}
-  .sidebar.open{left:0}
-  /* Main */
-  .main{padding:10px;margin-left:0!important}
-  /* Header */
-  .header{padding:0 12px;gap:8px}
-  .logo span{font-size:13px}
+  /* Layout */
+  .layout{position:relative}
+  /* Sidebar — полностью скрыт по умолчанию */
+  .sidebar{position:fixed;left:-280px;top:56px;height:calc(100vh - 56px);z-index:50;transition:.3s;box-shadow:none;width:264px}
+  .sidebar.open{left:0;box-shadow:4px 0 20px rgba(0,0,0,.18)}
+  /* Main — на всю ширину */
+  .main{padding:10px;margin-left:0!important;width:100%;box-sizing:border-box}
+  /* Header — не переполняться */
+  .header{padding:0 10px;gap:6px;overflow:hidden}
+  .hdr-right{gap:5px;overflow:hidden;flex-shrink:1}
+  .logo span{font-size:13px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Скрыть пилюли на маленьком экране */
+  #saving-pill,#sheets-pill,#unsaved-pill{display:none!important}
   /* Admin bar */
-  .admin-bar{padding:5px 10px;gap:5px}
+  .admin-bar{padding:5px 10px;gap:4px}
   .abar-acts{gap:4px;flex-wrap:wrap}
   .btn-ab{padding:4px 9px;font-size:11px}
   /* Page header */
@@ -248,35 +253,34 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   .ph .btn{font-size:11px;padding:5px 10px}
   /* Cards */
   .card{padding:12px}
-  /* Stats row */
+  /* Stats */
   .stats-row{grid-template-columns:repeat(2,1fr);gap:8px}
   /* Groups grid */
   .gg{grid-template-columns:repeat(2,1fr);gap:8px}
   .gc{padding:12px}
   /* Breadcrumb */
   .bc{font-size:11px;flex-wrap:wrap}
-  /* Sticky first 2 cols in grade table */
+  /* Таблица — горизонтальный скролл */
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
+  /* Sticky колонки # и Студент */
   .tw table td:nth-child(1),.tw table th:nth-child(1){position:sticky;left:0;z-index:2;background:var(--color-background-primary)}
-  .tw table td:nth-child(2),.tw table th:nth-child(2){position:sticky;left:30px;z-index:2;background:var(--color-background-primary);box-shadow:2px 0 5px rgba(0,0,0,.07)}
+  .tw table td:nth-child(2),.tw table th:nth-child(2){position:sticky;left:30px;z-index:2;background:var(--color-background-primary);box-shadow:2px 0 4px rgba(0,0,0,.07)}
   body.dark .tw table td:nth-child(1),body.dark .tw table th:nth-child(1),
   body.dark .tw table td:nth-child(2),body.dark .tw table th:nth-child(2){background:#161927}
-  /* Input cells */
+  /* Ячейки ввода */
   .gi{width:34px;font-size:11px;padding:2px}
-  /* Modal bottom sheet */
+  .ob{font-size:11px;padding:2px 6px}
+  /* Модальные окна — снизу */
   #mbg{align-items:flex-end}
   #mbox{width:100%!important;max-width:100%!important;max-height:88vh;overflow-y:auto;border-radius:20px 20px 0 0;margin:0!important}
-  /* Supporter stats */
-  .sup-stats{grid-template-columns:repeat(2,1fr)!important}
+  /* Hamburger */
+  .menu-btn{display:flex!important}
+  /* Teacher bar */
+  .tch-bar{flex-wrap:wrap;padding:5px 10px;font-size:11px;gap:5px}
   /* Duty calendar */
   .duty-cal{grid-template-columns:repeat(4,1fr)!important;gap:4px!important}
   /* Filters */
-  .fs{width:100%}
-  /* Hamburger */
-  .menu-btn{display:flex!important}
-  /* Overall badge */
-  .ob{font-size:11px;padding:2px 6px}
-  /* Tch bar */
-  .tch-bar{flex-wrap:wrap;padding:5px 10px;font-size:11px}
+  .fs{max-width:100%}
 }
 
 /* Dark theme */
@@ -3560,6 +3564,33 @@ function clearDuty(dateStr){
   if(!confirm('Очистить дежурство?')) return;
   if(D.duties) delete D.duties[dateStr];
   sched();closeModal();gotoPage('duties');toast('Дежурство очищено','success');
+}
+
+function dutyQueueAdd(slot){
+  if(!D.settings) D.settings={};
+  if(!D.settings.dutyQueue) D.settings.dutyQueue={morning:[],evening:[]};
+  if(!D.settings.dutyQueue[slot]) D.settings.dutyQueue[slot]=[];
+  const sel=document.getElementById(`q-add-${slot}`);
+  const id=sel?.value;
+  if(!id){toast('Выберите суппортера','error');return;}
+  if(D.settings.dutyQueue[slot].includes(id)){toast('Уже в очереди','error');return;}
+  D.settings.dutyQueue[slot].push(id);
+  sched();showDutyQueue();
+}
+
+function dutyQueueMove(slot,idx,dir){
+  const q=D.settings?.dutyQueue;if(!q||!q[slot]) return;
+  const list=q[slot];
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=list.length) return;
+  [list[idx],list[newIdx]]=[list[newIdx],list[idx]];
+  sched();showDutyQueue();
+}
+
+function dutyQueueRemove(slot,idx){
+  const q=D.settings?.dutyQueue;if(!q||!q[slot]) return;
+  q[slot].splice(idx,1);
+  sched();showDutyQueue();
 }
 
 function showDutyQueue(){
