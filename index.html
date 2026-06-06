@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780723108';
+  const APP_VERSION='1780723668';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -545,6 +545,18 @@ function applyTheme(){
 }
 
 // Apply i18n and theme immediately
+const RUS_LEVELS=['rus-1','rus-2','rus-3','rus-4'];
+const RUS_CFG={
+  'rus-1':{conv:9,hw:9,vocab:9,ppt:1,hasFinalTest:true},
+  'rus-2':{conv:10,hw:10,vocab:10,ppt:1,hasFinalTest:false},
+  'rus-3':{conv:6,hw:6,vocab:6,ppt:1,hasFinalTest:false},
+  'rus-4':{conv:8,hw:8,vocab:8,ppt:2,hasFinalTest:false}
+};
+const TIMES=['09:00','10:30','14:00','15:30','17:00','18:30'];
+const LEVELS=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate','rus-1','rus-2','rus-3','rus-4'];
+const LEVEL_ORDER=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+const SUP_LEVELS_ENG=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+const SUP_LEVELS_RUS=['rus-1','rus-2','rus-3','rus-4'];
 const DPIN='1234';
 const SHEETS_WEBHOOK='https://script.google.com/macros/s/AKfycbxZgmqmKZudaFSjK-XAg1pf4kMQe0xwpEPGr_4HoGShuU3Tg91cb2AjgxjmIvxD5Sil/exec';
 const SHEETS_DELAY=1*60*1000; // 1 minute
@@ -2162,6 +2174,97 @@ function renderAccounts(el){
       }).join('')}
     </div>`;
 }
+function showSupporterProfile(id){window._supProfileId=id;view='supporter_profile';curPage=null;renderAll();}
+function gotoSupporterProfile(id){showSupporterProfile(id);}
+
+function renderSupporterProfile(el){
+  const id=window._supProfileId;
+  const a=(D.accounts||[]).find(x=>x.id===id);
+  if(!a){el.innerHTML=`<div class="ph"><div class="pt">Не найдено</div></div>`;return;}
+  const now=new Date();
+  const month=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const events=[...(a.replacements||[]).map(r=>({...r,evType:'replace'})),...(a.mockTests||[]).map(r=>({...r,evType:r.type||'mock'}))].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const myDuties=Object.entries(D.duties||{}).filter(([d,v])=>d.startsWith(month)&&(v.morning===a.id||v.evening===a.id)).sort(([x],[y])=>x.localeCompare(y));
+  const mCount=myDuties.filter(([d,v])=>v.morning===a.id).length;
+  const eCount=myDuties.filter(([d,v])=>v.evening===a.id).length;
+  const replMonth=(a.replacements||[]).filter(r=>(r.dateFrom||'').startsWith(month)).length;
+  el.innerHTML=`
+    <div class="bc"><span class="bc-l" onclick="gotoPage('accounts')">Аккаунты</span><span class="bc-s">›</span><span class="bc-c">${a.name||a.login}</span></div>
+    <div class="ph">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="t-av" style="width:52px;height:52px;font-size:18px;border-radius:14px;background:linear-gradient(135deg,#2b9348,#1b5e20)">${ini(a.name||a.login)}</div>
+        <div><div style="font-size:18px;font-weight:700;color:var(--color-text-primary)">${a.name||a.login}</div>
+          <div style="font-size:13px;color:var(--color-text-secondary);margin-top:3px">${supTypeLabel(a.supType)} · ${a.schedule==='morning'?'Утро 12–13':a.schedule==='evening'?'Послеобед 13–19':'Полный день'}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAssignReplace('${a.id}')">📅 Замена</button>
+        <button class="btn btn-sec btn-sm" onclick="showAssignEvent('${a.id}')">📝 Событие</button>
+        <button class="btn btn-sec btn-sm" onclick="showEditAccount('${a.id}')">✏️</button>`:''}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+      <div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700;color:#4361ee">${replMonth}</div><div style="font-size:12px;color:var(--color-text-secondary)">Замен в ${now.toLocaleString('ru',{month:'long'})}</div></div>
+      <div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700;color:#2b9348">${mCount}</div><div style="font-size:12px;color:var(--color-text-secondary)">Утренних дежурств</div></div>
+      <div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700;color:#BA7517">${eCount}</div><div style="font-size:12px;color:var(--color-text-secondary)">Послеобед. дежурств</div></div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title">📅 Дежурства в ${now.toLocaleString('ru',{month:'long'})}</div>
+        ${isAdmin()?`<button onclick="window._dutyFilterSup='${a.id}';gotoPage('duties')" style="font-size:12px;padding:4px 10px;border-radius:8px;border:1px solid #e0e4f0;background:var(--color-background-primary);cursor:pointer">Открыть →</button>`:''}
+      </div>
+      ${!myDuties.length?`<div style="font-size:13px;color:#bbb">Дежурств не назначено</div>`:
+      myDuties.slice(0,8).map(([d,duty])=>{const ld=new Date(d);
+        return `<div class="event-row"><div style="font-size:12px;color:var(--color-text-secondary);min-width:110px">${ld.toLocaleString('ru',{day:'numeric',month:'short',weekday:'short'})}</div>
+          <div style="display:flex;gap:5px">
+            ${duty.morning===a.id?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px">Утро</span>`:''}
+            ${duty.evening===a.id?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px">Послеобед</span>`:''}
+          </div></div>`;}).join('')}
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px">📝 События (${events.length})</div>
+      ${!events.length?`<div style="font-size:13px;color:#bbb">Событий нет</div>`:
+      events.map(e=>`<div class="event-row">
+        <div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${e.groupName||e.type||e.evType}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${e.date||''} ${e.dateFrom?`${e.dateFrom}–${e.dateTo||'?'}`:''}</div>
+        </div>
+        ${isAdmin()?`<button onclick="delSupEvent('${a.id}','${e.id}')" style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid #fcc;background:#fff5f5;color:#c00;cursor:pointer">✕</button>`:''}
+      </div>`).join('')}
+    </div>`;
+}
+
+function showAddTeacher(){
+  openModal(`<div class="modal-title">👤 Новый преподаватель</div>
+    <div class="fg"><label class="fl">Имя и фамилия</label><input type="text" class="fi" id="nt-name" placeholder="Иванов Иван"></div>
+    <div class="fg"><label class="fl">Направление</label>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="nt-lang" value="ru" checked> Англ (русскоговорящий)</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="nt-lang" value="kk"> Англ (каракалпакоговорящий)</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="nt-lang" value="rus"> Русский язык</label>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Логин</label><input type="text" class="fi" id="nt-login" placeholder="например: ivanov"></div>
+    <div class="fg"><label class="fl">Пароль</label><input type="text" class="fi" id="nt-pass" placeholder="минимум 4 символа"></div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="addTeacher()">Создать</button></div>`);
+  setTimeout(()=>document.getElementById('nt-name')?.focus(),80);
+}
+
+async function addTeacher(){
+  const name=document.getElementById('nt-name')?.value?.trim();
+  const login=document.getElementById('nt-login')?.value?.trim().toLowerCase();
+  const pass=document.getElementById('nt-pass')?.value?.trim();
+  const lang=document.querySelector('input[name="nt-lang"]:checked')?.value||'ru';
+  if(!name){toast('Введите имя','error');return;}
+  if(!login){toast('Введите логин','error');return;}
+  if(!pass||pass.length<4){toast('Пароль минимум 4 символа','error');return;}
+  if((D.accounts||[]).find(a=>a.login===login)){toast('Логин уже занят','error');return;}
+  const tid=uid();
+  D.teachers.push({id:tid,name,lang,groups:[]});
+  D.accounts.push({id:uid(),teacherId:tid,login,password:await hashPass(pass)});
+  closeModal();renderAll();sched();toast('Преподаватель создан ✓','success');
+}
+
 function showAddAdmin(){
   openModal(`<div class="modal-title">👑 Новый администратор</div>
     <div class="modal-desc">Администратор имеет полный доступ — может вводить оценки, управлять аккаунтами и настройками.</div>
