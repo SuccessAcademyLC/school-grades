@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780721404';
+  const APP_VERSION='1780722655';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3659,4 +3659,220 @@ function fillMonthFromQueue(month){
     filled++;
   }
   sched();gotoPage('duties');toast(`${filled} дней заполнено ✓`,'success');
-}>
+}
+
+// ── Core utilities ────────────────────────────────────────────────────────
+function uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
+function ini(n){if(!n)return'?';const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
+function fmt(v){if(v===null||v===undefined||v==='')return'';const n=parseFloat(v);return isNaN(n)?v:Number.isInteger(n)?String(n):n.toFixed(1);}
+function lvl(l){const m={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int','intermediate':'Intermediate','upper-intermediate':'Upper-Int','rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4'};return m[l]||l;}
+function lvc(l){const m={'beginner':'beg','elementary':'elem','pre-intermediate':'pre','intermediate':'int','upper-intermediate':'upp','rus-1':'rus','rus-2':'rus','rus-3':'rus','rus-4':'rus'};return m[l]||'beg';}
+function tr(k){try{return(LANGS[curLang]||LANGS.ru)[k]||k;}catch(e){return k;}}
+
+function toast(msg,type){
+  let el=document.getElementById('toast-el');
+  if(!el){el=document.createElement('div');el.id='toast-el';
+    el.style.cssText='position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;transition:.3s;opacity:0;pointer-events:none;max-width:320px';
+    document.body.appendChild(el);}
+  el.textContent=msg;
+  el.style.background=type==='error'?'#ef233c':type==='success'?'#2b9348':'#333';
+  el.style.color='white';el.style.opacity='1';
+  clearTimeout(el._t);el._t=setTimeout(()=>{el.style.opacity='0';},3000);
+}
+
+function openModal(html){
+  const bg=document.getElementById('mbg');const box=document.getElementById('mbox');
+  if(!bg||!box) return;
+  box.innerHTML=html;bg.style.display='flex';
+  setTimeout(()=>box.querySelector('input,select,textarea')?.focus(),80);
+}
+function closeModal(e){
+  if(e&&e.target!==document.getElementById('mbg')) return;
+  const bg=document.getElementById('mbg');if(bg) bg.style.display='none';
+}
+
+async function loadData(){
+  let local={};
+  try{local=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');}catch(e){}
+  if(!FIREBASE_URL){if(local.teachers) D=local;}
+  else{
+    try{
+      const r=await fetch(`${FIREBASE_URL}/data.json?t=${Date.now()}`);
+      if(r.ok){
+        const cloud=await r.json()||{};
+        const cs=(cloud.teachers||[]).length*10+(cloud.accounts||[]).length;
+        const ls=(local.teachers||[]).length*10+(local.accounts||[]).length;
+        const ct=new Date(cloud._savedAt||0).getTime();
+        const lt=new Date(local._localAt||local._savedAt||0).getTime();
+        if(ls>cs||(ls===cs&&lt>ct&&ls>0)){D=local;setTimeout(saveData,1000);}
+        else if(cs>0){D=cloud;}
+        else if(local.teachers){D=local;setTimeout(saveData,1000);}
+      } else if(local.teachers){D=local;}
+    }catch(e){if(local.teachers){D=local;toast('Нет соединения. Работаем локально.','error');}}
+  }
+  fixFirebaseArrays(D);
+  if(!D.settings) D.settings={pin:DPIN};
+  if(!D.teachers) D.teachers=[];
+  if(!D.students) D.students=[];
+  if(!D.accounts) D.accounts=[];
+  if(!D.archives) D.archives=[];
+  if(!D.duties) D.duties={};
+  const today=new Date().toISOString().slice(0,10);
+  let exp=false;
+  (D.accounts||[]).filter(a=>a.role==='supporter').forEach(a=>{
+    (a.replacements||[]).forEach(r=>{if(r.active&&r.dateTo&&r.dateTo<today){r.active=false;exp=true;}});
+  });
+  if(exp) setTimeout(saveData,500);
+  dataLoaded=true;
+}
+
+async function saveData(){
+  if(!FIREBASE_URL){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}return;}
+  const pill=document.getElementById('saving-pill');if(pill) pill.style.display='flex';
+  try{
+    D._savedAt=new Date().toISOString();
+    const r=await fetch(`${FIREBASE_URL}/data.json`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(D)});
+    if(r.ok){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+      const up=document.getElementById('unsaved-pill');if(up) up.style.display='none';
+      toast(tr('saveOk'),'success');
+    } else toast('Ошибка Firebase: '+r.status,'error');
+  }catch(e){toast('Нет соединения. Данные сохранены локально.','error');
+    const up=document.getElementById('unsaved-pill');if(up) up.style.display='flex';}
+  if(pill) pill.style.display='none';
+}
+
+function saveNow(){saveData();}
+
+function sched(){
+  D._localAt=new Date().toISOString();
+  try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+  const up=document.getElementById('unsaved-pill');if(up) up.style.display='flex';
+  clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,3000);
+}
+
+async function sha256(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function hashPass(pass){return await sha256(pass);}
+async function checkPass(input,stored){
+  if(!stored) return false;
+  if(stored.length===64&&/^[0-9a-f]+$/.test(stored)) return (await sha256(input))===stored;
+  return input===stored;
+}
+
+async function doLogin(){
+  try{
+    const login=(document.getElementById('li-login')?.value||'').trim().toLowerCase();
+    const pass=document.getElementById('li-pass')?.value||'';
+    document.getElementById('login-err').style.display='none';
+    if(!login){showLoginErr('Введите логин');return;}
+    if(!pass){showLoginErr('Введите пароль');return;}
+    const btn=document.getElementById('li-btn');
+    const restoreBtn=()=>{if(btn){btn.disabled=false;btn.textContent='Войти';}};
+    if(btn){btn.disabled=true;btn.textContent='Вход...';}
+    if(!dataLoaded){
+      showLoginErr('Загрузка данных...');
+      loadData().then(()=>{restoreBtn();document.getElementById('login-err').style.display='none';doLogin();});
+      return;
+    }
+    const adminLogin=(D.settings?.adminLogin||'admin').toLowerCase();
+    const adminPin=D.settings?.pin||DPIN;
+    if(login===adminLogin||login==='admin'){
+      if(await checkPass(pass,adminPin)||pass===DPIN){restoreBtn();curUser={role:'admin',name:D.settings?.adminName||'Администратор'};startApp();return;}
+    }
+    let tAcc=null;
+    for(const a of (D.accounts||[])){if((a.login||'').toLowerCase()===login&&a.role!=='supporter'&&await checkPass(pass,a.password)){tAcc=a;break;}}
+    if(tAcc){
+      const teacher=D.teachers.find(x=>x.id===tAcc.teacherId);
+      restoreBtn();curUser={role:'teacher',teacherId:tAcc.teacherId,name:teacher?teacher.name:login,accountId:tAcc.id};startApp();return;
+    }
+    let sAcc=null;
+    for(const a of (D.accounts||[])){if((a.login||'').toLowerCase()===login&&a.role==='supporter'&&await checkPass(pass,a.password)){sAcc=a;break;}}
+    if(sAcc){restoreBtn();curUser={role:'supporter',name:sAcc.name||login,accountId:sAcc.id};startApp();return;}
+    restoreBtn();
+    showLoginErr((D.accounts||[]).length>0?'Неверный логин или пароль':'Данные не загружены. Обновите страницу.');
+    document.getElementById('li-pass').value='';
+  }catch(err){showLoginErr('Ошибка: '+err.message);const btn=document.getElementById('li-btn');if(btn){btn.disabled=false;btn.textContent='Войти';}}
+}
+
+function showLoginErr(msg){const el=document.getElementById('login-err');if(el){el.textContent=msg;el.style.display='block';}}
+
+function startApp(){
+  try{saveSession(curUser);}catch(e){}
+  if(D.settings?.firebaseUrl) FIREBASE_URL=D.settings.firebaseUrl;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  const isAdm=curUser.role==='admin';
+  const isSup=curUser.role==='supporter';
+  const isTch=curUser.role==='teacher';
+  document.getElementById('adm-bar').style.display=isAdm?'flex':'none';
+  const tchBar=document.getElementById('tch-bar');if(tchBar) tchBar.style.display=isTch?'flex':'none';
+  const supBar=document.getElementById('sup-bar');if(supBar) supBar.style.display=isSup?'flex':'none';
+  if(isTch){const nb=document.getElementById('tch-bar-name');if(nb) nb.textContent='👤 '+curUser.name;}
+  const pill=document.getElementById('who-pill');
+  const avCls=isAdm?'wa-admin':isSup?'wa-supporter':'wa-teacher';
+  if(pill) pill.innerHTML=`<div class="who-av ${avCls}" style="width:24px;height:24px;font-size:10px;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(curUser.name)}</div> ${curUser.name}`;
+  applyLogo();applyI18n();updateLangBtn(curLang);checkMobile();
+  if(isSup){view='supporter';renderAll();}
+  else{view='home';renderAll();if(isTch&&curUser.teacherId){selT=curUser.teacherId;view='teacher';renderAll();}}
+  if(isAdm) setTimeout(()=>saveData(),1000);
+  clearInterval(window._refreshTimer);
+  window._refreshTimer=setInterval(async()=>{await loadData();if(curUser?.role==='supporter') renderMain();},60000);
+}
+
+function doLogout(){
+  clearSession();clearInterval(window._refreshTimer);curUser=null;
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('li-login').value='';
+  document.getElementById('li-pass').value='';
+  initApp();
+}
+
+function loadAndRestoreSession(){
+  const saved=loadSession();if(!saved) return;
+  if(saved.role==='admin'){curUser=saved;startApp();return;}
+  if(saved.role==='teacher'){
+    const acc=(D.accounts||[]).find(a=>a.id===saved.accountId);
+    const teacher=D.teachers.find(x=>x.id===saved.teacherId);
+    if(acc){curUser={...saved,name:teacher?teacher.name:saved.name};startApp();return;}
+  }
+  if(saved.role==='supporter'){
+    const acc=(D.accounts||[]).find(a=>a.id===saved.accountId);
+    if(acc){curUser=saved;startApp();return;}
+  }
+  clearSession();
+}
+
+function showQRPublicView(tid,gid){
+  const t=D.teachers.find(x=>x.id===tid);
+  const g=(t?.groups||[]).find(x=>x.id===gid);
+  if(!g||!t){document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#888">Группа не найдена</div>`;return;}
+  curUser={role:'viewer'};selT=tid;selG=gid;view='group';
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  ['adm-bar','tch-bar','sup-bar'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  const sb=document.getElementById('sidebar');if(sb)sb.style.display='none';
+  applyLogo();renderMain();
+}
+
+async function initApp(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  await loadData();
+  if(window._qrViewMode){showQRPublicView(window._qrT,window._qrG);return;}
+  loadAndRestoreSession();
+}
+
+function renderAll(){renderSidebar();renderMain();}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  applyTheme();applyI18n();updateLangBtn(curLang);checkMobile();
+});
+initApp();
+setTimeout(()=>{applyI18n();updateLangBtn(curLang);},300);
+</script>
+</body>
+</html>
