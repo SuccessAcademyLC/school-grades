@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780979699';
+  const APP_VERSION='1780980088';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1131,19 +1131,61 @@ function createArchive(){
   gotoArch(newArch.id);
 }
 
-function gotoArch(id){selArch=id;view='archive';curPage=null;renderAll();}
+function gotoArch(id){selArch=id;selT=null;selG=null;view='archive';curPage=null;renderAll();}
+
 function renderArchive(el){
   const arch=D.archives.find(a=>a.id===selArch);
   if(!arch){goHome();return;}
-  el.innerHTML=`<div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">${arch.label}</span></div>
+
+  // If teacher selected — show their groups
+  if(selT){
+    const t=(arch.teachers||[]).find(x=>x.id===selT);
+    if(!t){selT=null;renderArchive(el);return;}
+    // If group selected — show the group table
+    if(selG){
+      renderGroup(el,true,arch.teachers);
+      return;
+    }
+    // Show teacher's groups list
+    el.innerHTML=`
+      <div class="bc">
+        <span class="bc-l" onclick="goHome()">Главная</span>
+        <span class="bc-s">›</span>
+        <span class="bc-l" onclick="selT=null;renderAll()">${arch.label}</span>
+        <span class="bc-s">›</span>
+        <span class="bc-c">${t.name}</span>
+      </div>
+      <div class="ph"><div><div class="pt">${t.name}</div>
+        <div class="ps">${(t.groups||[]).length} групп · 📦 Архив</div>
+      </div></div>
+      <div class="card"><div class="gg">
+        ${(t.groups||[]).map(g=>`
+          <div class="gc" onclick="selG='${g.id}';renderAll()">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span class="lp lv-${lvc(g.level)}">${lvl(g.level)}</span>
+            </div>
+            <div class="gc-name" style="font-size:13px">${g.day} ${g.time}</div>
+            <div class="gc-meta" style="margin-top:8px">
+              <div><div class="gm-v">${(g.students||[]).filter(s=>s&&s.name).length}</div><div class="gm-l">студентов</div></div>
+            </div>
+          </div>`).join('')}
+      </div></div>`;
+    return;
+  }
+
+  // Show archive teachers list
+  el.innerHTML=`
+    <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">${arch.label}</span></div>
     <div class="ph"><div><div class="pt">📦 ${arch.label}</div><div class="ps">${arch.date}</div></div>
-    ${isAdmin()?`<button class="btn btn-dan btn-sm" onclick="delArchive('${arch.id}')">Удалить</button>`:''}
+      ${isAdmin()?`<button class="btn btn-dan btn-sm" onclick="delArchive('${arch.id}')">Удалить</button>`:''}
     </div>
-    <div class="card"><div class="gg">${(arch.teachers||[]).map(t=>`
-      <div class="gc" onclick="selT='${t.id}';selArch='${arch.id}';view='archive';renderAll()">
-        <div class="gc-name">${t.name}</div>
-        <div class="gc-meta"><div><div class="gm-v">${(t.groups||[]).length}</div><div class="gm-l">групп</div></div></div>
-      </div>`).join('')}</div></div>`;
+    <div class="card"><div class="gg">
+      ${(arch.teachers||[]).map(t=>`
+        <div class="gc" onclick="selT='${t.id}';renderAll()">
+          <div class="gc-name">${t.name}</div>
+          <div class="gc-meta"><div><div class="gm-v">${(t.groups||[]).length}</div><div class="gm-l">групп</div></div></div>
+        </div>`).join('')}
+    </div></div>`;
 }
 
 function delArchive(id){
