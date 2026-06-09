@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780982305';
+  const APP_VERSION='1780992506';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -868,15 +868,24 @@ async function loadData(){
       const r=await fetch(`${FIREBASE_URL}/data.json?t=${Date.now()}`);
       if(r.ok){
         const cloud=await r.json()||{};
-        const cloudScore=(cloud.teachers||[]).length*10+(cloud.accounts||[]).length;
-        const lcScore=(local.teachers||[]).length*10+(local.accounts||[]).length;
         const cloudTime=new Date(cloud._savedAt||0).getTime();
         const lcTime=new Date(local._localAt||local._savedAt||0).getTime();
-        if(lcScore>cloudScore||(lcScore===cloudScore&&lcTime>cloudTime&&lcScore>0)){
+        const lcScore=(local.teachers||[]).length*10+(local.accounts||[]).length;
+        const cloudScore=(cloud.teachers||[]).length*10+(cloud.accounts||[]).length;
+        // Always prefer cloud if it has data and is newer or equal
+        // Only use local if it's significantly newer (unsaved local changes)
+        const localIsNewer=lcTime>cloudTime+5000; // 5 sec buffer
+        if(cloudScore>0&&!localIsNewer){
+          // Cloud is authoritative
+          D=cloud;
+          // Sync local to match cloud
+          try{localStorage.setItem(LOCAL_KEY,JSON.stringify(cloud));}catch(e){}
+        } else if(lcScore>0&&localIsNewer){
+          // Local has unsaved changes newer than cloud
           D=local;setTimeout(saveData,1000);
         } else if(cloudScore>0){
           D=cloud;
-        } else if(local.teachers){
+        } else if(lcScore>0){
           D=local;setTimeout(saveData,1000);
         }
       } else if(local.teachers){D=local;}
