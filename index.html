@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780980088';
+  const APP_VERSION='1780982305';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2069,7 +2069,10 @@ function promoteGroup(){
   D.archives.push({id:uid(),label,date:new Date().toLocaleDateString('ru'),teachers:snap});
   t.groups=t.groups.filter(x=>x.id!==selG);
   selG=null;view='teacher';
-  closeModal();renderAll();sched();toast('Группа завершена и архивирована ✓','success');
+  // Clear local cache to prevent restore from old data
+  try{localStorage.removeItem(LOCAL_KEY);}catch(e){}
+  closeModal();renderAll();
+  saveData().then(()=>toast('Группа завершена и архивирована ✓','success'));
 }
 
 function delStudent(sid){
