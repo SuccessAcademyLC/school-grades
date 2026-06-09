@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780992506';
+  const APP_VERSION='1780992912';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -970,8 +970,10 @@ function addGroup(tid){
   const time=document.getElementById('gtm')?.value||'09:00';
   if(!level) return;
   if(!t.groups) t.groups=[];
-  t.groups.push({id:uid(),level,day,time,students:[]});
-  closeModal();selG=t.groups[t.groups.length-1].id;selT=tid;
+  const newG={id:uid(),level,day,time,students:[]};
+  t.groups.push(newG);
+  closeModal();
+  selG=newG.id;selT=tid;view='group';
   renderAll();sched();toast('Группа создана ✓','success');
 }
 
