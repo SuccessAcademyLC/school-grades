@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781067579';
+  const APP_VERSION='1781068625';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1102,14 +1102,18 @@ function applyLogo(){
 function showArchivesList(){
   const archives=(D.archives||[]).slice().reverse();
   openModal(`<div class="modal-title">🗃 Архивы</div>
+    ${archives.length>3?`<div style="display:flex;align-items:center;gap:6px;background:var(--color-background-secondary);border-radius:8px;padding:6px 10px;margin-bottom:10px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="arch-search" placeholder="Поиск по названию, дате..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="filterArchivesList(this.value)">
+    </div>`:''}
     ${!archives.length
       ?`<div style="text-align:center;padding:20px;color:#bbb">Архивов нет</div>`
-      :`<div style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto">
-        ${archives.map(a=>`<div onclick="closeModal();gotoArch('${a.id}')" style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--color-border-secondary);border-radius:10px;cursor:pointer;background:var(--color-background-primary)" onmouseenter="this.style.background='var(--color-background-secondary)'" onmouseleave="this.style.background='var(--color-background-primary)'">
+      :`<div id="arch-list" style="display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow-y:auto">
+        ${archives.map(a=>`<div onclick="closeModal();gotoArch('${a.id}')" data-label="${(a.label||'').toLowerCase()}" data-date="${(a.date||'').toLowerCase()}" class="arch-item" style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--color-border-secondary);border-radius:10px;cursor:pointer;background:var(--color-background-primary)" onmouseenter="this.style.background='var(--color-background-secondary)'" onmouseleave="this.style.background='var(--color-background-primary)'">
           <div style="font-size:22px">📦</div>
           <div style="flex:1">
             <div style="font-size:14px;font-weight:500;color:var(--color-text-primary)">${a.label}</div>
-            <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${a.date} · ${(a.teachers||[]).length} преподавателей</div>
+            <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${a.date} · ${(a.teachers||[]).length} преп.</div>
           </div>
           <span style="color:#4361ee;font-size:13px">→</span>
         </div>`).join('')}
@@ -1117,8 +1121,18 @@ function showArchivesList(){
     <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Закрыть</button>
       <button class="btn btn-pri" onclick="closeModal();showCreateArchive()">+ Создать архив</button>
     </div>`);
+  setTimeout(()=>document.getElementById('arch-search')?.focus(),80);
 }
 
+function filterArchivesList(q){
+  const items=document.querySelectorAll('.arch-item');
+  const lq=q.toLowerCase();
+  items.forEach(el=>{
+    const label=el.dataset.label||'';
+    const date=el.dataset.date||'';
+    el.style.display=(label.includes(lq)||date.includes(lq))?'flex':'none';
+  });
+}
 function showCreateArchive(){
   openModal(`<div class="modal-title">🗃 Создать архив</div>
     <div class="fg"><label class="fl">Название</label>
