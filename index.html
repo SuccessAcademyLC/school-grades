@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1780992912';
+  const APP_VERSION='1781067579';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2059,15 +2059,52 @@ function adminRestoreHidden(sid,tid,gid){
 function showPromoteGroup(){
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const isRus=RUS_LEVELS.includes(g.level);
+  const levels=isRus?RUS_LEVELS:LEVEL_ORDER;
+  const currentIdx=levels.indexOf(g.level);
+  const nextLevel=currentIdx>=0&&currentIdx<levels.length-1?levels[currentIdx+1]:null;
+  const nextLevelOptions=isRus
+    ?RUS_LEVELS.map(l=>`<option value="${l}" ${l===nextLevel?'selected':''}>${lvl(l)}</option>`).join('')
+    :LEVEL_ORDER.map(l=>`<option value="${l}" ${l===nextLevel?'selected':''}>${lvl(l)}</option>`).join('');
+
   openModal(`<div class="modal-title">🎓 Завершить группу</div>
-    <div class="modal-desc">Группа будет заархивирована. Выберите что сделать со студентами.</div>
-    <div class="fg"><label class="fl">Архив — название</label>
+    <div class="fg"><label class="fl">Название архива</label>
       <input type="text" class="fi" id="prm-label" value="${new Date().toLocaleDateString('ru')} — ${g.day} ${g.time} ${lvl(g.level)}">
+    </div>
+    <div style="background:#f0fdf4;border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:10px">🔼 Перевести студентов на следующий уровень</div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:10px">
+        <input type="checkbox" id="prm-transfer" checked style="accent-color:#4361ee">
+        Создать новую группу со студентами
+      </label>
+      <div id="prm-next-opts">
+        <div class="fg" style="margin-bottom:8px"><label class="fl">Следующий уровень</label>
+          <select class="fi" id="prm-next-level">${nextLevelOptions}</select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div class="fg" style="flex:1;margin-bottom:0"><label class="fl">Расписание</label>
+            <div style="display:flex;gap:6px">
+              <label style="flex:1;display:flex;align-items:center;gap:5px;padding:7px 10px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:12px">
+                <input type="radio" name="prm-day" value="${g.day}" checked> ${g.day}
+              </label>
+            </div>
+          </div>
+          <div class="fg" style="flex:1;margin-bottom:0"><label class="fl">Время</label>
+            <select class="fi" id="prm-time">
+              ${(TIMES||['09:00','10:30','14:00','15:30','17:00','18:30']).map(tm=>`<option ${tm===g.time?'selected':''}>${tm}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="fa">
       <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
-      <button class="btn btn-pri" onclick="promoteGroup()">🎓 Завершить и архивировать</button>
+      <button class="btn btn-pri" onclick="promoteGroup()">🎓 Завершить</button>
     </div>`);
+  // Toggle next group options
+  document.getElementById('prm-transfer').addEventListener('change',function(){
+    document.getElementById('prm-next-opts').style.display=this.checked?'block':'none';
+  });
   setTimeout(()=>document.getElementById('prm-label')?.focus(),80);
 }
 
@@ -2075,15 +2112,41 @@ function promoteGroup(){
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
   const label=document.getElementById('prm-label')?.value?.trim()||'Архив';
+  const transfer=document.getElementById('prm-transfer')?.checked;
+  const nextLevel=document.getElementById('prm-next-level')?.value;
+  const nextTime=document.getElementById('prm-time')?.value||g.time;
+  const nextDay=g.day;
+
+  // Archive current group
   const snap=JSON.parse(JSON.stringify([t]));
   if(!D.archives) D.archives=[];
   D.archives.push({id:uid(),label,date:new Date().toLocaleDateString('ru'),teachers:snap});
+
+  // Get students before removing group
+  const students=transfer&&nextLevel?(g.students||[]).filter(s=>s&&s.name&&!s.hidden).map(s=>({
+    ...newStudent(s.name), // fresh grades
+    id:uid(),
+    name:s.name
+  })):[];
+
+  // Remove group
   t.groups=t.groups.filter(x=>x.id!==selG);
-  selG=null;view='teacher';
-  // Clear local cache to prevent restore from old data
-  try{localStorage.removeItem(LOCAL_KEY);}catch(e){}
-  closeModal();renderAll();
-  saveData().then(()=>toast('Группа завершена и архивирована ✓','success'));
+
+  // Create new group with students if requested
+  if(transfer&&nextLevel&&students.length){
+    if(!t.groups) t.groups=[];
+    const newG={id:uid(),level:nextLevel,day:nextDay,time:nextTime,students};
+    t.groups.push(newG);
+    selG=newG.id;selT=t.id;view='group';
+    try{localStorage.removeItem(LOCAL_KEY);}catch(e){}
+    closeModal();renderAll();
+    saveData().then(()=>toast(`Группа завершена. Создана новая группа ${lvl(nextLevel)} с ${students.length} студентами ✓`,'success'));
+  } else {
+    selG=null;view='teacher';
+    try{localStorage.removeItem(LOCAL_KEY);}catch(e){}
+    closeModal();renderAll();
+    saveData().then(()=>toast('Группа завершена и архивирована ✓','success'));
+  }
 }
 
 function delStudent(sid){
@@ -3602,6 +3665,92 @@ function delObservation(supId,obsId){
   const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
   a.observations=(a.observations||[]).filter(x=>x.id!==obsId);
   sched();toast('Удалено','success');renderAll();
+}
+
+function renderDutyPage(el){
+  if(!isAdmin()&&curUser?.role!=='supporter'){el.innerHTML=`<div class="ph"><div class="pt">Нет доступа</div></div>`;return;}
+  const canEdit2=isAdmin();
+  const filterSup=window._dutyFilterSup||'';
+  const now=new Date();
+  const month=window._dutyMonth||(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+  const [yr,mo]=month.split('-').map(Number);
+  const daysInMonth=new Date(yr,mo,0).getDate();
+  const today=now.toISOString().slice(0,10);
+  const supporters=(D.accounts||[]).filter(a=>a.role==='supporter'&&a.supType!=='rus');
+  const monthName=new Date(yr,mo-1,1).toLocaleString('ru',{month:'long',year:'numeric'});
+  const prevMonth=new Date(yr,mo-2,1);
+  const nextMonth=new Date(yr,mo,1);
+  const prevStr=prevMonth.getFullYear()+'-'+String(prevMonth.getMonth()+1).padStart(2,'0');
+  const nextStr=nextMonth.getFullYear()+'-'+String(nextMonth.getMonth()+1).padStart(2,'0');
+  const duties=D.duties||{};
+  const firstDay=(new Date(yr,mo-1,1).getDay()+6)%7;
+  let calHtml='';
+  const heads=['Пн','Вт','Ср','Чт','Пт','Сб'];
+  calHtml+=`<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:4px">`;
+  heads.forEach(h=>calHtml+=`<div style="text-align:center;font-size:11px;color:var(--color-text-secondary);font-weight:500;padding:4px 0">${h}</div>`);
+  calHtml+=`</div><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px">`;
+  const offset=Math.min(firstDay,5);
+  for(let i=0;i<offset;i++) calHtml+=`<div></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const dow=new Date(yr,mo-1,d).getDay();
+    if(dow===0) continue;
+    const dateStr=`${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const duty=duties[dateStr]||{};
+    const mSup=supporters.find(a=>a.id===duty.morning);
+    const eSup=supporters.find(a=>a.id===duty.evening);
+    const isToday=dateStr===today;
+    const mHighlight=filterSup&&duty.morning===filterSup;
+    const eHighlight=filterSup&&duty.evening===filterSup;
+    const dimmed=filterSup&&!mHighlight&&!eHighlight?'opacity:.35;':'';
+    const isManual=(duty.morning||duty.evening)&&duty._auto===false;
+    calHtml+=`<div onclick="${canEdit2?`showDutyEdit('${dateStr}')`:''}" style="border:${isManual?'1.5px solid #4361ee':'0.5px solid var(--color-border-tertiary)'};border-radius:8px;padding:6px 4px;cursor:${canEdit2?'pointer':'default'};min-height:64px;background:${isToday?'var(--color-background-info)':'var(--color-background-primary)'};${dimmed}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:12px;font-weight:500;color:${isToday?'#0C447C':'var(--color-text-primary)'}">${d}</span>
+        ${isManual?`<span style="font-size:8px;background:#eef2ff;color:#4361ee;border-radius:3px;padding:0 3px">✎</span>`:''}
+      </div>
+      ${mSup?`<div style="font-size:10px;background:${mHighlight?'#639922':'#EAF3DE'};color:${mHighlight?'white':'#27500A'};border-radius:4px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${ini(mSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;margin-bottom:2px;border:1px dashed var(--color-border-tertiary)">— утро</div>`}
+      ${eSup?`<div style="font-size:10px;background:${eHighlight?'#BA7517':'#FAEEDA'};color:${eHighlight?'white':'#633806'};border-radius:4px;padding:1px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${ini(eSup.name)}</div>`:`<div style="font-size:10px;color:var(--color-text-tertiary);border-radius:4px;padding:1px 4px;border:1px dashed var(--color-border-tertiary)">— пообед</div>`}
+    </div>`;
+  }
+  calHtml+=`</div>`;
+  el.innerHTML=`
+    <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">Расписание дежурств</span></div>
+    <div class="ph">
+      <div><div class="pt">📅 Расписание дежурств</div><div class="ps">Утро 12:00–13:00 · Послеобед 13:00–19:00</div></div>
+      ${isAdmin()?`<div style="display:flex;gap:8px">
+        <button onclick="showDutyQueue()" style="padding:7px 14px;border-radius:8px;border:1.5px solid #4361ee;background:#eef2ff;color:#4361ee;cursor:pointer;font-size:13px;font-weight:500">🔄 Очередь</button>
+        <button onclick="fillMonthFromQueue('${month}')" style="padding:7px 14px;border-radius:8px;border:1.5px solid #27500A;background:#EAF3DE;color:#27500A;cursor:pointer;font-size:13px;font-weight:500">⚡ Заполнить месяц</button>
+      </div>`:''}
+    </div>
+    <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select class="fs" style="flex:1;min-width:150px" onchange="window._dutyFilterSup=this.value;renderMain()">
+        <option value="">Все суппортеры</option>
+        ${supporters.map(a=>`<option value="${a.id}" ${filterSup===a.id?'selected':''}>${a.name}</option>`).join('')}
+      </select>
+      ${filterSup?`<button onclick="window._dutyFilterSup='';renderMain()" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;font-size:13px">✕</button>`:''}
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <button onclick="window._dutyMonth='${prevStr}';gotoPage('duties')" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer">←</button>
+        <div style="font-size:15px;font-weight:500">${monthName}</div>
+        <button onclick="window._dutyMonth='${nextStr}';gotoPage('duties')" style="padding:5px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer">→</button>
+      </div>
+      ${calHtml}
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px">Суппортеры</div>
+      ${supporters.map(a=>{
+        const myDays=Object.entries(D.duties||{}).filter(([d,v])=>d.startsWith(month)&&(v.morning===a.id||v.evening===a.id));
+        const mC=myDays.filter(([d,v])=>v.morning===a.id).length;
+        const eC=myDays.filter(([d,v])=>v.evening===a.id).length;
+        return `<div class="event-row">
+          <div class="t-av" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2b9348,#1b5e20);color:white;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini(a.name)}</div>
+          <div style="flex:1"><div style="font-size:13px;font-weight:500">${a.name}</div><div style="font-size:11px;color:var(--color-text-secondary)">${supTypeLabel(a.supType,true)}</div></div>
+          <span style="background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:10px;font-size:12px;margin-right:4px">☀ ${mC}</span>
+          <span style="background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px;font-size:12px">🌙 ${eC}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
 }
 
 function renderSupDemoPage(el){
