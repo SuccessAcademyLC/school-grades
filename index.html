@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781069107';
+  const APP_VERSION='1781069717';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2573,6 +2573,23 @@ function renderSupporterProfile(el){
           </span>`).join('')}</div>
         ${isAdmin()?`<div style="font-size:11px;color:var(--color-text-secondary)">Нажмите на уровень чтобы отметить/снять</div>`:''}`;
       })()}
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title">📅 История замен (${(a.replacements||[]).length})</div>
+        ${isAdmin()?`<button onclick="showAssignReplace('${a.id}')" class="btn btn-pri btn-sm">+ Замена</button>`:''}
+      </div>
+      ${!(a.replacements||[]).length
+        ?`<div style="font-size:13px;color:#bbb">Замен не было</div>`
+        :(a.replacements||[]).slice().reverse().map(r=>`
+          <div class="event-row">
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${r.groupName||'—'}</div>
+              <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${r.dateFrom||''}${r.dateTo&&r.dateTo!==r.dateFrom?` — ${r.dateTo}`:''}</div>
+            </div>
+            <span style="font-size:11px;padding:2px 8px;border-radius:10px;${r.active?'background:#EAF3DE;color:#27500A':'background:#f5f5f5;color:#999'}">${r.active?'Активна':'Завершена'}</span>
+            ${isAdmin()?`<button onclick="delSupEvent('${a.id}','${r.id}')" style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid #fcc;background:#fff5f5;color:#c00;cursor:pointer;margin-left:6px">✕</button>`:''}
+          </div>`).join('')}
     </div>
     <div class="card">
       <div class="card-title" style="margin-bottom:12px">📝 События (${events.length})</div>
