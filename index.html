@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781069717';
+  const APP_VERSION='1781159110';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -393,6 +393,9 @@ body.dark .replace-card{border-color:#2d74da}
   <button class="menu-btn" id="menu-btn" onclick="toggleSidebar()" style="display:none;background:transparent;border:none;color:white;font-size:22px;cursor:pointer;padding:4px 8px;line-height:1">☰</button>
   <div class="logo" onclick="goHome()" id="app-logo"><img id="logo-img" src="" style="height:36px;border-radius:8px;display:none"><div id="logo-text" style="display:flex;align-items:center;gap:10px"><div class="logo-badge">SA</div><span>Success Academy</span></div></div>
   <div class="hdr-right">
+    <div id="notif-bell" onclick="showNotifications()" style="display:none;position:relative;cursor:pointer;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.1)" title="Уведомления">
+      🔔<span id="notif-badge" style="display:none;position:absolute;top:2px;right:2px;background:#ef233c;color:white;font-size:9px;font-weight:700;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center"></span>
+    </div>
     <div id="saving-pill" style="display:none" class="saving-pill"><div class="spin"></div> Сохранение...</div>
     <div id="sheets-pill" style="display:none;background:rgba(66,133,244,.15);border:1px solid #4285f4;color:#4285f4;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600"></div>
     <div id="unsaved-pill" style="display:none;background:rgba(233,69,96,.2);border:1px solid #e94560;color:#e94560;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600">● Не сохранено</div>
@@ -2029,12 +2032,92 @@ function showHideStudent(sid){
   setTimeout(()=>document.getElementById('hide-reason')?.focus(),80);
 }
 
+function updateNotifBadge(){
+  if(curUser?.role!=='admin') return;
+  const notifs=(D.settings?.notifications||[]);
+  const unread=notifs.filter(n=>!n.read).length;
+  const bell=document.getElementById('notif-bell');
+  const badge=document.getElementById('notif-badge');
+  if(bell) bell.style.display='flex';
+  if(badge){
+    badge.style.display=unread>0?'block':'none';
+    badge.textContent=unread>9?'9+':String(unread);
+  }
+}
+
+function showNotifications(){
+  const notifs=(D.settings?.notifications||[]);
+  const typeIcon={hide:'👁',delete:'🗑️',archive:'📦'};
+  const typeName={hide:'Скрыт',delete:'Удалён',archive:'Архивирован'};
+  const typeColor={hide:'#FAEEDA',delete:'#ffebee',archive:'#e3f2fd'};
+  const typeText={hide:'#633806',delete:'#b71c1c',archive:'#1565c0'};
+
+  openModal(`<div class="modal-title">🔔 Уведомления</div>
+    ${!notifs.length
+      ?`<div style="text-align:center;padding:20px;color:#bbb">Уведомлений нет</div>`
+      :`<div style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto">
+        ${notifs.map(n=>`
+          <div style="padding:12px;border-radius:10px;background:${n.read?'var(--color-background-secondary)':'var(--color-background-primary)'};border:1px solid ${n.read?'var(--color-border-tertiary)':'var(--color-border-secondary)'}">
+            <div style="display:flex;align-items:flex-start;gap:10px">
+              <span style="font-size:18px">${typeIcon[n.type]||'ℹ️'}</span>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:${n.read?400:600};color:var(--color-text-primary)">${n.text}</div>
+                ${n.data?.groupName?`<div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">Группа: ${n.data.groupName}</div>`:''}
+                ${n.data?.reason?`<div style="font-size:11px;color:var(--color-text-secondary)">Причина: ${n.data.reason}</div>`:''}
+                <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">${n.date} ${n.time}</div>
+              </div>
+              <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${typeColor[n.type]||'#f5f5f5'};color:${typeText[n.type]||'#666'};white-space:nowrap">${typeName[n.type]||n.type}</span>
+            </div>
+          </div>`).join('')}
+      </div>`}
+    <div class="fa">
+      ${notifs.some(n=>!n.read)?`<button class="btn btn-sec btn-sm" onclick="markAllNotifsRead()">Отметить все прочитанными</button>`:''}
+      ${notifs.length?`<button class="btn btn-dan btn-sm" onclick="clearNotifs()">Очистить всё</button>`:''}
+      <button class="btn btn-sec" onclick="closeModal()">Закрыть</button>
+    </div>`);
+  // Mark all as read
+  (D.settings?.notifications||[]).forEach(n=>n.read=true);
+  sched();updateNotifBadge();
+}
+
+function markAllNotifsRead(){
+  (D.settings?.notifications||[]).forEach(n=>n.read=true);
+  sched();closeModal();updateNotifBadge();
+}
+
+function clearNotifs(){
+  if(!confirm('Очистить все уведомления?')) return;
+  if(D.settings) D.settings.notifications=[];
+  sched();closeModal();updateNotifBadge();
+}
+
+function addAdminNotification(type, text, data){
+  if(!D.settings) D.settings={};
+  if(!D.settings.notifications) D.settings.notifications=[];
+  D.settings.notifications.unshift({
+    id:uid(),
+    type, // 'hide','delete','archive'
+    text,
+    data:data||{},
+    date:new Date().toISOString().slice(0,10),
+    time:new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}),
+    by:curUser?.name||'Преподаватель',
+    read:false
+  });
+  // Keep only last 100
+  if(D.settings.notifications.length>100) D.settings.notifications=D.settings.notifications.slice(0,100);
+}
+
 function confirmHideStudent(sid){
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
   const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
   const reason=document.getElementById('hide-reason')?.value?.trim()||'Не указана';
   s.hidden=true;s.hideReason=reason;s.hiddenBy=curUser?.name||'Преподаватель';
+  addAdminNotification('hide',
+    `${curUser?.name||'Преподаватель'} скрыл студента ${s.name}`,
+    {studentName:s.name,groupName:`${t.name} — ${lvl(g.level)} ${g.day} ${g.time}`,reason,teacherName:t.name}
+  );
   closeModal();renderGroup(document.getElementById('main'));sched();toast('Студент скрыт','success');
 }
 
@@ -2167,6 +2250,11 @@ function delStudent(sid){
   if(!sid||!confirm('Удалить студента из группы?')) return;
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const s=(g.students||[]).find(x=>x.id===sid);
+  if(s) addAdminNotification('delete',
+    `${curUser?.name||'Преподаватель'} удалил студента ${s.name}`,
+    {studentName:s.name,groupName:`${t.name} — ${lvl(g.level)} ${g.day} ${g.time}`,teacherName:t.name}
+  );
   g.students=g.students.filter(x=>x.id!==sid);
   renderGroup(document.getElementById('main'));sched();
 }
@@ -2194,6 +2282,10 @@ function doArchiveStu(sid){
   g.students=g.students.filter(x=>x.id!==sid);
   const gs=D.students.find(x=>x.id===sid||x.name===s.name);
   if(gs) gs.status='archived';
+  addAdminNotification('archive',
+    `${curUser?.name||'Преподаватель'} архивировал студента ${s.name}`,
+    {studentName:s.name,groupName:`${t.name} — ${lvl(g.level)} ${g.day} ${g.time}`,teacherName:t.name}
+  );
   closeModal();renderGroup(document.getElementById('main'));sched();toast(`${s.name} архивирован ✓`,'success');
 }
 
@@ -4541,6 +4633,7 @@ function startApp(){
   const avCls=isAdm?'wa-admin':isSup?'wa-supporter':'wa-teacher';
   if(pill)pill.innerHTML=`<div class="who-av ${avCls}" style="width:24px;height:24px;font-size:10px;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(curUser.name)}</div> ${curUser.name}`;
   applyLogo();applyI18n();updateLangBtn(curLang);checkMobile();
+  if(isAdm) setTimeout(updateNotifBadge,500);
   if(isSup){view='supporter';renderAll();}
   else{view='home';renderAll();if(isTch&&curUser.teacherId){selT=curUser.teacherId;view='teacher';renderAll();}}
   if(isAdm)setTimeout(()=>saveData(),1000);
