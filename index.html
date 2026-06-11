@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781175610';
+  const APP_VERSION='1781178003';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1535,7 +1535,10 @@ function gchRus(sid,field,idx,val){
   const ov=calc(s,g.level);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=ov!==null?ov.toFixed(1):'—';badge.className='ob '+(ov===null?'on':ov>=75?'og':ov>=70?'oy':'or');}
-  sched();
+  D._localAt=new Date().toISOString();
+  try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+  clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
+  const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 
 function renderRusGroup(el,g,t,ed,archMode){
@@ -1844,7 +1847,11 @@ function gch(sid,field,idx,val){
   const fv=ov!==null?(ov+(r||0)):(r!==null?r:null);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=fv!==null?fv.toFixed(1):'—';badge.className='ob '+(fv===null?'on':fv>=75?'og':fv>=70?'oy':'or');}
-  sched();
+  // Save immediately without delay
+  D._localAt=new Date().toISOString();
+  try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+  clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
+  const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 function showUnitPopup(sid,idx,level){
   const t=D.teachers.find(x=>x.id===selT);
