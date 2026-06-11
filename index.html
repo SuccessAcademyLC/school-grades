@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781181986';
+  const APP_VERSION='1781183112';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3409,28 +3409,48 @@ function previewExcel(input){
   reader.onload=e=>{
     try{
       const wb=XLSX.read(e.target.result,{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      // Find sheet with grades - prefer "Оценки", fallback to first sheet with "Студент" column
+      let wsName=wb.SheetNames.find(n=>n.toLowerCase().includes('оценк')||n.toLowerCase().includes('grade'));
+      if(!wsName){
+        // Try each sheet to find one with "Студент" column
+        for(const name of wb.SheetNames){
+          const ws=wb.Sheets[name];
+          const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+          if(rows[0]&&rows[0].some(h=>String(h).toLowerCase().includes('студент'))){wsName=name;break;}
+          // Check second row too (template has merged header row)
+          if(rows[1]&&rows[1].some(h=>String(h).toLowerCase().includes('студент'))){wsName=name;break;}
+        }
+      }
+      if(!wsName) wsName=wb.SheetNames[0];
+      const ws=wb.Sheets[wsName];
+      let rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       if(rows.length<2){toast('Файл пустой','error');return;}
-      const hdr=rows[0];
-      // Find column indices
-      const col=name=>hdr.findIndex(h=>String(h).trim().toLowerCase()===name.toLowerCase());
+      // Find header row - might be row 1 or 2 (template has group header on row 1)
+      let hdrIdx=0;
+      for(let i=0;i<Math.min(rows.length,5);i++){
+        if(rows[i].some(h=>String(h).toLowerCase().includes('студент'))){hdrIdx=i;break;}
+      }
+      const hdr=rows[hdrIdx];
+      const dataRows=rows.slice(hdrIdx+1);
+      const col=name=>{
+        const clean=s=>String(s).trim().toLowerCase().replace(/\s*\(.*?\)/g,'').trim();
+        return hdr.findIndex(h=>clean(h)===clean(name));
+      };
       const nameCol=col('Студент');
-      if(nameCol<0){toast('Не найден столбец "Студент"','error');return;}
-      _xlData={rows:rows.slice(1),hdr,nameCol};
-      // Preview
+      if(nameCol<0){toast(`Не найден столбец "Студент" в листе "${wsName}".\nЗаголовки: ${hdr.filter(h=>h).slice(0,5).join(', ')}...`,'error');return;}
+      _xlData={rows:dataRows,hdr,nameCol,wsName};
       const t=D.teachers.find(x=>x.id===selT);
       const g=(t?.groups||[]).find(x=>x.id===selG);
-      const dataRows=rows.slice(1).filter(r=>r[nameCol]&&String(r[nameCol]).trim());
-      const matched=dataRows.filter(r=>(g.students||[]).find(s=>s.name===String(r[nameCol]).trim()));
-      const notFound=dataRows.filter(r=>!(g.students||[]).find(s=>s.name===String(r[nameCol]).trim()));
+      const filled=dataRows.filter(r=>r[nameCol]&&String(r[nameCol]).trim());
+      const matched=filled.filter(r=>(g.students||[]).find(s=>s.name===String(r[nameCol]).trim()));
+      const notFound=filled.filter(r=>!(g.students||[]).find(s=>s.name===String(r[nameCol]).trim()));
       document.getElementById('xl-info').innerHTML=`
-        <div style="color:#1b5e20;font-weight:700;margin-bottom:6px">✅ Совпадений: ${matched.length} ${tr('stuCount')}</div>
-        ${notFound.length?`<div style="color:#e65100;margin-bottom:6px">⚠️ Не найдено в группе (${notFound.length}): ${notFound.map(r=>r[nameCol]).join(', ')}</div>`:''}
-        <div style="color:#555">Заполненные ячейки будут обновлены. Пустые ячейки останутся без изменений.</div>`;
+        <div style="color:#1b5e20;font-weight:700;margin-bottom:6px">✅ Лист: "${wsName}" · Совпадений: ${matched.length}</div>
+        ${notFound.length?`<div style="color:#e65100;margin-bottom:6px">⚠️ Не найдено (${notFound.length}): ${notFound.map(r=>r[nameCol]).join(', ')}</div>`:''}
+        <div style="color:#555">Заполненные ячейки будут обновлены.</div>`;
       document.getElementById('xl-preview').style.display='block';
       document.getElementById('xl-confirm').style.display='flex';
-    }catch(err){toast('Ошибка чтения файла','error');}
+    }catch(err){toast('Ошибка чтения файла: '+err.message,'error');console.error(err);}
   };
   reader.readAsArrayBuffer(file);
 }
@@ -3440,10 +3460,9 @@ function doUploadExcel(){
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
   const {rows,hdr,nameCol}=_xlData;
-  // Strip parentheses/percentages for flexible matching: "PPT (20%)" -> "ppt"
   const cleanH=s=>String(s).trim().toLowerCase().replace(/\s*\(.*?\)/g,'').trim();
   const col=name=>hdr.findIndex(h=>cleanH(h)===cleanH(name));
-  const getNum=(row,name)=>{const i=col(name);if(i<0) return null;const v=row[i];return v!==''&&v!==null&&v!==undefined?parseFloat(v):null;};
+  const getNum=(row,name)=>{const i=col(name);if(i<0) return null;const v=row[i];const n=parseFloat(v);return(!isNaN(n)&&v!==''&&v!==null&&v!==undefined)?n:null;};
   let updated=0;
   const isRusGrp=RUS_LEVELS.includes(g.level);
   const rusCfg=isRusGrp?(RUS_CFG[g.level]||RUS_CFG['rus-1']):null;
