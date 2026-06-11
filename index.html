@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781178640';
+  const APP_VERSION='1781179382';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -855,7 +855,7 @@ function openModal(html){
   setTimeout(()=>box.querySelector('input,select,textarea')?.focus(),80);
 }
 function closeModal(e){
-  if(e&&e.target!==document.getElementById('mbg')) return;
+  if(e&&e.type==='click'&&e.currentTarget===document.getElementById('mbg')&&e.target!==document.getElementById('mbg')) return;
   const bg=document.getElementById('mbg');
   if(bg) bg.style.display='none';
 }
@@ -4899,6 +4899,19 @@ function saveGlobalEvent(){
   a.mockTests.push({id:uid(),type,groupName,date});
   closeModal();sched();toast('Событие добавлено ✓','success');renderAll();
 }
+
+// Save on page unload
+window.addEventListener('beforeunload', ()=>{
+  if(dataLoaded && FIREBASE_URL){
+    D._savedAt=new Date().toISOString();
+    const data=JSON.stringify(D);
+    try{localStorage.setItem(LOCAL_KEY,data);}catch(e){}
+    // Use sendBeacon for reliable save on page close
+    try{
+      navigator.sendBeacon(`${FIREBASE_URL}/data.json`,data);
+    }catch(e){}
+  }
+});
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
