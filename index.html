@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781179382';
+  const APP_VERSION='1781180733';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -873,23 +873,17 @@ async function loadData(){
         const cloud=await r.json()||{};
         const cloudTime=new Date(cloud._savedAt||0).getTime();
         const lcTime=new Date(local._localAt||local._savedAt||0).getTime();
-        const lcScore=(local.teachers||[]).length*10+(local.accounts||[]).length;
-        const cloudScore=(cloud.teachers||[]).length*10+(cloud.accounts||[]).length;
-        // Always prefer cloud if it has data and is newer or equal
-        // Only use local if it's significantly newer (unsaved local changes)
-        const localIsNewer=lcTime>cloudTime+5000; // 5 sec buffer
-        if(cloudScore>0&&!localIsNewer){
-          // Cloud is authoritative
+        // Use local if it has unsaved changes newer than cloud by more than 1 sec
+        const localHasUnsaved=local._localAt&&lcTime>cloudTime+1000;
+        if(localHasUnsaved&&(local.teachers||[]).length>0){
+          D=local;
+          // Push local to cloud in background
+          setTimeout(saveData,500);
+        } else if((cloud.teachers||[]).length>0){
           D=cloud;
-          // Sync local to match cloud
           try{localStorage.setItem(LOCAL_KEY,JSON.stringify(cloud));}catch(e){}
-        } else if(lcScore>0&&localIsNewer){
-          // Local has unsaved changes newer than cloud
-          D=local;setTimeout(saveData,1000);
-        } else if(cloudScore>0){
-          D=cloud;
-        } else if(lcScore>0){
-          D=local;setTimeout(saveData,1000);
+        } else if((local.teachers||[]).length>0){
+          D=local;setTimeout(saveData,500);
         }
       } else if(local.teachers){D=local;}
     }catch(e){
@@ -4575,20 +4569,33 @@ function showAddStaff(){
     <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button></div>`);
 }
 
+function sched(){
+  D._localAt=new Date().toISOString();
+  try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+  const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
+  clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
+}
+
 async function saveData(){
   if(!FIREBASE_URL){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}return;}
   const pill=document.getElementById('saving-pill');if(pill)pill.style.display='flex';
   try{
     D._savedAt=new Date().toISOString();
-    const r=await fetch(`${FIREBASE_URL}/data.json`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(D)});
-    if(r.ok){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+    D._localAt=D._savedAt; // mark as synced
+    const body=JSON.stringify(D);
+    const r=await fetch(`${FIREBASE_URL}/data.json`,{method:'PUT',headers:{'Content-Type':'application/json'},body});
+    if(r.ok){
+      try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
       const up=document.getElementById('unsaved-pill');if(up)up.style.display='none';
       toast(tr('saveOk'),'success');
-    }else toast('Ошибка Firebase: '+r.status,'error');
-  }catch(e){toast('Нет соединения. Данные сохранены локально.','error');
-    const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';}
+    } else toast('Ошибка Firebase: '+r.status,'error');
+  }catch(e){
+    toast('Нет соединения. Данные сохранены локально.','error');
+    const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
+  }
   if(pill)pill.style.display='none';
 }
+
 function saveNow(){saveData();}
 
 async function sha256(str){
