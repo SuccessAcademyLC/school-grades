@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781178003';
+  const APP_VERSION='1781178640';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2009,21 +2009,28 @@ async function syncToSheets(){
 }
 
 function nameBlur(sid,rowIdx,inp){
+  if(inp._processing) return; // prevent double trigger
   const val=inp.value.trim();
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);
-  if(!g||!g.students) g&&(g.students=[]);
   if(!g) return;
-  if(sid){const s=g.students.find(x=>x.id===sid);if(s&&val){s.name=val;sched();}}
-  else if(val){
+  if(!g.students) g.students=[];
+  if(sid){
+    const s=g.students.find(x=>x.id===sid);
+    if(s&&val){s.name=val;sched();}
+  } else if(val){
+    inp._processing=true; // lock against re-entry
     const ns=newStudent(val);
     g.students.push(ns);
     if(!D.students.find(x=>x.name.toLowerCase()===val.toLowerCase()))
       D.students.push({id:ns.id,name:val,status:'active',createdAt:new Date().toISOString().split('T')[0]});
-    sched();setTimeout(()=>renderGroup(document.getElementById('main')),100);
+    sched();
+    renderGroup(document.getElementById('main'));
   }
 }
-function nameKey(e,sid,idx,inp){if(e.key==='Enter') inp.blur();}
+function nameKey(e,sid,idx,inp){
+  if(e.key==='Enter'){e.preventDefault();inp.blur();}
+}
 
 // ── Student actions ───────────────────────────────────────────────────────
 function showHideStudent(sid){
