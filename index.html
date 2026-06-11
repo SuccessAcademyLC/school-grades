@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781180733';
+  const APP_VERSION='1781181986';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3440,7 +3440,9 @@ function doUploadExcel(){
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
   const {rows,hdr,nameCol}=_xlData;
-  const col=name=>hdr.findIndex(h=>String(h).trim().toLowerCase()===name.toLowerCase());
+  // Strip parentheses/percentages for flexible matching: "PPT (20%)" -> "ppt"
+  const cleanH=s=>String(s).trim().toLowerCase().replace(/\s*\(.*?\)/g,'').trim();
+  const col=name=>hdr.findIndex(h=>cleanH(h)===cleanH(name));
   const getNum=(row,name)=>{const i=col(name);if(i<0) return null;const v=row[i];return v!==''&&v!==null&&v!==undefined?parseFloat(v):null;};
   let updated=0;
   const isRusGrp=RUS_LEVELS.includes(g.level);
