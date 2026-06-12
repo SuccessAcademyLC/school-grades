@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781183112';
+  const APP_VERSION='1781272100';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1543,8 +1543,8 @@ function renderRusGroup(el,g,t,ed,archMode){
   const colCount=cfg.conv+cfg.hw+cfg.vocab+cfg.ppt+1+(cfg.hasFinalTest?1:0)+1;
   el.innerHTML=`
     <div class="bc">
-      <span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span>
-      <span class="bc-l" onclick="gotoT('${t.id}')">${t.name}</span>
+      <span class="${window._qrViewMode?'bc-c':'bc-l'}" ${window._qrViewMode?'':'onclick="goHome()"'}>Главная</span><span class="bc-s">›</span>
+      <span class="${window._qrViewMode?'bc-c':'bc-l'}" ${window._qrViewMode?'':'onclick="gotoT(\''+t.id+'\')"'}>${t.name}</span>
       <span class="bc-s">›</span><span class="bc-c">${title}</span>
     </div>
     <div class="ph">
@@ -3647,8 +3647,8 @@ function checkMobile(){
 }
 window.addEventListener('resize',checkMobile);
 
-function goHome(){view='home';selT=null;selG=null;selArch=null;selStu=null;curPage=null;renderAll();}
-function gotoT(id){selT=id;selG=null;selArch=null;view='teacher';curPage=null;renderAll();}
+function goHome(){if(window._qrViewMode) return;view='home';selT=null;selG=null;selArch=null;selStu=null;curPage=null;renderAll();}
+function gotoT(id){if(window._qrViewMode) return;selT=id;selG=null;selArch=null;view='teacher';curPage=null;renderAll();}
 function gotoG(id){selG=id;view='group';curPage=null;renderAll();
   // Autofocus first grade input after render — only for admin/teacher
   if(!window._qrViewMode&&(isAdmin()||curUser?.role==='teacher')){
