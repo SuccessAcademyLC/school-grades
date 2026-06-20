@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781843347';
+  const APP_VERSION='1781928609';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1482,23 +1482,18 @@ function renderRusRow(s,num,g,ed){
   const namecell=ed
     ?`<input class="ni" type="text" value="${s?s.name:''}" placeholder="Введите имя..." onblur="nameBlur('${sid}',${num-1},this)" onkeydown="nameKey(event,'${sid}',${num-1},this)" onfocus="this.select()">`
     :(s?.name?`<span class="name-link" onclick="clickStudent('${sid}')">${s.name}</span>`:'<span style="color:#ddd">—</span>');
-  // Apply start offsets - fill zeros before startConv
+  const convs=Array(cfg.conv).fill(null).map((_,i)=>(s?.conversations||[])[i]??null);
+  const hws=Array(cfg.hw).fill(null).map((_,i)=>(s?.homework||[])[i]??null);
+  const vocabs=Array(cfg.vocab).fill(null).map((_,i)=>(s?.vocabulary||[])[i]??null);
+  const ppts=Array(cfg.ppt).fill(null).map((_,i)=>(s?.presentations||[])[i]??null);
   const startC=(s?.startConv||1)-1;
   const startH=(s?.startHW||1)-1;
-  const convs=Array(cfg.conv).fill(null).map((_,i)=>i<startC?'skip':(s?.conversations||[])[i-startC]??null);
-  const hws=Array(cfg.hw).fill(null).map((_,i)=>i<startH?'skip':(s?.homework||[])[i-startH]??null);
-  const vocabs=Array(cfg.vocab).fill(null).map((_,i)=>i<startH?'skip':(s?.vocabulary||[])[i-startH]??null);
-  const ppts=Array(cfg.ppt).fill(null).map((_,i)=>(s?.presentations||[])[i]??null);
-  const gcellSkip=(val,field,idx,skip)=>{
-    if(skip==='skip') return `<td${idx===0?' class="gb"':''}><span style="color:#ddd;font-size:10px">—</span></td>`;
-    return `<td${idx===0?' class="gb"':''}>${gcell(val,field,idx)}</td>`;
-  };
   return `<tr class="${empty?'empty-row':''}">
     <td class="nc">${num}</td>
     <td class="nmc">${namecell}</td>
-    ${convs.map((v,i)=>gcellSkip(v==='skip'?null:v,'conversations',i,v)).join('')}
-    ${hws.map((v,i)=>gcellSkip(v==='skip'?null:v,'homework',i,v)).join('')}
-    ${vocabs.map((v,i)=>gcellSkip(v==='skip'?null:v,'vocabulary',i,v)).join('')}
+    ${convs.map((v,i)=>`<td${i===0?' class="gb"':''}>${i<startC?'<span style="color:#ddd;font-size:10px">—</span>':gcell(v,'conversations',i)}</td>`).join('')}
+    ${hws.map((v,i)=>`<td${i===0?' class="gb"':''}>${i<startH?'<span style="color:#ddd;font-size:10px">—</span>':gcell(v,'homework',i)}</td>`).join('')}
+    ${vocabs.map((v,i)=>`<td${i===0?' class="gb"':''}>${i<startH?'<span style="color:#ddd;font-size:10px">—</span>':gcell(v,'vocabulary',i)}</td>`).join('')}
     ${ppts.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'presentations',i)}</td>`).join('')}
     <td class="gb">${gcell(s?.finalConversation,'finalConversation')}</td>
     ${cfg.hasFinalTest?`<td>${gcell(s?.finalTest,'finalTest')}</td>`:''}
@@ -1522,15 +1517,12 @@ function gchRus(sid,field,idx,val){
   if(!validateGradeInput(inp,val,100)) return;
   const n=val===''?null:parseFloat(val);
   if(idx!==null){
-    // Apply start offset for conversations/homework/vocabulary
-    let realIdx=idx;
-    if(field==='conversations') realIdx=idx+(s.startConv||1)-1;
-    else if(field==='homework'||field==='vocabulary') realIdx=idx+(s.startHW||1)-1;
     if(!s[field])s[field]=[];
-    // Ensure array is big enough
-    while(s[field].length<=realIdx) s[field].push(null);
-    s[field][realIdx]=n;
-  } else s[field]=n;
+    while(s[field].length<=idx) s[field].push(null);
+    s[field][idx]=n;
+  } else {
+    s[field]=n;
+  }
   const ov=calc(s,g.level);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=ov!==null?ov.toFixed(1):'—';badge.className='ob '+(ov===null?'on':ov>=75?'og':ov>=70?'oy':'or');}
