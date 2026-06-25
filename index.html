@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1781928609';
+  const APP_VERSION='1782363869';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -908,7 +908,23 @@ async function loadData(){
 
 function fixFirebaseArrays(obj){
   if(!obj||typeof obj!=='object') return;
-  const toArr=v=>(v&&!Array.isArray(v)&&typeof v==='object')?Object.values(v):(Array.isArray(v)?v:v!=null?[v]:[]);
+  // Firebase stores arrays as objects {0:val, 1:val, 4:val} - must preserve indices!
+  const toArr=v=>{
+    if(Array.isArray(v)) return v;
+    if(v&&typeof v==='object'&&!Array.isArray(v)){
+      const keys=Object.keys(v);
+      const isNumericKeys=keys.every(k=>!isNaN(parseInt(k)));
+      if(isNumericKeys&&keys.length>0){
+        // Sparse array from Firebase - preserve exact indices
+        const maxIdx=Math.max(...keys.map(k=>parseInt(k)));
+        const arr=Array(maxIdx+1).fill(null);
+        keys.forEach(k=>arr[parseInt(k)]=v[k]);
+        return arr;
+      }
+      return Object.values(v);
+    }
+    return v!=null?[v]:[];
+  };
   const padArr=(arr,len)=>{if(!arr) return Array(len).fill(null);while(arr.length<len) arr.push(null);return arr;};
   ['teachers','students','accounts','archives'].forEach(k=>{
     if(obj[k]) obj[k]=toArr(obj[k]);
@@ -922,9 +938,9 @@ function fixFirebaseArrays(obj){
         s.units=padArr(toArr(s.units),12);
         s.homework=padArr(toArr(s.homework),5);
         s.achievements=padArr(toArr(s.achievements),5);
-        // Russian
         if(s.conversations) s.conversations=padArr(toArr(s.conversations),10);
         if(s.vocabulary) s.vocabulary=padArr(toArr(s.vocabulary),10);
+        if(s.homework_rus) s.homework_rus=padArr(toArr(s.homework_rus),10);
         if(s.presentations) s.presentations=padArr(toArr(s.presentations),2);
         if(s.units_grammar) s.units_grammar=padArr(toArr(s.units_grammar),12);
         if(s.units_vocab) s.units_vocab=padArr(toArr(s.units_vocab),12);
