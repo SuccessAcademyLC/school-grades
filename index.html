@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1782363869';
+  const APP_VERSION='1782791844';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1677,8 +1677,8 @@ function renderGroup(el,archMode,archSnap){
           <th colspan="5" class="gb gh">Homework (10%)</th>
           <th colspan="5" class="gb gh">Achievement Test (15%)</th>
           <th class="gb gh" rowspan="2">PPT (20%)</th>
-          <th class="gh" rowspan="2">${isE?'SPT (15%)':'SPT (25%)'}</th>
-          <th class="gh" rowspan="2">${isE?'Final (30%)':'Final (20%)'}</th>
+          <th class="gh" rowspan="2">${isE?'SPT (15%)':'SPT (30%)'}</th>
+          <th class="gh" rowspan="2">${isE?'Final (30%)':'Final (15%)'}</th>
           <th class="gh" rowspan="2">Overall</th>
           <th class="gh" rowspan="2" style="background:#fff3e0!important;color:#e65100!important;min-width:60px">Retake</th>
           <th rowspan="2" style="min-width:60px"></th>
@@ -1741,10 +1741,13 @@ function srow(s,num,g,ed,archMode){
   const us=s?(Array.isArray(s.units)?s.units:Array(12).fill(null)).concat(Array(12).fill(null)).slice(0,12):Array(12).fill(null);
   const hw=s?(Array.isArray(s.homework)?s.homework:Array(5).fill(null)).concat(Array(5).fill(null)).slice(0,5):Array(5).fill(null);
   const at=s?(Array.isArray(s.achievements)?s.achievements:Array(5).fill(null)).concat(Array(5).fill(null)).slice(0,5):Array(5).fill(null);
+  const startU=(s?.startUnit||1)-1;
+  const startA=(s?.startAT||1)-1;
   return `<tr class="${empty?'empty-row':''}">
     <td class="nc">${num}</td>
     <td class="nmc">${namecell}</td>
     ${us.map((v,i)=>{
+      if(i<startU) return `<td${i===0?' class="gb"':''}><span style="color:#ddd;font-size:10px">—</span></td>`;
       if(isDoubleUnit){
         const gr=s?.units_grammar?.[i]??null;
         const vc=s?.units_vocab?.[i]??null;
@@ -1756,7 +1759,10 @@ function srow(s,num,g,ed,archMode){
       return `<td${i===0?' class="gb"':''}>${gcell(v,'units',i)}</td>`;
     }).join('')}
     ${hw.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'homework',i)}</td>`).join('')}
-    ${at.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'achievements',i)}</td>`).join('')}
+    ${at.map((v,i)=>{
+      if(i<startA) return `<td${i===0?' class="gb"':''}><span style="color:#ddd;font-size:10px">—</span></td>`;
+      return `<td${i===0?' class="gb"':''}>${gcell(v,'achievements',i)}</td>`;
+    }).join('')}
     <td class="gb">${gcell(s?.presentation,'presentation')}</td>
     <td>${gcell(s?.speaking,'speaking')}</td>
     <td>${gcell(s?.final,'final')}</td>
@@ -1806,7 +1812,9 @@ function calc(s,level){
   const fin=ok(s.final)?Number(s.final):null;
   if(!u.length&&!hw.length&&!at.length&&ppt===null&&spt===null&&fin===null) return null;
   const isE=['beginner','elementary'].includes(level);
-  return avg(u)*.10+avg(hw)*.10+avg(at)*.15+(ppt||0)*.20+(isE?(spt||0)*.15+(fin||0)*.30:(spt||0)*.25+(fin||0)*.20);
+  // Beginner/Elementary: U10+HW10+AT15+PPT20+Speaking15+Final30
+  // Pre-Int and above: U10+AT15+HW10+PPT20+Final15+Speaking30
+  return avg(u)*.10+avg(hw)*.10+avg(at)*.15+(ppt||0)*.20+(isE?(spt||0)*.15+(fin||0)*.30:(spt||0)*.30+(fin||0)*.15);
 }
 function calcFinal(s,level){
   const ov=calc(s,level);
@@ -1833,23 +1841,17 @@ function gch(sid,field,idx,val){
   const g=(t?.groups||[]).find(x=>x.id===selG);
   const s=(g?.students||[]).find(x=>x.id===sid);
   if(!s) return;
-  // Find the input element for validation
   const inp=event?.target||null;
   const max=field==='retake'?6:100;
   if(!validateGradeInput(inp,val,max)) return;
   const n=val===''?null:parseFloat(val);
   if(idx!==null){
     if(!s[field])s[field]=Array(field==='units'?12:5).fill(null);
+    while(s[field].length<=idx) s[field].push(null);
     s[field][idx]=n;
-    // Auto-fill gaps with 0: if there's a value after a gap, fill gaps with 0
-    if(n!==null){
-      const arr=s[field];
-      const lastFilled=arr.reduce((last,v,i)=>v!==null?i:last,-1);
-      let autoFilled=0;
-      for(let i=0;i<lastFilled;i++){if(arr[i]===null){arr[i]=0;autoFilled++;}}
-      if(autoFilled>0) toast(`${autoFilled} пропущенных ${field==='units'?'юнит':'ячеек'} заполнено нулём автоматически`,'');
-    }
-  } else s[field]=n;
+  } else {
+    s[field]=n;
+  }
   const ov=calc(s,g.level);
   const r=s.retake!=null&&s.retake!==''?Number(s.retake):null;
   const fv=ov!==null?(ov+(r||0)):(r!==null?r:null);
@@ -3384,7 +3386,7 @@ function downloadTemplate(){
 
   // Grades sheet — header rows
   const h1=['','','Unit Tests (U1-U12) — 10%','','','','','','','','','','','','Homework (HW1-HW5) — 10%','','','','','Achievement Tests (AT1-AT5) — 15%','','','','','PPT','SPT','Final','Retake'];
-  const h2=['#','Студент','U1','U2','U3','U4','U5','U6','U7','U8','U9','U10','U11','U12','HW1','HW2','HW3','HW4','HW5','AT1','AT2','AT3','AT4','AT5','PPT (20%)','SPT ('+( isE?'15%':'25%')+')','Final ('+(isE?'30%':'20%')+')','Retake (0-6)'];
+  const h2=['#','Студент','U1','U2','U3','U4','U5','U6','U7','U8','U9','U10','U11','U12','HW1','HW2','HW3','HW4','HW5','AT1','AT2','AT3','AT4','AT5','PPT (20%)','SPT ('+(isE?'15%':'30%')+')','Final ('+(isE?'30%':'15%')+')','Retake (0-6)'];
   const students=(g.students||[]).filter(s=>s.name);
   const empty27=Array(26).fill('');
   const rows=students.length
