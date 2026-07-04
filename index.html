@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1782791844';
+  const APP_VERSION='1783167274';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1576,6 +1576,7 @@ function renderRusGroup(el,g,t,ed,archMode){
         <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">Excel</button>
         ${!archMode&&ed?`<button class="btn btn-grn btn-sm" onclick="showUploadExcel()">⬆ Загрузить Excel</button>`:''}
         ${!archMode&&(isAdmin()||curUser?.role==='teacher')?`<button class="btn btn-sec btn-sm" onclick="showGroupQR('${g.id}')" title="QR код группы">📱 QR</button>`:''}
+        ${!archMode&&(isAdmin()||curUser?.role==='teacher')&&(g.archived_students||[]).length?`<button class="btn btn-sec btn-sm" onclick="showArchivedStudents()" title="Архивированные студенты">📦 ${(g.archived_students||[]).length}</button>`:''}
       </div>
     </div>
     <div class="tw"><table>
@@ -1662,6 +1663,7 @@ function renderGroup(el,archMode,archSnap){
         ${!archMode?`
         <button class="btn btn-grn btn-sm" onclick="showUploadExcel()">${tr('uploadXl')}</button>`:''}
         ${!archMode&&(isAdmin()||curUser?.role==='teacher')?`<button class="btn btn-sec btn-sm" onclick="showGroupQR('${g.id}')" title="QR код группы">📱 QR</button>`:''}
+        ${!archMode&&(isAdmin()||curUser?.role==='teacher')&&(g.archived_students||[]).length?`<button class="btn btn-sec btn-sm" onclick="showArchivedStudents()" title="Архивированные студенты">📦 ${(g.archived_students||[]).length}</button>`:''}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -2315,6 +2317,41 @@ function doArchiveStu(sid){
     {studentName:s.name,groupName:`${t.name} — ${lvl(g.level)} ${g.day} ${g.time}`,teacherName:t.name}
   );
   closeModal();renderGroup(document.getElementById('main'));sched();toast(`${s.name} архивирован ✓`,'success');
+}
+
+function restoreArchivedStudent(sid){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const s=(g.archived_students||[]).find(x=>x.id===sid);if(!s) return;
+  // Restore to active students with all grades intact
+  const restored={...s};
+  delete restored.archived_at;
+  if(!g.students) g.students=[];
+  g.students.push(restored);
+  g.archived_students=g.archived_students.filter(x=>x.id!==sid);
+  const gs=D.students.find(x=>x.id===sid||x.name===s.name);
+  if(gs) gs.status='active';
+  renderGroup(document.getElementById('main'));sched();toast(`${s.name} восстановлен ✓`,'success');
+}
+
+function showArchivedStudents(){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const arch=g.archived_students||[];
+  openModal(`<div class="modal-title">📦 Архивированные студенты (${arch.length})</div>
+    ${!arch.length
+      ?`<div style="text-align:center;padding:20px;color:#bbb">Нет архивированных студентов</div>`
+      :`<div style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto">
+        ${arch.map(s=>`<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--color-border-secondary);border-radius:10px">
+          <div style="width:32px;height:32px;border-radius:50%;background:#FAEEDA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#633806">${ini(s.name)}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">${s.name}</div>
+            <div style="font-size:11px;color:var(--color-text-secondary)">${s.archived_at?new Date(s.archived_at).toLocaleDateString('ru'):''}</div>
+          </div>
+          <button onclick="restoreArchivedStudent('${s.id}');closeModal()" style="padding:5px 12px;border-radius:8px;border:1px solid #c3e6cb;background:#f0fdf4;color:#166534;font-size:12px;cursor:pointer">↩ Восстановить</button>
+        </div>`).join('')}
+      </div>`}
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Закрыть</button></div>`);
 }
 
 function showMoveStudent(sid){
