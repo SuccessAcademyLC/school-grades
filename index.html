@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1783167274';
+  const APP_VERSION='1784089964';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -420,7 +420,6 @@ body.dark .replace-card{border-color:#2d74da}
   <div class="abar-acts">
     <button class="btn-ab" onclick="gotoPage('accounts')" data-i18n="accounts">Аккаунты</button>
     <button class="btn-ab" onclick="gotoPage('students')" data-i18n="stuBase">База студентов</button>
-    <button class="btn-ab" onclick="showCreateArchive()"><span data-i18n="createArchive">🗃 Архив</span></button>
     <button class="btn-ab" onclick="showArchivesList()">🗃 Архивы</button>
     <button class="btn-ab" onclick="gotoPage('debts')">⚠️ Долги</button>
     <button class="btn-ab" onclick="gotoPage('rating')">🏆 Рейтинг</button>
@@ -1382,6 +1381,7 @@ function renderHome(el){
           <div style="font-size:12px;color:#795548;margin-top:2px">${r.text}</div>
         </div>
         <button onclick="supResolveReport('${a.id}','${r.id}');renderAll()" style="font-size:11px;padding:3px 10px;border-radius:8px;border:1px solid #FFB74D;background:white;color:#E65100;cursor:pointer;white-space:nowrap">✓ Решено</button>
+        <button onclick="supDeleteReport('${a.id}','${r.id}');renderAll()" style="font-size:11px;padding:3px 8px;border-radius:8px;border:1px solid #fcc;background:#fff5f5;color:#c00;cursor:pointer;margin-left:4px">✕</button>
       </div>`).join('')}
     </div>`:''}
     ${hiddenAlert.length?`<div style="background:#fff3e0;border:1.5px solid #ffb74d;border-radius:12px;padding:16px 20px;margin-bottom:16px">
@@ -1435,7 +1435,9 @@ function renderTeacher(el){
   const t=D.teachers.find(x=>x.id===selT);
   if(!t){goHome();return;}
   const groups=t.groups||[];
-  const mwf=groups.filter(g=>g.day==='MWF'),tts=groups.filter(g=>g.day==='TTS');
+  const sortByTime=arr=>[...arr].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  const mwf=sortByTime(groups.filter(g=>g.day==='MWF')),tts=sortByTime(groups.filter(g=>g.day==='TTS'));
+  const otherDays=sortByTime(groups.filter(g=>g.day!=='MWF'&&g.day!=='TTS'));
   const dayBlock=(lbl,list)=>!list.length?'':
     `<div style="margin-bottom:20px"><div class="day-lbl">${lbl}</div><div class="gg">
       ${list.map(g=>{
@@ -2244,36 +2246,33 @@ function promoteGroup(){
   const nextTime=document.getElementById('prm-time')?.value||g.time;
   const nextDay=g.day;
 
-  // Archive current group
+  // Archive current group (with all grades)
   const snap=JSON.parse(JSON.stringify([t]));
   if(!D.archives) D.archives=[];
   D.archives.push({id:uid(),label,date:new Date().toLocaleDateString('ru'),teachers:snap});
 
-  // Get students before removing group
-  const students=transfer&&nextLevel?(g.students||[]).filter(s=>s&&s.name&&!s.hidden).map(s=>({
-    ...newStudent(s.name), // fresh grades
+  // Students for new group — clean grades, same names
+  const activeStudents=(g.students||[]).filter(s=>s&&s.name&&!s.hidden);
+  const newStudents=transfer&&nextLevel?activeStudents.map(s=>({
+    ...newStudent(s.name),
     id:uid(),
     name:s.name
   })):[];
 
-  // Remove group
+  // Remove old group
   t.groups=t.groups.filter(x=>x.id!==selG);
 
-  // Create new group with students if requested
-  if(transfer&&nextLevel&&students.length){
+  if(transfer&&nextLevel&&newStudents.length){
     if(!t.groups) t.groups=[];
-    const newG={id:uid(),level:nextLevel,day:nextDay,time:nextTime,students};
+    const newG={id:uid(),level:nextLevel,day:nextDay,time:nextTime,students:newStudents};
     t.groups.push(newG);
     selG=newG.id;selT=t.id;view='group';
-    try{localStorage.removeItem(LOCAL_KEY);}catch(e){}
-    closeModal();renderAll();
-    saveData().then(()=>toast(`Группа завершена. Создана новая группа ${lvl(nextLevel)} с ${students.length} студентами ✓`,'success'));
   } else {
     selG=null;view='teacher';
-    try{localStorage.removeItem(LOCAL_KEY);}catch(e){}
-    closeModal();renderAll();
-    saveData().then(()=>toast('Группа завершена и архивирована ✓','success'));
   }
+  try{localStorage.removeItem(LOCAL_KEY);}catch(e){}
+  closeModal();renderAll();
+  saveData().then(()=>toast(transfer&&nextLevel?`Архивировано ✓. Открыта новая группа ${lvl(nextLevel)}`:'Группа завершена и архивирована ✓','success'));
 }
 
 function delStudent(sid){
@@ -2358,29 +2357,47 @@ function showMoveStudent(sid){
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);
   const s=g?.students?.find(x=>x.id===sid);if(!s) return;
+  const isRus=RUS_LEVELS.includes(g.level);
   const opts=[];
-  D.teachers.forEach(tc=>(tc.groups||[]).forEach(gr=>{if(gr.id!==selG) opts.push({t:tc,g:gr});}));
-  openModal(`<div class="modal-title">↗ Перенести студента</div>
-    <div class="modal-desc">Куда перенести <b>${s.name}</b>?</div>
-    <div style="max-height:320px;overflow-y:auto">
-      ${opts.map(({t:tc,g:gr})=>`<div class="gc-choice" onclick="doMove('${sid}','${gr.id}')">
-        <div class="t-av" style="width:32px;height:32px;font-size:11px;border-radius:8px">${ini(tc.name)}</div>
-        <div><div style="font-size:13px;font-weight:700">${tc.name}</div>
-          <div style="font-size:12px;color:#888">${gr.day} ${gr.time} · <span class="lp lv-${lvc(gr.level)}" style="padding:1px 7px">${lvl(gr.level)}</span></div>
-        </div></div>`).join('')||'<div style="text-align:center;padding:20px;color:#bbb">'+tr('noGroups')+'</div>'}
+  D.teachers.forEach(tc=>(tc.groups||[]).forEach(gr=>{
+    if(gr.id===selG) return;
+    // Suggest same level first, then same type (rus/eng)
+    const sameLevel=gr.level===g.level;
+    const sameType=RUS_LEVELS.includes(gr.level)===isRus;
+    if(sameType) opts.push({t:tc,g:gr,sameLevel});
+  }));
+  opts.sort((a,b)=>b.sameLevel-a.sameLevel);
+  openModal(`<div class="modal-title">↗ Переместить студента</div>
+    <div style="background:#f0fdf4;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px">
+      <b>${s.name}</b> — все оценки будут перенесены
     </div>
-    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button></div>`);
+    <div style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+      ${opts.length?opts.map(({t:tc,g:gr,sameLevel})=>`
+        <div onclick="doMove('${sid}','${gr.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid ${sameLevel?'#86efac':'var(--color-border-secondary)'};border-radius:10px;cursor:pointer;background:${sameLevel?'#f0fdf4':''}" onmouseenter="this.style.opacity='.8'" onmouseleave="this.style.opacity='1'">
+          <div style="width:36px;height:36px;font-size:12px;border-radius:10px;background:linear-gradient(135deg,#4361ee,#3a0ca3);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini(tc.name)}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600">${tc.name}</div>
+            <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${gr.day} · ${gr.time} · <span class="lp lv-${lvc(gr.level)}" style="padding:1px 7px">${lvl(gr.level)}</span>${sameLevel?'<span style="margin-left:6px;font-size:10px;background:#86efac;color:#14532d;padding:1px 6px;border-radius:8px">тот же уровень</span>':''}</div>
+          </div>
+          <span style="color:#4361ee">→</span>
+        </div>`).join(''):`<div style="text-align:center;padding:20px;color:#bbb">Нет подходящих групп</div>`}
+    </div>
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button></div>`);
 }
+
 function doMove(sid,targetGid){
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);
   const s=g?.students?.find(x=>x.id===sid);if(!s) return;
-  let tgt=null;D.teachers.forEach(tc=>(tc.groups||[]).forEach(gr=>{if(gr.id===targetGid) tgt=gr;}));
+  let tgt=null;
+  D.teachers.forEach(tc=>(tc.groups||[]).forEach(gr=>{if(gr.id===targetGid) tgt=gr;}));
   if(!tgt) return;
   if(!tgt.students) tgt.students=[];
-  tgt.students.push({...s,id:uid()});
+  // Move with ALL grades preserved, keep same id
+  tgt.students.push({...s});
   g.students=g.students.filter(x=>x.id!==sid);
-  closeModal();renderGroup(document.getElementById('main'));sched();toast(`${s.name} перенесён ✓`,'success');
+  closeModal();renderGroup(document.getElementById('main'));sched();
+  toast(`${s.name} перемещён ✓`,'success');
 }
 
 function clickStudent(sid){
@@ -4643,8 +4660,14 @@ function fillMonthFromQueue(month){
 function supResolveReport(supId,reportId){
   const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
   const r=(a.reports||[]).find(x=>x.id===reportId);if(!r) return;
-  r.resolved=!r.resolved;
-  sched();renderAll();toast(r.resolved?'Отмечено как решено ✓':'Снято решение','success');
+  r.resolved=true;
+  sched();
+}
+
+function supDeleteReport(supId,reportId){
+  const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
+  a.reports=(a.reports||[]).filter(x=>x.id!==reportId);
+  sched();
 }
 
 function showAddStaff(){
