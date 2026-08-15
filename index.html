@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1786793939';
+  const APP_VERSION='1786794176';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -5501,7 +5501,7 @@ function renderBulkStudents(){
         inputCols = `<div style="width:90px"><input type="number" class="fi bem-val" data-sid="${s.id}" data-field="${realField}" data-idx="${idx}" data-single="${isSingleF?1:0}" data-x2="0" min="0" max="${maxVal}" placeholder="0–${maxVal}" value="${cur}" style="${inputStyle}" onkeydown="bemKey(event,${i})"></div>`;
       }
 
-      return `<div style="display:flex;align-items:center;padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);gap:6px;${bg}">
+      return `<div data-row="${i}" style="display:flex;align-items:center;padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);gap:6px;${bg}">
         <div style="width:24px;font-size:11px;color:var(--color-text-secondary)">${i+1}</div>
         <div style="flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</div>
         ${inputCols}
@@ -5524,12 +5524,39 @@ function updateBemPreview(inp,rowIdx){
 }
 
 function bemKey(e,pos){
-  if(e.key==='Enter'){
+  const all=[...document.querySelectorAll('#bem-students input')];
+  const cur=e.target;
+  const ci=all.indexOf(cur);
+
+  if(e.key==='Enter'||e.key==='ArrowDown'){
     e.preventDefault();
-    const all=[...document.querySelectorAll('#bem-students input')];
-    const next=all[all.indexOf(e.target)+1];
+    // Count inputs per row to move down
+    const rows=[...document.querySelectorAll('#bem-students [data-row]')];
+    // Find inputs in same column position
+    // Determine columns per row
+    const colsPerRow=document.querySelectorAll('#bem-students [data-row="0"] input').length||1;
+    const colPos=ci%colsPerRow;
+    const nextRowFirst=(Math.floor(ci/colsPerRow)+1)*colsPerRow;
+    const nextIdx=nextRowFirst+colPos;
+    const next=all[nextIdx]||all[ci+1];
+    if(next){next.focus();next.select();next.closest('[data-row]')?.scrollIntoView({block:'nearest'});}
+    else if(e.key==='Enter') saveBulkEntryModal();
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    const colsPerRow=document.querySelectorAll('#bem-students [data-row="0"] input').length||1;
+    const colPos=ci%colsPerRow;
+    const prevRowFirst=(Math.floor(ci/colsPerRow)-1)*colsPerRow;
+    const prevIdx=prevRowFirst+colPos;
+    const prev=all[prevIdx>=0?prevIdx:ci-1];
+    if(prev){prev.focus();prev.select();prev.closest('[data-row]')?.scrollIntoView({block:'nearest'});}
+  } else if(e.key==='ArrowRight'||e.key==='Tab'&&!e.shiftKey){
+    if(e.key==='Tab') e.preventDefault();
+    const next=all[ci+1];
     if(next){next.focus();next.select();}
-    else saveBulkEntryModal();
+  } else if(e.key==='ArrowLeft'||(e.key==='Tab'&&e.shiftKey)){
+    if(e.key==='Tab') e.preventDefault();
+    const prev=all[ci-1];
+    if(prev){prev.focus();prev.select();}
   }
 }
 
