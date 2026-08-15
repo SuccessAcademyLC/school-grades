@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1786794176';
+  const APP_VERSION='1786796047';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1294,15 +1294,24 @@ function renderSidebar(){
     if(t.lang==='rus') return `<span style="font-size:10px;background:#EEEDFE;color:#3C3489;padding:1px 6px;border-radius:8px;margin-left:4px">Рус яз</span>`;
     return `<span style="font-size:10px;background:#E6F1FB;color:#0C447C;padding:1px 6px;border-radius:8px;margin-left:4px">Англ РУС</span>`;
   };
-  document.getElementById('tlist').innerHTML=teachers.length
-    ?teachers.map(t=>`<div class="t-item ${selT===t.id&&view==='teacher'?'active':''}" onclick="gotoT('${t.id}')">
+  document.getElementById('tlist').innerHTML=(()=>{
+    if(!teachers.length) return '<div style="padding:16px;font-size:13px;color:#bbb">Нет преподавателей</div>';
+    const sorted=[...teachers].sort((a,b)=>a.name.localeCompare(b.name));
+    const eng=sorted.filter(t=>t.lang!=='rus');
+    const rus=sorted.filter(t=>t.lang==='rus');
+    const renderT=t=>`<div class="t-item ${selT===t.id&&view==='teacher'?'active':''}" onclick="gotoT('${t.id}')">
         <div class="t-av">${ini(t.name)}</div>
         <div style="flex:1;min-width:0">
           <div class="t-name">${t.name}${tLangBadge(t)}</div>
           <div class="t-sub">${(t.groups||[]).length} ${tr('grpCount')}${t.phone?` · ${t.phone}`:''}</div>
         </div>
-      </div>`).join('')
-    :'<div style="padding:16px;font-size:13px;color:#bbb">Нет преподавателей</div>';
+      </div>`;
+    const section=(label,color,bg,list)=>list.length?`
+      <div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:${color};background:${bg};letter-spacing:.5px;text-transform:uppercase">${label} (${list.length})</div>
+      ${list.map(renderT).join('')}`:'';
+    return section('Английский','#0C447C','#f0f5ff',eng)
+         + section('Русский язык','#3C3489','#f3f0ff',rus);
+  })();
 
   // Supporters tab
   const supporters=(D.accounts||[]).filter(a=>a.role==='supporter');
