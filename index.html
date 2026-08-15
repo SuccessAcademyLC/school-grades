@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1786796047';
+  const APP_VERSION='1786796593';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1829,12 +1829,11 @@ function srow(s,num,g,ed,archMode){
         return `<td${i===0?' class="gb"':''}><div onclick="showUnitPopup('${sid}',${i},'${g.level}')" style="width:42px;min-height:26px;border:1.5px solid #e8eaf0;border-radius:5px;padding:3px 4px;text-align:center;font-size:12.5px;cursor:pointer;background:${bg};color:${color};font-weight:${score!==''?700:400}">${score!==''?fmt(score):'—'}</div></td>`;
       }
       if(isX2Unit){
-        // Show input 0-50, save as x2
-        const raw=v!=null&&v!==''?Math.round(v/2):'';
+        // Display: stored value (0-100). Input: 0-50 (×2 on save)
         const score=v!=null&&v!==''?v:'';
         const isZero=score===0;
         const color=score===''?'':Number(score)>=75?'#1b5e20':Number(score)>=70?'#e65100':'#b71c1c';
-        return `<td${i===0?' class="gb"':''}><input class="gi${isZero?' zero':''}" type="text" inputmode="decimal" value="${raw}" placeholder="" style="${score!==''?`color:${color};font-weight:700`:''}" oninput="gchX2('${sid}','units',${i},this.value)" onkeydown="gradeKey(event,this)" onfocus="this.select()"></td>`;
+        return `<td${i===0?' class="gb"':''}><input class="gi${isZero?' zero':''}" type="text" inputmode="decimal" value="${score!==''?fmt(score):''}" placeholder="" style="${score!==''?`color:${color};font-weight:700`:''}" title="Вводить 0–50, сохраняется ×2" onfocus="if(this.value){this.value=Math.round(parseFloat(this.value)/2)||'';};this.select()" onblur="const v=parseFloat(this.value);if(!isNaN(v)&&v<=50){gchX2('${sid}','units',${i},String(v));}" oninput="gchX2('${sid}','units',${i},this.value)" onkeydown="gradeKey(event,this)"></td>`;
       }
       return `<td${i===0?' class="gb"':''}>${gcell(v,'units',i)}</td>`;
     }).join('')}
