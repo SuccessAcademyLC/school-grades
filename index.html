@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1786786598';
+  const APP_VERSION='1786793154';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -552,6 +552,8 @@ function applyTheme(){
 
 // Apply i18n and theme immediately
 const RUS_LEVELS=['rus-1','rus-2','rus-3','rus-4'];
+// Levels where unit test is entered as 0-50 and multiplied x2
+const UNIT_X2_LEVELS=['pre-intermediate','intermediate','upper-intermediate'];
 const RUS_CFG={
   'rus-1':{conv:9,hw:9,vocab:9,ppt:1,hasFinalTest:true},
   'rus-2':{conv:10,hw:10,vocab:10,ppt:1,hasFinalTest:false},
@@ -1787,6 +1789,7 @@ function srow(s,num,g,ed,archMode){
   const sid=s?s.id:'';
   const ov=s?calc(s,g.level):null;
   const isDoubleUnit=['beginner','elementary'].includes(g.level)&&ed;
+  const isX2Unit=UNIT_X2_LEVELS.includes(g.level)&&ed;
   const retake=s?.retake!=null&&s?.retake!==''?Number(s.retake):null;
   const finalOv=ov!==null?(ov+(retake||0)):(retake!==null?retake:null);
   const ovc=finalOv===null?'on':finalOv>=75?'og':finalOv>=70?'oy':'or';
@@ -1811,12 +1814,18 @@ function srow(s,num,g,ed,archMode){
     ${us.map((v,i)=>{
       if(i<startU) return `<td${i===0?' class="gb"':''}><span style="color:#ddd;font-size:10px">—</span></td>`;
       if(isDoubleUnit){
-        const gr=s?.units_grammar?.[i]??null;
-        const vc=s?.units_vocab?.[i]??null;
         const score=v!=null&&v!==''?v:'';
         const color=score===''?'#ddd':Number(score)>=75?'#1b5e20':Number(score)>=70?'#e65100':'#b71c1c';
         const bg=score===''?'transparent':Number(score)>=75?'#e8f5e9':Number(score)>=70?'#fff8e1':'#ffebee';
         return `<td${i===0?' class="gb"':''}><div onclick="showUnitPopup('${sid}',${i},'${g.level}')" style="width:42px;min-height:26px;border:1.5px solid #e8eaf0;border-radius:5px;padding:3px 4px;text-align:center;font-size:12.5px;cursor:pointer;background:${bg};color:${color};font-weight:${score!==''?700:400}">${score!==''?fmt(score):'—'}</div></td>`;
+      }
+      if(isX2Unit){
+        // Show input 0-50, save as x2
+        const raw=v!=null&&v!==''?Math.round(v/2):'';
+        const score=v!=null&&v!==''?v:'';
+        const isZero=score===0;
+        const color=score===''?'':Number(score)>=75?'#1b5e20':Number(score)>=70?'#e65100':'#b71c1c';
+        return `<td${i===0?' class="gb"':''}><input class="gi${isZero?' zero':''}" type="text" inputmode="decimal" value="${raw}" placeholder="" style="${score!==''?`color:${color};font-weight:700`:''}" oninput="gchX2('${sid}','units',${i},this.value)" onkeydown="gradeKey(event,this)" onfocus="this.select()"></td>`;
       }
       return `<td${i===0?' class="gb"':''}>${gcell(v,'units',i)}</td>`;
     }).join('')}
@@ -1895,6 +1904,36 @@ function validateGradeInput(inp,val,max){
     if(!ok) setTimeout(()=>inp.classList.remove('err'),1500);
   }
   return ok;
+}
+
+function gchX2(sid,field,idx,val){
+  if(!sid) return;
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);
+  const s=(g?.students||[]).find(x=>x.id===sid);
+  if(!s) return;
+  const inp=event?.target||null;
+  if(!validateGradeInput(inp,val,50)) return; // max 50 input
+  const n=val===''?null:parseFloat(val)*2; // multiply x2
+  if(!s[field])s[field]=Array(12).fill(null);
+  while(s[field].length<=idx) s[field].push(null);
+  s[field][idx]=n;
+  // Update overall badge
+  const ov=calc(s,g.level);
+  const badge=document.querySelector(`[data-ov="${sid}"]`);
+  if(badge){badge.textContent=ov!==null?ov.toFixed(1):'—';badge.className='ob '+(ov===null?'on':ov>=75?'og':ov>=70?'oy':'or');}
+  // Update cell color
+  if(inp&&n!==null){
+    inp.style.color=n>=75?'#1b5e20':n>=70?'#e65100':'#b71c1c';
+    inp.style.fontWeight='700';
+    inp.classList.toggle('zero',n===0);
+  } else if(inp&&n===null){
+    inp.style.color=''; inp.style.fontWeight='';
+  }
+  D._localAt=new Date().toISOString();
+  try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+  clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
+  const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 
 function gch(sid,field,idx,val){
@@ -5379,15 +5418,20 @@ function showBulkEntryModal(){
         ${fieldOpts}
       </select>
     </div>
-    <div id="bem-students" style="max-height:55vh;overflow-y:auto;margin-top:8px"></div>
-    <div style="margin-top:10px;padding:8px 12px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#166534">
-      💡 Enter — следующий студент · Пустые поля пропускаются
+    <div id="bem-students" style="max-height:62vh;overflow-y:auto;margin-top:8px;overflow-x:hidden"></div>
+    <div style="margin-top:8px;padding:7px 12px;background:#f0fdf4;border-radius:8px;font-size:11px;color:#166534">
+      💡 Enter — следующая ячейка · Пустые поля пропускаются
     </div>
     <div class="fa">
       <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
       <button class="btn btn-pri" onclick="saveBulkEntryModal()">✓ Сохранить</button>
     </div>`);
-  setTimeout(()=>renderBulkStudents(),80);
+  // Make modal wider
+  setTimeout(()=>{
+    const box=document.getElementById('mbox');
+    if(box) box.style.maxWidth='680px';
+    renderBulkStudents();
+  },80);
 }
 
 function renderBulkStudents(){
@@ -5400,9 +5444,11 @@ function renderBulkStudents(){
   const isRus=RUS_LEVELS.includes(g.level);
   const isUnit=field==='units';
   const isConvRus=field==='conversations';
-  const isSingle=!isUnit&&!isConvRus;
+  // Only beginner/elementary have grammar+vocab split
+  const hasVocab=['beginner','elementary'].includes(g.level);
+  const isDoubleUnit=isUnit&&hasVocab;
+  const isX2Unit=isUnit&&UNIT_X2_LEVELS.includes(g.level);
   const maxVal=field==='retake'?6:100;
-  const maxUnit=50;
 
   const labelMap={units:`U${idx+1}`,homework:`HW${idx+1}`,achievements:`AT${idx+1}`,
     homework_only:`Д${idx+1}`,vocabulary:`Сл${idx+1}`,presentations:`П${idx+1}`,
@@ -5415,45 +5461,46 @@ function renderBulkStudents(){
 
   container.innerHTML=`<table style="width:100%;border-collapse:collapse">
     <thead><tr style="border-bottom:1.5px solid var(--color-border-secondary)">
-      <th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--color-text-secondary)">#</th>
-      <th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--color-text-secondary)">Студент</th>
-      ${isUnit?`<th style="text-align:center;padding:6px;font-size:12px;color:#4361ee">Граммат. /50</th>
-        <th style="text-align:center;padding:6px;font-size:12px;color:#4361ee">Словарь /50</th>
-        <th style="text-align:center;padding:6px;font-size:12px;font-weight:700">${lbl}</th>`
-      :isConvRus?`<th style="text-align:center;padding:6px;font-size:12px;color:#4361ee">Р${idx+1}</th>
-        <th style="text-align:center;padding:6px;font-size:12px;color:#2b9348">Д${idx+1}</th>
-        <th style="text-align:center;padding:6px;font-size:12px;color:#9d174d">Сл${idx+1}</th>`
-      :`<th style="text-align:center;padding:6px;font-size:12px;color:#4361ee">${lbl}</th>`}
+      <th style="text-align:left;padding:5px 6px;font-size:11px;color:var(--color-text-secondary);width:24px">#</th>
+      <th style="text-align:left;padding:5px 6px;font-size:11px;color:var(--color-text-secondary)">Студент</th>
+      ${isDoubleUnit?`<th style="text-align:center;padding:5px;font-size:11px;color:#4361ee">Грам.</th>
+        <th style="text-align:center;padding:5px;font-size:11px;color:#4361ee">Слов.</th>
+        <th style="text-align:center;padding:5px;font-size:11px;font-weight:700">${lbl}</th>`
+      :isX2Unit?`<th style="text-align:center;padding:5px;font-size:11px;color:#4361ee">${lbl} (0–50 ×2)</th>`
+      :isUnit?`<th style="text-align:center;padding:5px;font-size:11px;color:#4361ee">${lbl} (0–100)</th>`
+      :isConvRus?`<th style="text-align:center;padding:5px;font-size:11px;color:#4361ee">Р${idx+1}</th>
+        <th style="text-align:center;padding:5px;font-size:11px;color:#2b9348">Д${idx+1}</th>
+        <th style="text-align:center;padding:5px;font-size:11px;color:#9d174d">Сл${idx+1}</th>`
+      :`<th style="text-align:center;padding:5px;font-size:11px;color:#4361ee">${lbl}</th>`}
     </tr></thead>
     <tbody>
       ${students.map((s,i)=>{
         const realField=field==='homework_only'?'homework':field;
-        const cur=idx===0&&['speaking','final','finalConversation','finalTest','retake'].includes(field)
-          ?(s[field]??''):((s[realField]||[])[idx]??'');
-        const gr=isUnit?(s.units_grammar||[])[idx]??'':'';
-        const vc=isUnit?(s.units_vocab||[])[idx]??'':'';
+        const isSingleF=['speaking','final','finalConversation','finalTest','retake'].includes(field);
+        const cur=isSingleF?(s[field]??''):((s[realField]||[])[idx]??'');
+        const gr=isDoubleUnit?(s.units_grammar||[])[idx]??'':'';
+        const vc=isDoubleUnit?(s.units_vocab||[])[idx]??'':'';
         const hw=isConvRus?(s.homework||[])[idx]??'':'';
         const voc=isConvRus?(s.vocabulary||[])[idx]??'':'';
         const curColor=cur!==''?(Number(cur)>=75?'#1b5e20':Number(cur)>=70?'#e65100':'#b71c1c'):'#bbb';
+        const inputStyle='width:60px;text-align:center;padding:4px;font-size:13px';
         return `<tr style="border-bottom:0.5px solid var(--color-border-tertiary)">
-          <td style="padding:5px 8px;font-size:12px;color:var(--color-text-secondary)">${i+1}</td>
-          <td style="padding:5px 8px;font-size:13px;font-weight:500">${s.name}</td>
-          ${isUnit?`<td style="padding:3px"><input type="number" class="fi bem-gr" data-sid="${s.id}" data-idx="${idx}" min="0" max="${maxUnit}" placeholder="0–50" value="${gr}" style="width:68px;text-align:center;padding:4px" oninput="updateBemPreview(this,${i})" onkeydown="bemKey(event,${i*3+0})"></td>
-            <td style="padding:3px"><input type="number" class="fi bem-vc" data-sid="${s.id}" data-idx="${idx}" min="0" max="${maxUnit}" placeholder="0–50" value="${vc}" style="width:68px;text-align:center;padding:4px" oninput="updateBemPreview(this,${i})" onkeydown="bemKey(event,${i*3+1})"></td>
-            <td style="padding:5px;text-align:center"><span id="bem-res-${i}" style="font-size:14px;font-weight:700;color:${curColor}">${cur!==''?fmt(cur):'—'}</span></td>`
-          :isConvRus?`<td style="padding:3px"><input type="number" class="fi bem-conv" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${cur}" style="width:68px;text-align:center;padding:4px" onkeydown="bemKey(event,${i*3+0})"></td>
-            <td style="padding:3px"><input type="number" class="fi bem-hw" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${hw}" style="width:68px;text-align:center;padding:4px" onkeydown="bemKey(event,${i*3+1})"></td>
-            <td style="padding:3px"><input type="number" class="fi bem-voc" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${voc}" style="width:68px;text-align:center;padding:4px" onkeydown="bemKey(event,${i*3+2})"></td>`
-          :`<td style="padding:3px"><input type="number" class="fi bem-val" data-sid="${s.id}" data-field="${realField}" data-idx="${idx}" data-single="${['speaking','final','finalConversation','finalTest','retake'].includes(field)?1:0}" min="0" max="${maxVal}" placeholder="0–${maxVal}" value="${cur}" style="width:80px;text-align:center;padding:4px" onkeydown="bemKey(event,${i})"></td>`}
+          <td style="padding:4px 6px;font-size:11px;color:var(--color-text-secondary)">${i+1}</td>
+          <td style="padding:4px 6px;font-size:13px;font-weight:500;min-width:130px">${s.name}</td>
+          ${isDoubleUnit?`<td style="padding:2px"><input type="number" class="fi bem-gr" data-sid="${s.id}" data-idx="${idx}" min="0" max="50" placeholder="0–50" value="${gr}" style="${inputStyle}" oninput="updateBemPreview(this,${i})" onkeydown="bemKey(event,${i*2+0})"></td>
+            <td style="padding:2px"><input type="number" class="fi bem-vc" data-sid="${s.id}" data-idx="${idx}" min="0" max="50" placeholder="0–50" value="${vc}" style="${inputStyle}" oninput="updateBemPreview(this,${i})" onkeydown="bemKey(event,${i*2+1})"></td>
+            <td style="padding:4px;text-align:center"><span id="bem-res-${i}" style="font-size:13px;font-weight:700;color:${curColor}">${cur!==''?fmt(cur):'—'}</span></td>`
+          :isX2Unit?`<td style="padding:2px"><input type="number" class="fi bem-val" data-sid="${s.id}" data-field="${realField}" data-idx="${idx}" data-single="0" data-x2="1" min="0" max="50" placeholder="0–50" value="${cur!==''?Math.round(Number(cur)/2):''}" style="${inputStyle}" onkeydown="bemKey(event,${i})"></td>`
+          :isUnit?`<td style="padding:2px"><input type="number" class="fi bem-val" data-sid="${s.id}" data-field="${realField}" data-idx="${idx}" data-single="0" data-x2="0" min="0" max="100" placeholder="0–100" value="${cur}" style="${inputStyle}" onkeydown="bemKey(event,${i})"></td>`
+          :isConvRus?`<td style="padding:2px"><input type="number" class="fi bem-conv" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${cur}" style="${inputStyle}" onkeydown="bemKey(event,${i*3+0})"></td>
+            <td style="padding:2px"><input type="number" class="fi bem-hw" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${hw}" style="${inputStyle}" onkeydown="bemKey(event,${i*3+1})"></td>
+            <td style="padding:2px"><input type="number" class="fi bem-voc" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${voc}" style="${inputStyle}" onkeydown="bemKey(event,${i*3+2})"></td>`
+          :`<td style="padding:2px"><input type="number" class="fi bem-val" data-sid="${s.id}" data-field="${realField}" data-idx="${idx}" data-single="${isSingleF?1:0}" min="0" max="${maxVal}" placeholder="0–${maxVal}" value="${cur}" style="${inputStyle}" onkeydown="bemKey(event,${i})"></td>`}
         </tr>`;
       }).join('')}
     </tbody>
   </table>`;
-  // Focus first input
-  setTimeout(()=>{
-    const first=container.querySelector('input');
-    if(first){first.focus();first.select();}
-  },50);
+  setTimeout(()=>{const f=container.querySelector('input');if(f){f.focus();f.select();}},50);
 }
 
 function updateBemPreview(inp,rowIdx){
@@ -5528,13 +5575,16 @@ function saveBulkEntryModal(){
     });
   }
 
-  // Single value fields (HW/AT/SPT/Final/Retake etc)
+  // Single value fields (HW/AT/SPT/Final/Retake etc + plain unit for non-x2)
   const valInputs=[...document.querySelectorAll('.bem-val')];
   valInputs.forEach(inp=>{
     const val=inp.value.trim();if(val==='') return;
     const sid=inp.dataset.sid;
     const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
-    const n=parseFloat(val);if(isNaN(n)) return;
+    const isX2=inp.dataset.x2==='1';
+    let n=parseFloat(val);if(isNaN(n)) return;
+    if(isX2){if(n<0||n>50) return; n=n*2;} // multiply x2
+    else{if(n<0||n>100) return;}
     const fld=inp.dataset.field;
     const single=inp.dataset.single==='1';
     if(single){s[fld]=n;}
