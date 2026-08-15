@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1786800665';
+  const APP_VERSION='1786800960';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1482,22 +1482,7 @@ function renderHome(el){
       <div class="stat-card"><div class="stat-val">${ts}</div><div class="stat-lbl">${tr('students')}</div></div>
       <div class="stat-card"><div class="stat-val">${cnt>0?(sum/cnt).toFixed(1):'—'}</div><div class="stat-lbl">${tr('avg')}</div></div>
     </div>
-    ${renderDashboardStats()}
-    <div class="card">
-      <div class="card-top"><div class="card-title">${tr('teachers')}</div>
-        ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAddStaff()">Новый сотрудник</button>`:''}
-      </div>
-      <div class="gg">${sortedTeachers.map(t=>{
-        const c2=(t.groups||[]).reduce((s,g)=>s+(g.students||[]).filter(x=>x.name).length,0);
-        return `<div class="gc" onclick="gotoT('${t.id}')" style="position:relative">
-          ${isAdmin()?`<button onclick="event.stopPropagation();confirmDelT('${t.id}')" style="position:absolute;top:8px;right:8px;background:#ffebee;border:none;border-radius:6px;cursor:pointer;color:#c62828;font-size:16px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s" onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=0">×</button>`:''}
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-            <div class="t-av" style="width:44px;height:44px;font-size:16px;border-radius:12px;flex-shrink:0">${ini(t.name)}</div>
-            <div><div class="gc-name">${t.name}</div><div style="font-size:12px;color:#999">${(t.groups||[]).length} групп · ${c2} ${tr('stuCount')}</div></div>
-          </div></div>`;
-      }).join('')||'<div class="empty"><h3>Нет данных</h3></div>'}
-      </div>
-    </div>`;
+    ${renderDashboardStats()}`;
 }
 
 function renderTeacher(el){
@@ -5983,27 +5968,28 @@ function getFinalsDays(dateStr){
 }
 
 function renderFinalsBlock(){
-  if(!D.finals||!D.finals.length) return '';
   const today=new Date();today.setHours(0,0,0,0);
-  // Show only upcoming (not past speaking date)
   const upcoming=(D.finals||[]).filter(f=>{
     const d=new Date(f.date2||f.date1);d.setHours(0,0,0,0);
     return d>=today;
-  }).sort((a,b)=>new Date(a.date1)-new Date(b.date1)).slice(0,10);
-  if(!upcoming.length) return '';
+  }).sort((a,b)=>new Date(a.date1)-new Date(b.date1)).slice(0,15);
 
   const urgencyStyle=(days)=>{
-    if(days<=1) return {bg:'#fee2e2',color:'#b91c1c',dot:'#ef4444',label:days===0?'Сегодня':'Завтра'};
+    if(days<=0) return {bg:'#fee2e2',color:'#b91c1c',dot:'#ef4444',label:'Сегодня'};
+    if(days===1) return {bg:'#fee2e2',color:'#b91c1c',dot:'#ef4444',label:'Завтра'};
     if(days<=3) return {bg:'#fff7ed',color:'#c2410c',dot:'#f97316',label:`${days} дня`};
     if(days<=7) return {bg:'#fefce8',color:'#854d0e',dot:'#eab308',label:`${days} дней`};
     return {bg:'var(--color-background-secondary)',color:'var(--color-text-secondary)',dot:'#94a3b8',label:`${days} дней`};
   };
 
   return `<div class="card" style="margin-bottom:12px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div style="font-size:13px;font-weight:600">📅 Скорые финальные тесты</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:600">📅 Скорые финальные тесты ${upcoming.length?`<span style="font-size:11px;font-weight:400;color:var(--color-text-secondary)">(${upcoming.length})</span>`:''}</div>
       ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showFinalsUpload()">⬆ Загрузить</button>`:''}
     </div>
+    ${!upcoming.length?`<div style="text-align:center;padding:16px;color:var(--color-text-secondary);font-size:13px">
+      Нет предстоящих финалов · <span style="color:#4361ee;cursor:pointer" onclick="showFinalsUpload()">Загрузить файл</span>
+    </div>`:`
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
@@ -6034,12 +6020,12 @@ function renderFinalsBlock(){
               </td>
               <td style="padding:5px 8px;text-align:center;color:#7c3aed">${fmt(f.date2)}</td>
               <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.supporter||'—'}</td>
-              ${isAdmin()?`<td style="padding:3px"><button onclick="deleteFinal('${f.id}')" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:14px" title="Удалить">✕</button></td>`:''}
+              ${isAdmin()?`<td style="padding:3px;text-align:center"><button onclick="deleteFinal('${f.id}')" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:14px" title="Удалить">✕</button></td>`:''}
             </tr>`;
           }).join('')}
         </tbody>
       </table>
-    </div>
+    </div>`}
   </div>`;
 }
 
