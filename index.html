@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1786785609';
+  const APP_VERSION='1786786598';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -566,7 +566,7 @@ const SUP_LEVELS_RUS=['rus-1','rus-2','rus-3','rus-4'];
 const SUP_LEVEL_LABELS={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int','intermediate':'Intermediate','upper-intermediate':'Upper-Int','rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4'};
 const DPIN='1234';
 const SHEETS_WEBHOOK='https://script.google.com/macros/s/AKfycbxZgmqmKZudaFSjK-XAg1pf4kMQe0xwpEPGr_4HoGShuU3Tg91cb2AjgxjmIvxD5Sil/exec';
-const SHEETS_DELAY=1*60*1000; // 1 minute
+const SHEETS_DELAY=0; // sync immediately
 // Firebase Realtime Database - default URL
 const FIREBASE_DEFAULT='https://ongoingassessment-262b7-default-rtdb.firebaseio.com';
 let FIREBASE_URL=localStorage.getItem('firebase_url')||FIREBASE_DEFAULT;
@@ -1419,14 +1419,15 @@ function renderHome(el){
       </div>`).join('')}
     </div>`:''}
     ${riskAlert.length?`<div style="background:#fff1f2;border:1.5px solid #fecdd3;border-radius:12px;padding:16px 20px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="const b=document.getElementById('risk-body');const btn=document.getElementById('risk-toggle');if(b.style.display==='none'){b.style.display='flex';btn.textContent='▲';}else{b.style.display='none';btn.textContent='▼';}">
         <div style="font-size:22px">🔴</div>
-        <div>
+        <div style="flex:1">
           <div style="font-weight:700;color:#be123c;font-size:15px">${riskAlert.length} студентов в зоне риска</div>
           <div style="font-size:12px;color:#888;margin-top:2px">3+ оценок подряд ниже 60 (Unit / AT / HW)</div>
         </div>
+        <span id="risk-toggle" style="font-size:14px;color:#be123c;padding:4px 8px;border-radius:6px;border:1px solid #fecdd3;background:white">▲</span>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
+      <div id="risk-body" style="display:flex;flex-direction:column;gap:6px;margin-top:12px">
         ${riskAlert.map(({s,g,tc})=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:white;border-radius:8px;border:1px solid #fecdd3;cursor:pointer" onclick="gotoT('${tc.id}');setTimeout(()=>{selG='${g.id}';view='group';renderAll();},150)">
           <div style="width:28px;height:28px;border-radius:50%;background:#fecdd3;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#be123c;flex-shrink:0">${ini(s.name)}</div>
           <div style="flex:1">
@@ -1628,6 +1629,7 @@ function renderRusGroup(el,g,t,ed,archMode){
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${ed?`<button class="btn btn-ora btn-sm" onclick="showPromoteGroup()">🎓 Завершить группу</button>
           <button class="btn btn-grn btn-sm" onclick="showAddStudentToGroup()">+ Студент</button>
+          <button class="btn btn-pri btn-sm" onclick="showBulkEntryModal()">📊 + Результаты</button>
           <button class="btn btn-sec btn-sm" onclick="showImport()">📋 Вставить</button>`:''}
         <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">Excel</button>
         ${!archMode&&ed?`<button class="btn btn-grn btn-sm" onclick="showUploadExcel()">⬆ Загрузить Excel</button>`:''}
@@ -1714,6 +1716,7 @@ function renderGroup(el,archMode,archSnap){
         ${isAdmin()&&!archMode?`<button class="btn btn-sec btn-sm" onclick="showEditG('${g.id}')">⚙️</button>
           <button class="btn btn-ora btn-sm" onclick="showPromoteGroup()">${tr('finishGrp')}</button>`:''}
         ${ed?`<button class="btn btn-grn btn-sm" onclick="showAddStudentToGroup()">${tr('addStu')}</button>
+              <button class="btn btn-pri btn-sm" onclick="showBulkEntryModal()">📊 + Результаты</button>
               <button class="btn btn-sec btn-sm" onclick="showImport()">${tr('paste')}</button>`:''}
         <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">${tr('excel')}</button>
         ${!archMode?`
@@ -2011,10 +2014,9 @@ function clearUnitScore(sid,idx){
 let _sheetsTimer=null;
 function scheduleSheets(){
   clearTimeout(_sheetsTimer);
-  _sheetsTimer=setTimeout(syncToSheets, SHEETS_DELAY);
-  // Show indicator
+  _sheetsTimer=setTimeout(syncToSheets, 3000); // 3 sec after last change
   const pill=document.getElementById('sheets-pill');
-  if(pill){pill.style.display='flex';pill.textContent='📊 Отправка через 10 мин...';}
+  if(pill){pill.style.display='flex';pill.textContent='📊 Синхронизация...';}
 }
 
 async function syncToSheets(){
@@ -5344,6 +5346,212 @@ function saveBulkEntryRus(field,idx,withHwVocab){
     toast(`Сохранено ${changed} студентов ✓`,'success');
   } else {
     closeModal();
+  }
+}
+
+function showBulkEntryModal(){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const isRus=RUS_LEVELS.includes(g.level);
+  const cfg=isRus?RUS_CFG[g.level]:null;
+
+  // Build field options
+  let fieldOpts='';
+  if(isRus){
+    for(let i=1;i<=(cfg?.conv||6);i++) fieldOpts+=`<option value="conversations:${i-1}">Разговорка Р${i} (+ ДЗ + Словарь)</option>`;
+    for(let i=1;i<=(cfg?.hw||6);i++) fieldOpts+=`<option value="homework_only:${i-1}">Домашнее задание Д${i}</option>`;
+    for(let i=1;i<=(cfg?.vocab||6);i++) fieldOpts+=`<option value="vocabulary:${i-1}">Словарь Сл${i}</option>`;
+    for(let i=1;i<=(cfg?.ppt||1);i++) fieldOpts+=`<option value="presentations:${i-1}">Презентация П${i}</option>`;
+    fieldOpts+=`<option value="finalConversation:0">Закл. разговорка</option>`;
+    if(cfg?.hasFinalTest) fieldOpts+=`<option value="finalTest:0">Финальный тест</option>`;
+  } else {
+    for(let i=1;i<=12;i++) fieldOpts+=`<option value="units:${i-1}">Unit ${i}</option>`;
+    for(let i=1;i<=5;i++) fieldOpts+=`<option value="homework:${i-1}">Homework HW${i}</option>`;
+    for(let i=1;i<=5;i++) fieldOpts+=`<option value="achievements:${i-1}">Achievement Test AT${i}</option>`;
+    fieldOpts+=`<option value="speaking:0">Speaking (SPT)</option>`;
+    fieldOpts+=`<option value="final:0">Final Test</option>`;
+    fieldOpts+=`<option value="retake:0">Retake</option>`;
+  }
+
+  openModal(`<div class="modal-title">📊 Добавить результаты</div>
+    <div class="fg"><label class="fl">Выберите тип результата</label>
+      <select class="fi" id="bem-field" onchange="renderBulkStudents()">
+        ${fieldOpts}
+      </select>
+    </div>
+    <div id="bem-students" style="max-height:55vh;overflow-y:auto;margin-top:8px"></div>
+    <div style="margin-top:10px;padding:8px 12px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#166534">
+      💡 Enter — следующий студент · Пустые поля пропускаются
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveBulkEntryModal()">✓ Сохранить</button>
+    </div>`);
+  setTimeout(()=>renderBulkStudents(),80);
+}
+
+function renderBulkStudents(){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const students=(g.students||[]).filter(s=>s&&s.name&&!s.hidden);
+  const sel=document.getElementById('bem-field')?.value||'';
+  const [field,idxStr]=sel.split(':');
+  const idx=parseInt(idxStr)||0;
+  const isRus=RUS_LEVELS.includes(g.level);
+  const isUnit=field==='units';
+  const isConvRus=field==='conversations';
+  const isSingle=!isUnit&&!isConvRus;
+  const maxVal=field==='retake'?6:100;
+  const maxUnit=50;
+
+  const labelMap={units:`U${idx+1}`,homework:`HW${idx+1}`,achievements:`AT${idx+1}`,
+    homework_only:`Д${idx+1}`,vocabulary:`Сл${idx+1}`,presentations:`П${idx+1}`,
+    speaking:'SPT',final:'Final',finalConversation:'Зак.разг',finalTest:'Final тест',retake:'Retake',
+    conversations:`Р${idx+1}`};
+  const lbl=labelMap[field]||field;
+
+  const container=document.getElementById('bem-students');
+  if(!container) return;
+
+  container.innerHTML=`<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:1.5px solid var(--color-border-secondary)">
+      <th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--color-text-secondary)">#</th>
+      <th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--color-text-secondary)">Студент</th>
+      ${isUnit?`<th style="text-align:center;padding:6px;font-size:12px;color:#4361ee">Граммат. /50</th>
+        <th style="text-align:center;padding:6px;font-size:12px;color:#4361ee">Словарь /50</th>
+        <th style="text-align:center;padding:6px;font-size:12px;font-weight:700">${lbl}</th>`
+      :isConvRus?`<th style="text-align:center;padding:6px;font-size:12px;color:#4361ee">Р${idx+1}</th>
+        <th style="text-align:center;padding:6px;font-size:12px;color:#2b9348">Д${idx+1}</th>
+        <th style="text-align:center;padding:6px;font-size:12px;color:#9d174d">Сл${idx+1}</th>`
+      :`<th style="text-align:center;padding:6px;font-size:12px;color:#4361ee">${lbl}</th>`}
+    </tr></thead>
+    <tbody>
+      ${students.map((s,i)=>{
+        const realField=field==='homework_only'?'homework':field;
+        const cur=idx===0&&['speaking','final','finalConversation','finalTest','retake'].includes(field)
+          ?(s[field]??''):((s[realField]||[])[idx]??'');
+        const gr=isUnit?(s.units_grammar||[])[idx]??'':'';
+        const vc=isUnit?(s.units_vocab||[])[idx]??'':'';
+        const hw=isConvRus?(s.homework||[])[idx]??'':'';
+        const voc=isConvRus?(s.vocabulary||[])[idx]??'':'';
+        const curColor=cur!==''?(Number(cur)>=75?'#1b5e20':Number(cur)>=70?'#e65100':'#b71c1c'):'#bbb';
+        return `<tr style="border-bottom:0.5px solid var(--color-border-tertiary)">
+          <td style="padding:5px 8px;font-size:12px;color:var(--color-text-secondary)">${i+1}</td>
+          <td style="padding:5px 8px;font-size:13px;font-weight:500">${s.name}</td>
+          ${isUnit?`<td style="padding:3px"><input type="number" class="fi bem-gr" data-sid="${s.id}" data-idx="${idx}" min="0" max="${maxUnit}" placeholder="0–50" value="${gr}" style="width:68px;text-align:center;padding:4px" oninput="updateBemPreview(this,${i})" onkeydown="bemKey(event,${i*3+0})"></td>
+            <td style="padding:3px"><input type="number" class="fi bem-vc" data-sid="${s.id}" data-idx="${idx}" min="0" max="${maxUnit}" placeholder="0–50" value="${vc}" style="width:68px;text-align:center;padding:4px" oninput="updateBemPreview(this,${i})" onkeydown="bemKey(event,${i*3+1})"></td>
+            <td style="padding:5px;text-align:center"><span id="bem-res-${i}" style="font-size:14px;font-weight:700;color:${curColor}">${cur!==''?fmt(cur):'—'}</span></td>`
+          :isConvRus?`<td style="padding:3px"><input type="number" class="fi bem-conv" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${cur}" style="width:68px;text-align:center;padding:4px" onkeydown="bemKey(event,${i*3+0})"></td>
+            <td style="padding:3px"><input type="number" class="fi bem-hw" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${hw}" style="width:68px;text-align:center;padding:4px" onkeydown="bemKey(event,${i*3+1})"></td>
+            <td style="padding:3px"><input type="number" class="fi bem-voc" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${voc}" style="width:68px;text-align:center;padding:4px" onkeydown="bemKey(event,${i*3+2})"></td>`
+          :`<td style="padding:3px"><input type="number" class="fi bem-val" data-sid="${s.id}" data-field="${realField}" data-idx="${idx}" data-single="${['speaking','final','finalConversation','finalTest','retake'].includes(field)?1:0}" min="0" max="${maxVal}" placeholder="0–${maxVal}" value="${cur}" style="width:80px;text-align:center;padding:4px" onkeydown="bemKey(event,${i})"></td>`}
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+  // Focus first input
+  setTimeout(()=>{
+    const first=container.querySelector('input');
+    if(first){first.focus();first.select();}
+  },50);
+}
+
+function updateBemPreview(inp,rowIdx){
+  const row=inp.closest('tr');
+  const gr=parseFloat(row.querySelector('.bem-gr')?.value)||0;
+  const vc=parseFloat(row.querySelector('.bem-vc')?.value)||0;
+  const score=parseFloat(((gr/50*70)+(vc/50*30)).toFixed(1));
+  const span=document.getElementById(`bem-res-${rowIdx}`);
+  if(span){
+    span.textContent=isNaN(score)||(!gr&&!vc)?'—':score.toFixed(1);
+    span.style.color=score>=75?'#1b5e20':score>=70?'#e65100':'#b71c1c';
+  }
+}
+
+function bemKey(e,pos){
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const all=[...document.querySelectorAll('#bem-students input')];
+    const next=all[all.indexOf(e.target)+1];
+    if(next){next.focus();next.select();}
+    else saveBulkEntryModal();
+  }
+}
+
+function saveBulkEntryModal(){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const sel=document.getElementById('bem-field')?.value||'';
+  const [field,idxStr]=sel.split(':');
+  const idx=parseInt(idxStr)||0;
+  const realField=field==='homework_only'?'homework':field;
+  const isSingleField=['speaking','final','finalConversation','finalTest','retake'].includes(field);
+  let changed=0;
+
+  // Unit scores
+  const grInputs=[...document.querySelectorAll('.bem-gr')];
+  const vcInputs=[...document.querySelectorAll('.bem-vc')];
+  if(grInputs.length){
+    grInputs.forEach((grInp,i)=>{
+      const sid=grInp.dataset.sid;
+      const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
+      const grVal=grInp.value.trim();
+      const vcVal=vcInputs[i]?.value.trim()||'';
+      if(grVal===''&&vcVal==='') return;
+      const gr=parseFloat(grVal)||0;
+      const vc=parseFloat(vcVal)||0;
+      if(!s.units) s.units=Array(12).fill(null);
+      if(!s.units_grammar) s.units_grammar=Array(12).fill(null);
+      if(!s.units_vocab) s.units_vocab=Array(12).fill(null);
+      while(s.units.length<=idx) s.units.push(null);
+      while(s.units_grammar.length<=idx) s.units_grammar.push(null);
+      while(s.units_vocab.length<=idx) s.units_vocab.push(null);
+      s.units_grammar[idx]=gr; s.units_vocab[idx]=vc;
+      s.units[idx]=parseFloat(((gr/50*70)+(vc/50*30)).toFixed(1));
+      changed++;
+    });
+  }
+
+  // Conversation (rus) + HW + Vocab
+  const convInputs=[...document.querySelectorAll('.bem-conv')];
+  const hwInputs=[...document.querySelectorAll('.bem-hw')];
+  const vocInputs=[...document.querySelectorAll('.bem-voc')];
+  if(convInputs.length){
+    convInputs.forEach((inp,i)=>{
+      const sid=inp.dataset.sid;
+      const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
+      const cv=inp.value.trim(), hw=hwInputs[i]?.value.trim()||'', vc=vocInputs[i]?.value.trim()||'';
+      if(cv===''&&hw===''&&vc==='') return;
+      const save=(fld,val)=>{if(val==='') return;const n=parseFloat(val);if(isNaN(n)) return;if(!s[fld])s[fld]=[];while(s[fld].length<=idx)s[fld].push(null);s[fld][idx]=n;};
+      save('conversations',cv); save('homework',hw); save('vocabulary',vc);
+      changed++;
+    });
+  }
+
+  // Single value fields (HW/AT/SPT/Final/Retake etc)
+  const valInputs=[...document.querySelectorAll('.bem-val')];
+  valInputs.forEach(inp=>{
+    const val=inp.value.trim();if(val==='') return;
+    const sid=inp.dataset.sid;
+    const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
+    const n=parseFloat(val);if(isNaN(n)) return;
+    const fld=inp.dataset.field;
+    const single=inp.dataset.single==='1';
+    if(single){s[fld]=n;}
+    else{if(!s[fld])s[fld]=[];while(s[fld].length<=idx)s[fld].push(null);s[fld][idx]=n;}
+    changed++;
+  });
+
+  if(changed>0){
+    closeModal();
+    renderGroup(document.getElementById('main'));
+    D._localAt=new Date().toISOString();
+    try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+    clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,500);
+    const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
+    toast(`Сохранено для ${changed} студентов ✓`,'success');
+  } else {
+    toast('Нет данных для сохранения','error');
   }
 }
 
