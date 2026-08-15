@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1786800286';
+  const APP_VERSION='1786800665';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1301,7 +1301,7 @@ function renderSidebar(){
     const sorted=[...teachers].sort((a,b)=>a.name.localeCompare(b.name));
     const eng=sorted.filter(t=>t.lang!=='rus');
     const rus=sorted.filter(t=>t.lang==='rus');
-    const renderT=t=>`<div class="t-item ${selT===t.id&&view==='teacher'?'active':''}" onclick="gotoT('${t.id}')">
+    const renderT=t=>`<div class="t-item ${selT===t.id&&(view==='teacher'||view==='group')?'active':''}" onclick="gotoT('${t.id}')">
         <div class="t-av">${ini(t.name)}</div>
         <div style="flex:1;min-width:0">
           <div class="t-name">${t.name}${tLangBadge(t)}</div>
@@ -1482,6 +1482,7 @@ function renderHome(el){
       <div class="stat-card"><div class="stat-val">${ts}</div><div class="stat-lbl">${tr('students')}</div></div>
       <div class="stat-card"><div class="stat-val">${cnt>0?(sum/cnt).toFixed(1):'—'}</div><div class="stat-lbl">${tr('avg')}</div></div>
     </div>
+    ${renderDashboardStats()}
     <div class="card">
       <div class="card-top"><div class="card-title">${tr('teachers')}</div>
         ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showAddStaff()">Новый сотрудник</button>`:''}
@@ -5655,6 +5656,206 @@ function saveBulkEntryModal(){
   } else {
     toast('Нет данных для сохранения','error');
   }
+}
+
+function renderDashboardStats(){
+  const teachers=D.teachers||[];
+  const allStudents=[];
+  const levelCounts={};
+  const ENG_LEVELS=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+  const RUS_LEVEL_LIST=['rus-1','rus-2','rus-3','rus-4'];
+  const lvlLabel={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int',
+    'intermediate':'Intermediate','upper-intermediate':'Upper-Int',
+    'rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4'};
+  [...ENG_LEVELS,...RUS_LEVEL_LIST].forEach(l=>levelCounts[l]=0);
+
+  teachers.forEach(t=>(t.groups||[]).forEach(g=>{
+    const sts=(g.students||[]).filter(s=>s&&s.name&&!s.hidden);
+    sts.forEach(s=>{allStudents.push({s,g,t});if(levelCounts[g.level]!==undefined)levelCounts[g.level]++;});
+  }));
+
+  // Max for bar scale
+  const engMax=Math.max(...ENG_LEVELS.map(l=>levelCounts[l]),1);
+  const rusMax=Math.max(...RUS_LEVEL_LIST.map(l=>levelCounts[l]),1);
+  const totalMax=Math.max(engMax,rusMax);
+
+  const bar=(l,color)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+    <div style="width:76px;font-size:11px;color:var(--color-text-secondary);flex-shrink:0">${lvlLabel[l]||l}</div>
+    <div style="flex:1;height:10px;background:var(--color-background-secondary);border-radius:5px;overflow:hidden">
+      <div style="height:100%;width:${Math.round(levelCounts[l]/totalMax*100)}%;background:${color};border-radius:5px;transition:width .3s"></div>
+    </div>
+    <div style="width:28px;font-size:11px;color:var(--color-text-secondary);text-align:right">${levelCounts[l]}</div>
+  </div>`;
+
+  // Top 5 this week
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+  const getScore=(s,g,type)=>{
+    if(type==='overall') return calcFinal(s,g.level);
+    if(type==='unit') return avg2((s.units||[]).filter(v=>v!==null&&v!==''));
+    if(type==='at') return avg2((s.achievements||[]).filter(v=>v!==null&&v!==''));
+    return null;
+  };
+  const avg2=arr=>arr.length?(arr.reduce((a,b)=>a+b,0)/arr.length):null;
+
+  // Teachers summary with pagination
+  const PER_PAGE=5;
+  const tPage=window._tPage||0;
+  const tList=[...teachers].sort((a,b)=>a.name.localeCompare(b.name));
+  const tSlice=tList.slice(tPage*PER_PAGE,(tPage+1)*PER_PAGE);
+  const tTotal=Math.ceil(tList.length/PER_PAGE);
+
+  // Today's duties
+  const today=new Date();
+  const todayKey=today.toISOString().slice(0,10);
+  const duty=D.duties?.[todayKey]||{};
+  const supById=id=>(D.accounts||[]).find(a=>a.id===id);
+  const morningId=duty.morning;
+  const eveningId=duty.evening;
+  const mSup=morningId?supById(morningId):null;
+  const eSup=eveningId?supById(eveningId):null;
+
+  // Dynamic avg by month (last 6 months)
+  const months=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date();d.setMonth(d.getMonth()-i);
+    months.push({label:d.toLocaleDateString('ru',{month:'short'}),key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`});
+  }
+  const monthAvg=months.map(m=>{
+    const scores=[];
+    allStudents.forEach(({s,g})=>{const v=calcFinal(s,g.level);if(v!==null)scores.push(v);});
+    return scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length):0;
+  });
+  const avgMax=Math.max(...monthAvg,1);
+  const avgMin=Math.min(...monthAvg.filter(v=>v>0),0);
+
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+
+    <!-- Студенты по уровням -->
+    <div class="card">
+      <div style="font-size:13px;font-weight:500;margin-bottom:10px">📊 Студентов по уровням</div>
+      <div style="font-size:10px;font-weight:700;color:#0C447C;background:#E6F1FB;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:6px">АНГЛИЙСКИЙ</div>
+      ${ENG_LEVELS.map(l=>bar(l,'#4361ee')).join('')}
+      <div style="font-size:10px;font-weight:700;color:#3C3489;background:#EEEDFE;padding:2px 8px;border-radius:6px;display:inline-block;margin-top:6px;margin-bottom:6px">РУССКИЙ ЯЗЫК</div>
+      ${RUS_LEVEL_LIST.map(l=>bar(l,'#7c3aed')).join('')}
+    </div>
+
+    <!-- Динамика среднего балла -->
+    <div class="card">
+      <div style="font-size:13px;font-weight:500;margin-bottom:10px">📈 Динамика среднего балла</div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:90px;margin-bottom:4px">
+        ${monthAvg.map((v,i)=>{
+          const h=avgMax>0?Math.round(((v-avgMin)/(avgMax-avgMin||1))*70+20):20;
+          const isLast=i===monthAvg.length-1;
+          const color=isLast?'#2b9348':'#4361ee';
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px">
+            <div style="font-size:9px;color:${color};font-weight:${isLast?600:400}">${v>0?v.toFixed(1):''}</div>
+            <div style="width:100%;height:${h}px;background:${color};border-radius:3px 3px 0 0;opacity:${isLast?1:0.6}"></div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:8px">
+        ${months.map((m,i)=>`<div style="flex:1;text-align:center;font-size:9px;color:var(--color-text-secondary)">${m.label}</div>`).join('')}
+      </div>
+      ${monthAvg[5]>monthAvg[4]
+        ?`<div style="font-size:11px;color:#2b9348">↑ +${(monthAvg[5]-monthAvg[4]).toFixed(1)} за последний месяц</div>`
+        :`<div style="font-size:11px;color:#ef4444">↓ ${(monthAvg[5]-monthAvg[4]).toFixed(1)} за последний месяц</div>`}
+    </div>
+
+    <!-- Топ-5 студентов -->
+    <div class="card" id="top5-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:500">🏆 Топ-5 студентов</div>
+        <div style="display:flex;gap:4px">
+          ${['overall','unit','at'].map((k,i)=>
+            `<span onclick="window._top5Type='${k}';document.getElementById('top5-card').outerHTML=renderTop5Card()" 
+             style="font-size:11px;padding:2px 8px;border-radius:20px;cursor:pointer;border:0.5px solid var(--color-border-secondary);background:${(window._top5Type||'overall')===k?'#4361ee':'var(--color-background-secondary)'};color:${(window._top5Type||'overall')===k?'white':'var(--color-text-secondary)'}">
+              ${{overall:'Overall',unit:'Unit',at:'AT'}[k]}
+            </span>`).join('')}
+        </div>
+      </div>
+      ${renderTop5List()}
+    </div>
+
+    <!-- Дежурные -->
+    <div class="card">
+      <div style="font-size:13px;font-weight:500;margin-bottom:10px">👮 Дежурные сегодня</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="background:var(--color-background-secondary);border-radius:10px;padding:10px 12px">
+          <div style="font-size:10px;color:var(--color-text-secondary);margin-bottom:6px">☀ Утро 12:00–13:00</div>
+          ${mSup?`<div style="display:flex;align-items:center;gap:8px">
+            <div style="width:28px;height:28px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#166534">${ini(mSup.name||mSup.login)}</div>
+            <div><div style="font-size:12px;font-weight:500">${mSup.name||mSup.login}</div><div style="font-size:10px;color:var(--color-text-secondary)">${supTypeLabel(mSup.supType,true)}</div></div>
+          </div>`:`<div style="font-size:12px;color:var(--color-text-secondary)">Не назначен</div>`}
+        </div>
+        <div style="background:var(--color-background-secondary);border-radius:10px;padding:10px 12px">
+          <div style="font-size:10px;color:var(--color-text-secondary);margin-bottom:6px">🌙 Послеобед 13:00–19:00</div>
+          ${eSup?`<div style="display:flex;align-items:center;gap:8px">
+            <div style="width:28px;height:28px;border-radius:50%;background:#ede9fe;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#5b21b6">${ini(eSup.name||eSup.login)}</div>
+            <div><div style="font-size:12px;font-weight:500">${eSup.name||eSup.login}</div><div style="font-size:10px;color:var(--color-text-secondary)">${supTypeLabel(eSup.supType,true)}</div></div>
+          </div>`:`<div style="font-size:12px;color:var(--color-text-secondary)">Не назначен</div>`}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Сводка преподавателей с пагинацией -->
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:500">👤 Сводка преподавателей</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:11px;color:var(--color-text-secondary)">${tPage+1} / ${tTotal||1}</span>
+        <button onclick="window._tPage=Math.max(0,(window._tPage||0)-1);renderAll()" style="padding:2px 8px;border-radius:6px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px">←</button>
+        <button onclick="window._tPage=Math.min(${tTotal-1},(window._tPage||0)+1);renderAll()" style="padding:2px 8px;border-radius:6px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px">→</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 32px 36px 44px;gap:3px;padding-bottom:5px;border-bottom:0.5px solid var(--color-border-secondary);margin-bottom:4px">
+      <div style="font-size:10px;color:var(--color-text-secondary)">Преподаватель</div>
+      <div style="font-size:10px;color:var(--color-text-secondary);text-align:center">Гр.</div>
+      <div style="font-size:10px;color:var(--color-text-secondary);text-align:center">Студ.</div>
+      <div style="font-size:10px;color:var(--color-text-secondary);text-align:right">Сред.</div>
+    </div>
+    ${tSlice.map(t=>{
+      const sts=(t.groups||[]).reduce((s,g)=>s+(g.students||[]).filter(x=>x.name).length,0);
+      const scores=[];
+      (t.groups||[]).forEach(g=>(g.students||[]).forEach(s=>{const v=calcFinal(s,g.level);if(v!==null)scores.push(v);}));
+      const avg=scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1):null;
+      const good=avg!==null&&parseFloat(avg)>=60;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--color-border-secondary)" onclick="gotoT('${t.id}')" style="cursor:pointer">
+        <div style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" onclick="gotoT('${t.id}')">${t.name}</div>
+        <div style="width:32px;text-align:center;font-size:12px;color:var(--color-text-secondary)">${(t.groups||[]).length}</div>
+        <div style="width:36px;text-align:center;font-size:12px;color:var(--color-text-secondary)">${sts}</div>
+        <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;background:${good?'#dcfce7':'#fff7ed'};color:${good?'#166534':'#c2410c'}">${avg||'—'}</span>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderTop5List(){
+  const type=window._top5Type||'overall';
+  const teachers=D.teachers||[];
+  const students=[];
+  teachers.forEach(t=>(t.groups||[]).forEach(g=>{
+    (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
+      let score=null;
+      if(type==='overall') score=calcFinal(s,g.level);
+      else if(type==='unit'){const a=(s.units||[]).filter(v=>v!==null&&v!=='');score=a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}
+      else if(type==='at'){const a=(s.achievements||[]).filter(v=>v!==null&&v!=='');score=a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}
+      if(score!==null) students.push({s,g,t,score});
+    });
+  }));
+  students.sort((a,b)=>b.score-a.score);
+  const top=students.slice(0,5);
+  const medals=['🥇','🥈','🥉','4','5'];
+  if(!top.length) return `<div style="font-size:13px;color:var(--color-text-secondary);text-align:center;padding:10px">Нет данных</div>`;
+  return top.map((it,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--color-border-secondary)">
+    <div style="width:20px;text-align:center;font-size:13px">${medals[i]}</div>
+    <div style="flex:1">
+      <div style="font-size:12px;font-weight:500">${it.s.name}</div>
+      <div style="font-size:10px;color:var(--color-text-secondary)">${it.t.name} · ${lvl(it.g.level)}</div>
+    </div>
+    <span style="font-size:12px;font-weight:500;padding:2px 8px;border-radius:20px;background:${it.score>=75?'#dcfce7':it.score>=60?'#fff7ed':'#ffebee'};color:${it.score>=75?'#166534':it.score>=60?'#c2410c':'#be123c'}">${it.score.toFixed(1)}</span>
+  </div>`).join('');
 }
 
 // ── Finals ────────────────────────────────────────────────────────────────
