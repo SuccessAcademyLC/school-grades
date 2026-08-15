@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1786796878';
+  const APP_VERSION='1786797296';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -324,6 +324,7 @@ body.dark .debt-card-outer{background:#1e2133!important;box-shadow:0 2px 8px rgb
 body.dark .debt-card-inner{background:#252838!important}
 body.dark .debt-stu-name{color:#e8eaf0!important}
 body.dark .risk-card{background:#2d1a1e!important;border-color:#be123c!important}
+body.dark{--bem-hl:#1e2d4a}
 tr.risk-row td{background:#fff5f5!important}
 body.dark tr.risk-row td{background:#2d1a1e!important}
 body.dark .sb-nav{border-color:#2a2d3a}
@@ -5445,7 +5446,13 @@ function showBulkEntryModal(){
 function renderBulkStudents(){
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
-  const students=(g.students||[]).filter(s=>s&&s.name&&!s.hidden);
+  const rawStudents=(g.students||[]).filter(s=>s&&s.name&&!s.hidden);
+  const sortKey=window._sortKey||'name',sortDir=window._sortDir||1;
+  const students=[...rawStudents].sort((a,b)=>{
+    if(sortKey==='name') return sortDir*a.name.localeCompare(b.name);
+    const oa=calcFinal(a,g.level)??-1,ob=calcFinal(b,g.level)??-1;
+    return sortDir*(ob-oa);
+  });
   const sel=document.getElementById('bem-field')?.value||'';
   const [field,idxStr]=sel.split(':');
   const idx=parseInt(idxStr)||0;
@@ -5496,17 +5503,17 @@ function renderBulkStudents(){
 
       let inputCols = '';
       if(isDoubleUnit){
-        inputCols = `<div style="width:70px"><input type="number" class="fi bem-gr" data-sid="${s.id}" data-idx="${idx}" min="0" max="50" placeholder="0–50" value="${gr}" style="${inputStyle}" oninput="updateBemPreview(this,${i})" onkeydown="bemKey(event,${i*2+0})"></div>
-          <div style="width:70px"><input type="number" class="fi bem-vc" data-sid="${s.id}" data-idx="${idx}" min="0" max="50" placeholder="0–50" value="${vc}" style="${inputStyle}" oninput="updateBemPreview(this,${i})" onkeydown="bemKey(event,${i*2+1})"></div>
+        inputCols = `<div style="width:70px"><input type="number" class="fi bem-gr" data-sid="${s.id}" data-idx="${idx}" min="0" max="50" placeholder="0–50" value="${gr}" style="${inputStyle}" oninput="updateBemPreview(this,${i})" onkeydown="bemKey(event,${i*2+0})" onfocus="this.closest('[data-row]').style.background='var(--bem-hl,#eff6ff)'" onblur="this.closest('[data-row]').style.background=''"></div>
+          <div style="width:70px"><input type="number" class="fi bem-vc" data-sid="${s.id}" data-idx="${idx}" min="0" max="50" placeholder="0–50" value="${vc}" style="${inputStyle}" oninput="updateBemPreview(this,${i})" onkeydown="bemKey(event,${i*2+1})" onfocus="this.closest('[data-row]').style.background='var(--bem-hl,#eff6ff)'" onblur="this.closest('[data-row]').style.background=''"></div>
           <div style="width:52px;text-align:center"><span id="bem-res-${i}" style="font-size:13px;font-weight:700;color:${curColor}">${cur!==''?fmt(cur):'—'}</span></div>`;
       } else if(isX2Unit){
-        inputCols = `<div style="width:80px"><input type="number" class="fi bem-val" data-sid="${s.id}" data-field="${realField}" data-idx="${idx}" data-single="0" data-x2="1" min="0" max="50" placeholder="0–50" value="${cur!==''?Math.round(Number(cur)/2):''}" style="${inputStyle}" onkeydown="bemKey(event,${i})"></div>`;
+        inputCols = `<div style="width:80px"><input type="number" class="fi bem-val" data-sid="${s.id}" data-field="${realField}" data-idx="${idx}" data-single="0" data-x2="1" min="0" max="50" placeholder="0–50" value="${cur!==''?Math.round(Number(cur)/2):''}" style="${inputStyle}" onkeydown="bemKey(event,${i})" onfocus="this.closest(\'[data-row]\').style.background=\'var(--bem-hl,#eff6ff)\';" onblur="this.closest(\'[data-row]\').style.background=\'\';"></div>`;
       } else if(isConvRus){
-        inputCols = `<div style="width:70px"><input type="number" class="fi bem-conv" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${cur}" style="${inputStyle}" onkeydown="bemKey(event,${i*3+0})"></div>
-          <div style="width:70px"><input type="number" class="fi bem-hw" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${hw}" style="${inputStyle}" onkeydown="bemKey(event,${i*3+1})"></div>
-          <div style="width:70px"><input type="number" class="fi bem-voc" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${voc}" style="${inputStyle}" onkeydown="bemKey(event,${i*3+2})"></div>`;
+        inputCols = `<div style="width:70px"><input type="number" class="fi bem-conv" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${cur}" style="${inputStyle}" onkeydown="bemKey(event,${i*3+0})" onfocus="this.closest(\'[data-row]\').style.background=\'var(--bem-hl,#eff6ff)\';" onblur="this.closest(\'[data-row]\').style.background=\'\';"></div>
+          <div style="width:70px"><input type="number" class="fi bem-hw" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${hw}" style="${inputStyle}" onkeydown="bemKey(event,${i*3+1})" onfocus="this.closest(\'[data-row]\').style.background=\'var(--bem-hl,#eff6ff)\';" onblur="this.closest(\'[data-row]\').style.background=\'\';"></div>
+          <div style="width:70px"><input type="number" class="fi bem-voc" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${voc}" style="${inputStyle}" onkeydown="bemKey(event,${i*3+2})" onfocus="this.closest(\'[data-row]\').style.background=\'var(--bem-hl,#eff6ff)\';" onblur="this.closest(\'[data-row]\').style.background=\'\';"></div>`;
       } else {
-        inputCols = `<div style="width:90px"><input type="number" class="fi bem-val" data-sid="${s.id}" data-field="${realField}" data-idx="${idx}" data-single="${isSingleF?1:0}" data-x2="0" min="0" max="${maxVal}" placeholder="0–${maxVal}" value="${cur}" style="${inputStyle}" onkeydown="bemKey(event,${i})"></div>`;
+        inputCols = `<div style="width:90px"><input type="number" class="fi bem-val" data-sid="${s.id}" data-field="${realField}" data-idx="${idx}" data-single="${isSingleF?1:0}" data-x2="0" min="0" max="${maxVal}" placeholder="0–${maxVal}" value="${cur}" style="${inputStyle}" onkeydown="bemKey(event,${i})" onfocus="this.closest(\'[data-row]\').style.background=\'var(--bem-hl,#eff6ff)\';" onblur="this.closest(\'[data-row]\').style.background=\'\';"></div>`;
       }
 
       return `<div data-row="${i}" style="display:flex;align-items:center;padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);gap:6px;${bg}">
