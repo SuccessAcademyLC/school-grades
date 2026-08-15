@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1786777814';
+  const APP_VERSION='1786785609';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1650,9 +1650,9 @@ function renderRusGroup(el,g,t,ed,archMode){
           ${ed?'<th rowspan="2" style="min-width:70px"></th>':''}
         </tr>
         <tr>
-          ${Array(cfg.conv).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>Р${i+1}</th>`).join('')}
-          ${Array(cfg.hw).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>Д${i+1}</th>`).join('')}
-          ${Array(cfg.vocab).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>Сл${i+1}</th>`).join('')}
+          ${Array(cfg.conv).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''} ${ed?`onclick="showBulkEntryRus('conversations',${i})" style="cursor:pointer" title="Ввести Р${i+1} для всех"`:''}>Р${i+1}</th>`).join('')}
+          ${Array(cfg.hw).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''} ${ed?`onclick="showBulkEntryRus('homework',${i})" style="cursor:pointer" title="Ввести Д${i+1} для всех"`:''}>Д${i+1}</th>`).join('')}
+          ${Array(cfg.vocab).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''} ${ed?`onclick="showBulkEntryRus('vocabulary',${i})" style="cursor:pointer" title="Ввести Сл${i+1} для всех"`:''}>Сл${i+1}</th>`).join('')}
           ${Array(cfg.ppt).fill(0).map((_,i)=>`<th${i===0?' class="gb"':''}>П${i+1}</th>`).join('')}
         </tr>
       </thead>
@@ -1742,9 +1742,9 @@ function renderGroup(el,archMode,archSnap){
           <th rowspan="2" style="min-width:60px"></th>
         </tr>
         <tr>
-          ${[1,2,3,4,5,6,7,8,9,10,11,12].map((n,i)=>`<th${i===0?' class="gb"':''}>U${n}</th>`).join('')}
-          ${[1,2,3,4,5].map((n,i)=>`<th${i===0?' class="gb"':''}>HW${n}</th>`).join('')}
-          ${[1,2,3,4,5].map((n,i)=>`<th${i===0?' class="gb"':''}>AT${n}</th>`).join('')}
+          ${[1,2,3,4,5,6,7,8,9,10,11,12].map((n,i)=>`<th${i===0?' class="gb"':''} ${ed?`onclick="showBulkEntry('units',${n-1})" style="cursor:pointer" title="Ввести U${n} для всех студентов"`:''}>U${n}</th>`).join('')}
+          ${[1,2,3,4,5].map((n,i)=>`<th${i===0?' class="gb"':''} ${ed?`onclick="showBulkEntry('homework',${n-1})" style="cursor:pointer" title="Ввести HW${n} для всех"`:''}>HW${n}</th>`).join('')}
+          ${[1,2,3,4,5].map((n,i)=>`<th${i===0?' class="gb"':''} ${ed?`onclick="showBulkEntry('achievements',${n-1})" style="cursor:pointer" title="Ввести AT${n} для всех"`:''}>AT${n}</th>`).join('')}
         </tr>
       </thead>
       <tbody>
@@ -3395,7 +3395,32 @@ function gradeKey(e,inp){
   const allInRow=[...row.querySelectorAll('input.gi')];
   const ci=allInRow.indexOf(inp);
 
+  // Get column index in actual table (by td position)
+  const td=inp.closest('td');
+  const allTds=[...row.querySelectorAll('td')];
+  const colIdx=allTds.indexOf(td);
+
   let targetInput=null;
+
+  const findByCol=(targetRow,col)=>{
+    const tds=[...targetRow.querySelectorAll('td')];
+    // Try exact column first
+    if(col<tds.length){
+      const exact=tds[col].querySelector('input.gi');
+      if(exact) return exact;
+    }
+    // Find nearest column with input
+    const inputs=[...targetRow.querySelectorAll('input.gi')];
+    let bestDist=999, best=null;
+    inputs.forEach(ni=>{
+      const niTd=ni.closest('td');
+      const niTds=[...targetRow.querySelectorAll('td')];
+      const niCol=niTds.indexOf(niTd);
+      const dist=Math.abs(niCol-col);
+      if(dist<bestDist){bestDist=dist;best=ni;}
+    });
+    return best;
+  };
 
   if(e.key==='ArrowRight'||(e.key==='Tab'&&!e.shiftKey)||e.key==='Enter'){
     if(ci>=0&&ci<allInRow.length-1){
@@ -3407,33 +3432,27 @@ function gradeKey(e,inp){
     if(ci>0){
       targetInput=allInRow[ci-1];
     } else if(ri>0){
-      const prevRow=rows[ri-1];
-      const prevInputs=[...prevRow.querySelectorAll('input.gi')];
+      const prevInputs=[...rows[ri-1].querySelectorAll('input.gi')];
       targetInput=prevInputs[prevInputs.length-1]||null;
     }
   } else if(e.key==='ArrowDown'){
     if(ri>=0&&ri<rows.length-1){
-      const nextInputs=[...rows[ri+1].querySelectorAll('input.gi')];
-      targetInput=nextInputs[ci]||nextInputs[nextInputs.length-1]||null;
+      targetInput=findByCol(rows[ri+1],colIdx);
     }
   } else if(e.key==='ArrowUp'){
     if(ri>0){
-      const prevInputs=[...rows[ri-1].querySelectorAll('input.gi')];
-      targetInput=prevInputs[ci]||prevInputs[prevInputs.length-1]||null;
+      targetInput=findByCol(rows[ri-1],colIdx);
     }
   }
 
   if(targetInput){
-    inp.blur(); // ensure current value is saved
-    // Highlight active row
+    inp.blur();
     rows.forEach(r=>r.classList.remove('active-row'));
     targetInput.closest('tr')?.classList.add('active-row');
     targetInput.classList.add('active-nav');
     targetInput.focus();
     targetInput.select();
-    setTimeout(()=>{
-      targetInput.scrollIntoView({block:'nearest',inline:'nearest'});
-    },0);
+    setTimeout(()=>targetInput.scrollIntoView({block:'nearest',inline:'nearest'}),0);
   }
 }
 
@@ -5109,6 +5128,224 @@ window.addEventListener('beforeunload', ()=>{
     }catch(e){}
   }
 });
+
+function showBulkEntry(field, idx){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const students=(g.students||[]).filter(s=>s&&s.name&&!s.hidden);
+  const fieldLabels={units:'U',homework:'HW',achievements:'AT'};
+  const label=fieldLabels[field]||field;
+  const colLabel=`${label}${idx+1}`;
+  const isUnit=field==='units';
+
+  openModal(`<div class="modal-title">📝 ${colLabel} — все студенты</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Введите результаты. Пустые ячейки не изменят текущие данные.</div>
+    <div style="max-height:60vh;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--color-text-secondary);border-bottom:1.5px solid var(--color-border-secondary)">#</th>
+          <th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--color-text-secondary);border-bottom:1.5px solid var(--color-border-secondary)">Студент</th>
+          ${isUnit?`<th style="text-align:center;padding:6px;font-size:12px;color:#4361ee;border-bottom:1.5px solid var(--color-border-secondary)">Граммат.</th>
+          <th style="text-align:center;padding:6px;font-size:12px;color:#4361ee;border-bottom:1.5px solid var(--color-border-secondary)">Словарь</th>
+          <th style="text-align:center;padding:6px;font-size:12px;font-weight:700;border-bottom:1.5px solid var(--color-border-secondary)">${colLabel}</th>`
+          :`<th style="text-align:center;padding:6px;font-size:12px;color:#4361ee;border-bottom:1.5px solid var(--color-border-secondary)">${colLabel}</th>`}
+        </tr></thead>
+        <tbody>
+          ${students.map((s,i)=>{
+            const cur=isUnit?(s.units||[])[idx]??'':((s[field]||[])[idx]??'');
+            const gr=isUnit?(s.units_grammar||[])[idx]??'':'';
+            const vc=isUnit?(s.units_vocab||[])[idx]??'':'';
+            const curColor=cur!==''?(Number(cur)>=75?'#1b5e20':Number(cur)>=70?'#e65100':'#b71c1c'):'#bbb';
+            return `<tr style="border-bottom:0.5px solid var(--color-border-tertiary)">
+              <td style="padding:6px 8px;font-size:12px;color:var(--color-text-secondary)">${i+1}</td>
+              <td style="padding:6px 8px;font-size:13px;font-weight:500">${s.name}</td>
+              ${isUnit?`<td style="padding:4px"><input type="number" class="fi bulk-gr" data-sid="${s.id}" min="0" max="50" placeholder="0–50" value="${gr}" style="width:70px;text-align:center;padding:5px" oninput="updateBulkPreview(this,${i})"></td>
+              <td style="padding:4px"><input type="number" class="fi bulk-vc" data-sid="${s.id}" min="0" max="50" placeholder="0–50" value="${vc}" style="width:70px;text-align:center;padding:5px" oninput="updateBulkPreview(this,${i})"></td>
+              <td style="padding:6px;text-align:center"><span id="bulk-res-${i}" style="font-size:14px;font-weight:700;color:${curColor}">${cur!==''?fmt(cur):'—'}</span></td>`
+              :`<td style="padding:4px"><input type="number" class="fi bulk-val" data-sid="${s.id}" data-field="${field}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${cur}" style="width:80px;text-align:center;padding:5px" onkeydown="bulkKeyDown(event,${i})"></td>`}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#166534">
+      💡 Enter — следующий студент · Пустое поле = без изменений
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveBulkEntry('${field}',${idx})">✓ Сохранить все</button>
+    </div>`);
+  setTimeout(()=>{
+    const first=document.querySelector('.bulk-gr,.bulk-val');
+    if(first){first.focus();first.select();}
+  },100);
+}
+
+function updateBulkPreview(inp,rowIdx){
+  const row=inp.closest('tr');
+  const gr=parseFloat(row.querySelector('.bulk-gr')?.value)||0;
+  const vc=parseFloat(row.querySelector('.bulk-vc')?.value)||0;
+  const score=parseFloat(((gr/50*70)+(vc/50*30)).toFixed(1));
+  const span=document.getElementById(`bulk-res-${rowIdx}`);
+  if(span){
+    span.textContent=isNaN(score)?'—':score.toFixed(1);
+    span.style.color=score>=75?'#1b5e20':score>=70?'#e65100':'#b71c1c';
+  }
+}
+
+function bulkKeyDown(e,idx){
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const inputs=[...document.querySelectorAll('.bulk-val,.bulk-gr,.bulk-vc')];
+    const cur=e.target;
+    const pos=inputs.indexOf(cur);
+    const next=inputs[pos+1];
+    if(next){next.focus();next.select();}
+  }
+}
+
+function saveBulkEntry(field,idx){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const isUnit=field==='units';
+  let changed=0;
+  if(isUnit){
+    const grInputs=[...document.querySelectorAll('.bulk-gr')];
+    const vcInputs=[...document.querySelectorAll('.bulk-vc')];
+    grInputs.forEach((grInp,i)=>{
+      const sid=grInp.dataset.sid;
+      const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
+      const grVal=grInp.value.trim();
+      const vcVal=vcInputs[i]?.value.trim()||'';
+      if(grVal===''&&vcVal==='') return;
+      const gr=parseFloat(grVal)||0;
+      const vc=parseFloat(vcVal)||0;
+      if(!s.units) s.units=Array(12).fill(null);
+      if(!s.units_grammar) s.units_grammar=Array(12).fill(null);
+      if(!s.units_vocab) s.units_vocab=Array(12).fill(null);
+      while(s.units.length<=idx) s.units.push(null);
+      while(s.units_grammar.length<=idx) s.units_grammar.push(null);
+      while(s.units_vocab.length<=idx) s.units_vocab.push(null);
+      s.units_grammar[idx]=gr;
+      s.units_vocab[idx]=vc;
+      s.units[idx]=parseFloat(((gr/50*70)+(vc/50*30)).toFixed(1));
+      changed++;
+    });
+  } else {
+    const inputs=[...document.querySelectorAll('.bulk-val')];
+    inputs.forEach(inp=>{
+      const val=inp.value.trim();
+      if(val==='') return;
+      const sid=inp.dataset.sid;
+      const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
+      const n=parseFloat(val);
+      if(isNaN(n)||n<0||n>100) return;
+      if(!s[field]) s[field]=Array(5).fill(null);
+      while(s[field].length<=idx) s[field].push(null);
+      s[field][idx]=n;
+      changed++;
+    });
+  }
+  if(changed>0){
+    closeModal();
+    renderGroup(document.getElementById('main'));
+    D._localAt=new Date().toISOString();
+    try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+    clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
+    const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
+    toast(`Сохранено ${changed} результатов ✓`,'success');
+  } else {
+    closeModal();
+  }
+}
+
+function showBulkEntryRus(field, idx){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const students=(g.students||[]).filter(s=>s&&s.name&&!s.hidden);
+  const labels={conversations:'Р',homework:'Д',vocabulary:'Сл'};
+  const colLabel=`${labels[field]||field}${idx+1}`;
+  const isConv=field==='conversations';
+
+  openModal(`<div class="modal-title">📝 ${colLabel} — все студенты</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">
+      ${isConv?'Разговорка включает: Р (разговорка) + ДЗ + Словарь':'Введите результаты. Пустые ячейки не изменят данные.'}
+    </div>
+    <div style="max-height:60vh;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--color-text-secondary);border-bottom:1.5px solid var(--color-border-secondary)">#</th>
+          <th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--color-text-secondary);border-bottom:1.5px solid var(--color-border-secondary)">Студент</th>
+          <th style="text-align:center;padding:6px;font-size:12px;color:#4361ee;border-bottom:1.5px solid var(--color-border-secondary)">Р${idx+1}</th>
+          ${isConv?`<th style="text-align:center;padding:6px;font-size:12px;color:#2b9348;border-bottom:1.5px solid var(--color-border-secondary)">Д${idx+1}</th>
+          <th style="text-align:center;padding:6px;font-size:12px;color:#9d174d;border-bottom:1.5px solid var(--color-border-secondary)">Сл${idx+1}</th>`:''}
+        </tr></thead>
+        <tbody>
+          ${students.map((s,i)=>{
+            const conv=(s.conversations||[])[idx]??'';
+            const hw=isConv?(s.homework||[])[idx]??'':'';
+            const vocab=isConv?(s.vocabulary||[])[idx]??'':'';
+            return `<tr style="border-bottom:0.5px solid var(--color-border-tertiary)">
+              <td style="padding:6px 8px;font-size:12px;color:var(--color-text-secondary)">${i+1}</td>
+              <td style="padding:6px 8px;font-size:13px;font-weight:500">${s.name}</td>
+              <td style="padding:4px"><input type="number" class="fi bulk-rus-conv" data-sid="${s.id}" data-field="${field}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${field==='conversations'?conv:field==='homework'?hw:vocab}" style="width:75px;text-align:center;padding:5px" onkeydown="bulkKeyDown(event,${i*3})"></td>
+              ${isConv?`<td style="padding:4px"><input type="number" class="fi bulk-rus-hw" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${hw}" style="width:75px;text-align:center;padding:5px" onkeydown="bulkKeyDown(event,${i*3+1})"></td>
+              <td style="padding:4px"><input type="number" class="fi bulk-rus-voc" data-sid="${s.id}" data-idx="${idx}" min="0" max="100" placeholder="0–100" value="${vocab}" style="width:75px;text-align:center;padding:5px" onkeydown="bulkKeyDown(event,${i*3+2})"></td>`:''}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#166534">
+      💡 Enter — следующая ячейка · Пустое поле = без изменений
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveBulkEntryRus('${field}',${idx},${isConv})">✓ Сохранить все</button>
+    </div>`);
+  setTimeout(()=>{
+    const first=document.querySelector('.bulk-rus-conv');
+    if(first){first.focus();first.select();}
+  },100);
+}
+
+function saveBulkEntryRus(field,idx,withHwVocab){
+  const t=D.teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const convInputs=[...document.querySelectorAll('.bulk-rus-conv')];
+  const hwInputs=withHwVocab?[...document.querySelectorAll('.bulk-rus-hw')]:[];
+  const vocInputs=withHwVocab?[...document.querySelectorAll('.bulk-rus-voc')]:[];
+  let changed=0;
+  convInputs.forEach((inp,i)=>{
+    const sid=inp.dataset.sid;
+    const s=(g.students||[]).find(x=>x.id===sid);if(!s) return;
+    const convVal=inp.value.trim();
+    const hwVal=hwInputs[i]?.value.trim()||'';
+    const vocVal=vocInputs[i]?.value.trim()||'';
+    if(convVal===''&&hwVal===''&&vocVal==='') return;
+    const saveToField=(fld,val)=>{
+      if(val==='') return;
+      const n=parseFloat(val);if(isNaN(n)||n<0||n>100) return;
+      if(!s[fld]) s[fld]=[];
+      while(s[fld].length<=idx) s[fld].push(null);
+      s[fld][idx]=n;
+    };
+    saveToField(field,convVal);
+    if(withHwVocab){saveToField('homework',hwVal);saveToField('vocabulary',vocVal);}
+    changed++;
+  });
+  if(changed>0){
+    closeModal();
+    renderGroup(document.getElementById('main'));
+    D._localAt=new Date().toISOString();
+    try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
+    clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
+    const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
+    toast(`Сохранено ${changed} студентов ✓`,'success');
+  } else {
+    closeModal();
+  }
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
