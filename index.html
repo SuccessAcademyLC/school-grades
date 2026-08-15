@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1784089964';
+  const APP_VERSION='1786777814';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -323,6 +323,9 @@ body.dark .name-link{color:#c5cae9}
 body.dark .debt-card-outer{background:#1e2133!important;box-shadow:0 2px 8px rgba(0,0,0,.3)!important}
 body.dark .debt-card-inner{background:#252838!important}
 body.dark .debt-stu-name{color:#e8eaf0!important}
+body.dark .risk-card{background:#2d1a1e!important;border-color:#be123c!important}
+tr.risk-row td{background:#fff5f5!important}
+body.dark tr.risk-row td{background:#2d1a1e!important}
 body.dark .sb-nav{border-color:#2a2d3a}
 body.dark .sb-nav-btn{color:#5a6080}
 body.dark .sb-nav-btn.active{color:#7986cb}
@@ -644,14 +647,42 @@ function countGroupDebts(g){
 function renderGroupDebts(g){
   if(window._qrViewMode) return '';
   if(!isAdmin()&&curUser?.role!=='teacher') return '';
+
+  // Risk zone students
+  const riskStudents=(g.students||[]).filter(s=>s&&s.name&&!s.hidden&&isAtRisk(s,g.level));
+
   const debtors=[];
   (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
     const debts=getDebts(s,g.level).map(d=>({type:d.key,label:d.label}));
     if(debts.length) debtors.push({s,debts});
   });
-  if(!debtors.length) return `<div style="margin-top:12px;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f0fdf4;border-radius:10px;font-size:13px;color:#166534">✅ Должников нет — все тесты сданы</div>`;
+
   const tagStyle={u:'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd',at:'background:#ffedd5;color:#9a3412;border:1px solid #fdba74',hw:'background:#fce7f3;color:#9d174d;border:1px solid #f9a8d4',vocab:'background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd',conv:'background:#dcfce7;color:#166534;border:1px solid #86efac'};
-  return `<div style="margin-top:14px;background:#ffffff;border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.08)" class="debt-card-outer">
+
+  let html='';
+
+  // Risk zone block
+  if(riskStudents.length){
+    html+=`<div style="margin-top:14px;background:#fff1f2;border:1.5px solid #fecdd3;border-radius:12px;padding:14px 16px" class="risk-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:16px">🔴</span>
+        <span style="font-size:13px;font-weight:700;color:#be123c">Зона риска — 3 подряд ниже 60</span>
+        <span style="margin-left:auto;background:#fecdd3;color:#be123c;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:700">${riskStudents.length} студ.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${riskStudents.map(s=>`<div style="background:white;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:10px;border:1px solid #fecdd3">
+          <div style="width:28px;height:28px;border-radius:50%;background:#fecdd3;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#be123c;flex-shrink:0">${ini(s.name)}</div>
+          <div style="font-size:13px;font-weight:500;color:#be123c">${s.name}</div>
+          <div style="margin-left:auto;font-size:11px;color:#f43f5e">требует внимания</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  if(!debtors.length&&!riskStudents.length) return html+`<div style="margin-top:12px;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f0fdf4;border-radius:10px;font-size:13px;color:#166534">✅ Должников нет — все тесты сданы</div>`;
+  if(!debtors.length) return html;
+
+  html+=`<div style="margin-top:14px;background:#ffffff;border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.08)" class="debt-card-outer">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <span style="font-size:13px;font-weight:600;color:var(--color-text-primary)">Должники группы</span>
@@ -667,6 +698,7 @@ function renderGroupDebts(g){
       </div>`).join('')}
     </div>
   </div>`;
+  return html;
 }
 
 function showProfile(){
@@ -1359,9 +1391,11 @@ function renderHome(el){
   teachers.forEach(t=>(t.groups||[]).forEach(g=>(g.students||[]).forEach(s=>{const o=calcFinal(s,g.level);if(o!==null){sum+=o;cnt++;}})));
   // Collect hidden students for admin notification
   const hiddenAlert=[];
+  const riskAlert=[];
   if(isAdmin()){
     teachers.forEach(tc=>(tc.groups||[]).forEach(g=>(g.students||[]).forEach(s=>{
       if(s.hidden) hiddenAlert.push({s,g,tc});
+      if(!s.hidden&&s.name&&isAtRisk(s,g.level)) riskAlert.push({s,g,tc});
     })));
   }
   // Collect new supporter reports
@@ -1384,7 +1418,26 @@ function renderHome(el){
         <button onclick="supDeleteReport('${a.id}','${r.id}');renderAll()" style="font-size:11px;padding:3px 8px;border-radius:8px;border:1px solid #fcc;background:#fff5f5;color:#c00;cursor:pointer;margin-left:4px">✕</button>
       </div>`).join('')}
     </div>`:''}
-    ${hiddenAlert.length?`<div style="background:#fff3e0;border:1.5px solid #ffb74d;border-radius:12px;padding:16px 20px;margin-bottom:16px">
+    ${riskAlert.length?`<div style="background:#fff1f2;border:1.5px solid #fecdd3;border-radius:12px;padding:16px 20px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="font-size:22px">🔴</div>
+        <div>
+          <div style="font-weight:700;color:#be123c;font-size:15px">${riskAlert.length} студентов в зоне риска</div>
+          <div style="font-size:12px;color:#888;margin-top:2px">3+ оценок подряд ниже 60 (Unit / AT / HW)</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${riskAlert.map(({s,g,tc})=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:white;border-radius:8px;border:1px solid #fecdd3;cursor:pointer" onclick="gotoT('${tc.id}');setTimeout(()=>{selG='${g.id}';view='group';renderAll();},150)">
+          <div style="width:28px;height:28px;border-radius:50%;background:#fecdd3;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#be123c;flex-shrink:0">${ini(s.name)}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:#be123c">${s.name}</div>
+            <div style="font-size:11px;color:#888">${tc.name} · ${lvl(g.level)} ${g.day} ${g.time}</div>
+          </div>
+          <span style="font-size:11px;color:#f43f5e">→</span>
+        </div>`).join('')}
+      </div>
+    </div>`:''}
+        ${hiddenAlert.length?`<div style="background:#fff3e0;border:1.5px solid #ffb74d;border-radius:12px;padding:16px 20px;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <div style="font-size:22px">👁</div>
         <div>
@@ -1497,16 +1550,17 @@ function renderRusRow(s,num,g,ed){
     if(ed) return `<input class="gi${isZero?' zero':''}" type="text" inputmode="decimal" value="${v}" oninput="gchRus('${sid}','${field}',${idx!=null?idx:'null'},this.value)" onkeydown="gradeKey(event,this)" onfocus="this.select()" placeholder="">`;
     return `<span style="color:${v===''?'#ddd':isZero?'#b45309':'inherit'};${isZero?'font-weight:700;background:#fff8f0;padding:1px 5px;border-radius:4px;':''}">` + (v!==''?fmt(v):'—') + `</span>`;
   };
+  const atRisk=!empty&&s&&isAtRisk(s,g.level);
   const namecell=ed
     ?`<input class="ni" type="text" value="${s?s.name:''}" placeholder="Введите имя..." onblur="nameBlur('${sid}',${num-1},this)" onkeydown="nameKey(event,'${sid}',${num-1},this)" onfocus="this.select()">`
-    :(s?.name?`<span class="name-link" onclick="clickStudent('${sid}')">${s.name}</span>`:'<span style="color:#ddd">—</span>');
+    :(s?.name?`<span class="name-link" onclick="clickStudent('${sid}')">${atRisk?'<span title="Зона риска: 3+ оценки ниже 60 подряд" style="color:#ef4444;margin-right:4px">🔴</span>':''}${s.name}</span>`:'<span style="color:#ddd">—</span>');
   const convs=Array(cfg.conv).fill(null).map((_,i)=>(s?.conversations||[])[i]??null);
   const hws=Array(cfg.hw).fill(null).map((_,i)=>(s?.homework||[])[i]??null);
   const vocabs=Array(cfg.vocab).fill(null).map((_,i)=>(s?.vocabulary||[])[i]??null);
   const ppts=Array(cfg.ppt).fill(null).map((_,i)=>(s?.presentations||[])[i]??null);
   const startC=(s?.startConv||1)-1;
   const startH=(s?.startHW||1)-1;
-  return `<tr class="${empty?'empty-row':''}">
+  return `<tr class="${empty?'empty-row':''}${atRisk?' risk-row':''}">
     <td class="nc">${num}</td>
     <td class="nmc">${namecell}</td>
     ${convs.map((v,i)=>`<td${i===0?' class="gb"':''}>${i<startC?'<span style="color:#ddd;font-size:10px">—</span>':gcell(v,'conversations',i)}</td>`).join('')}
@@ -1739,15 +1793,16 @@ function srow(s,num,g,ed,archMode){
     if(ed) return `<input class="gi${isZero?' zero':''}" type="text" inputmode="decimal" value="${v}" oninput="gch('${sid}','${field}',${idx!=null?idx:'null'},this.value)" onkeydown="gradeKey(event,this)" onfocus="this.select()" placeholder="">`;
     return `<span style="color:${v===''?'#ddd':isZero?'#b45309':'inherit'};${isZero?'font-weight:700;background:#fff8f0;padding:1px 5px;border-radius:4px;':''}">` + (v!==''?fmt(v):'—') + `</span>`;
   };
+  const atRisk=!empty&&s&&isAtRisk(s,g.level);
   const namecell=ed
     ?`<input class="ni" type="text" value="${s?s.name:''}" placeholder="Введите имя..." onblur="nameBlur('${sid}',${num-1},this)" onkeydown="nameKey(event,'${sid}',${num-1},this)" onfocus="this.select()">`
-    :(s?.name?`<span class="name-link" onclick="clickStudent('${sid}')">${s.name}</span>`:'<span style="color:#ddd">—</span>');
+    :(s?.name?`<span class="name-link" onclick="clickStudent('${sid}')">${atRisk?'<span title="Зона риска: 3+ оценки ниже 60 подряд" style="color:#ef4444;margin-right:4px">🔴</span>':''}${s.name}</span>`:'<span style="color:#ddd">—</span>');
   const us=s?(Array.isArray(s.units)?s.units:Array(12).fill(null)).concat(Array(12).fill(null)).slice(0,12):Array(12).fill(null);
   const hw=s?(Array.isArray(s.homework)?s.homework:Array(5).fill(null)).concat(Array(5).fill(null)).slice(0,5):Array(5).fill(null);
   const at=s?(Array.isArray(s.achievements)?s.achievements:Array(5).fill(null)).concat(Array(5).fill(null)).slice(0,5):Array(5).fill(null);
   const startU=(s?.startUnit||1)-1;
   const startA=(s?.startAT||1)-1;
-  return `<tr class="${empty?'empty-row':''}">
+  return `<tr class="${empty?'empty-row':''}${atRisk?' risk-row':''}">
     <td class="nc">${num}</td>
     <td class="nmc">${namecell}</td>
     ${us.map((v,i)=>{
@@ -3749,6 +3804,30 @@ function gotoPage(p){
 }
 
 // ── CRUD Teachers ─────────────────────────────────────────────────────────
+function isAtRisk(s, level){
+  // Collect all filled scores from units, achievements, homework (and rus conversations)
+  const isRus=RUS_LEVELS.includes(level);
+  const scores=[];
+  const filled=v=>v!==null&&v!==undefined&&v!=='';
+  if(isRus){
+    (s.conversations||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'conv'}));
+    (s.homework||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'hw'}));
+    (s.vocabulary||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'vocab'}));
+  } else {
+    (s.units||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'unit'}));
+    (s.achievements||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'at'}));
+    (s.homework||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'hw'}));
+  }
+  if(scores.length<3) return false;
+  // Check if last 3 consecutive filled scores are all below 60
+  const last3=scores.slice(-3);
+  return last3.length===3&&last3.every(x=>x.v<60);
+}
+
+function countGroupAtRisk(g){
+  return (g.students||[]).filter(s=>s&&s.name&&!s.hidden&&isAtRisk(s,g.level)).length;
+}
+
 function getDebts(s,level){
     const debts=[];
     // filled = has any value including 0; passed = has value > 0
