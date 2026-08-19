@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787139773';
+  const APP_VERSION='1787140101';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -6053,6 +6053,8 @@ function getFinalsDays(dateStr){
 
 function showAddFinal(){
   const teachers=D.teachers||[];
+  // All staff who can supervise finals: supporters + academic
+  const staff=(D.accounts||[]).filter(a=>a.role==='supporter'||a.role==='academic');
   openModal(`<div class="modal-title">➕ Добавить финал</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="fg"><label class="fl">📝 Дата финала</label><input type="date" class="fi" id="af-d1" value="${new Date().toISOString().slice(0,10)}"></div>
@@ -6073,10 +6075,12 @@ function showAddFinal(){
           <option value="Kids">Kids</option>
         </select>
       </div>
-      <div class="fg"><label class="fl">Суппортер</label>
+      <div class="fg">
+        <label class="fl">Ответственный <span style="font-size:10px;color:var(--color-text-secondary)">(необязательно)</span></label>
         <select class="fi" id="af-supporter">
-          <option value="">— выбрать —</option>
-          ${(D.accounts||[]).filter(a=>a.role==='supporter').map(a=>`<option value="${a.name||a.login}">${a.name||a.login}</option>`).join('')}
+          <option value="">— не выбрано —</option>
+          ${staff.length?`<optgroup label="Суппортеры">${(D.accounts||[]).filter(a=>a.role==='supporter').map(a=>`<option value="${a.name||a.login}">${a.name||a.login}</option>`).join('')}</optgroup>`:''}
+          ${(D.accounts||[]).filter(a=>a.role==='academic').length?`<optgroup label="Academic Department">${(D.accounts||[]).filter(a=>a.role==='academic').map(a=>`<option value="${a.name||a.login}">${a.name||a.login}</option>`).join('')}</optgroup>`:''}
         </select>
       </div>
     </div>
@@ -6127,10 +6131,12 @@ function showEditFinal(id){
           ${['Main','Khodjeli','Kids'].map(b=>`<option value="${b}" ${f.branch===b?'selected':''}>${b}</option>`).join('')}
         </select>
       </div>
-      <div class="fg"><label class="fl">Суппортер</label>
+      <div class="fg">
+        <label class="fl">Ответственный <span style="font-size:10px;color:var(--color-text-secondary)">(необязательно)</span></label>
         <select class="fi" id="ef-supporter">
-          <option value="">— выбрать —</option>
-          ${(D.accounts||[]).filter(a=>a.role==='supporter').map(a=>`<option value="${a.name||a.login}" ${f.supporter===(a.name||a.login)?'selected':''}>${a.name||a.login}</option>`).join('')}
+          <option value="">— не выбрано —</option>
+          ${(D.accounts||[]).filter(a=>a.role==='supporter').length?`<optgroup label="Суппортеры">${(D.accounts||[]).filter(a=>a.role==='supporter').map(a=>`<option value="${a.name||a.login}" ${f.supporter===(a.name||a.login)?'selected':''}>${a.name||a.login}</option>`).join('')}</optgroup>`:''}
+          ${(D.accounts||[]).filter(a=>a.role==='academic').length?`<optgroup label="Academic Department">${(D.accounts||[]).filter(a=>a.role==='academic').map(a=>`<option value="${a.name||a.login}" ${f.supporter===(a.name||a.login)?'selected':''}>${a.name||a.login}</option>`).join('')}</optgroup>`:''}
         </select>
       </div>
     </div>
