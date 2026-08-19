@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787114482';
+  const APP_VERSION='1787137093';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -51,6 +51,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .who-pill{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);padding:5px 14px;border-radius:20px;font-size:13px;font-weight:500}
 .who-av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
 .wa-admin{background:#e94560}
+.wa-academic{background:#0891b2}
+.wa-observer{background:#059669}
 .wa-teacher{background:#4361ee}
 .wa-supporter{background:#2b9348}
 .wa-teacher{background:#4361ee}
@@ -1078,6 +1080,7 @@ function confirmDelT(tid){
 }
 
 function showSettings(){
+  if(!isSuperAdmin()){toast('Только главный администратор может изменять настройки','error');return;}
   const currentLogo=D.settings?.orgLogo||'';
   openModal(`<div class="modal-title">⚙️ Настройки</div>
     <div class="fg"><label class="fl">Название организации</label>
@@ -1280,8 +1283,16 @@ function delArchive(id){
 })();
 
 // ── Render ────────────────────────────────────────────────────────────────
-function isAdmin(){return curUser?.role==='admin';}
-function canEdit(tid){if(curUser?.role==='viewer') return false;return isAdmin();}
+function isAdmin(){return curUser?.role==='admin'||curUser?.role==='academic';}
+function isAcademic(){return curUser?.role==='academic';}
+function isObserver(){return curUser?.role==='observer';}
+function isSuperAdmin(){return curUser?.role==='admin';}
+function canEdit(tid){
+  if(isObserver()) return false;
+  if(curUser?.role==='viewer') return false;
+  if(isAdmin()) return true; // admin + academic
+  return false;
+}
 
 function renderAll(){
   renderSidebar();
@@ -2708,79 +2719,53 @@ function changeStudentStatus(sid,status){
 // ── Accounts ──────────────────────────────────────────────────────────────
 function renderAccounts(el){
   const accs=D.accounts||[];
-  const teachers=accs.filter(a=>a.role!=='supporter');
+  const teachers=accs.filter(a=>a.role==='teacher');
   const supporters=accs.filter(a=>a.role==='supporter');
   const admins=accs.filter(a=>a.role==='admin');
+  const academics=accs.filter(a=>a.role==='academic');
+  const observers=accs.filter(a=>a.role==='observer');
+  const roleColor={admin:'#e94560',academic:'#0891b2',observer:'#059669',teacher:'#4361ee',supporter:'#2b9348'};
+  const roleName={admin:'Администратор',academic:'Academic',observer:'Наблюдатель',teacher:'Преподаватель',supporter:'Supporter'};
+  const accCard=(a)=>`<div class="acc-row">
+    <div class="t-av" style="width:38px;height:38px;font-size:13px;border-radius:10px;background:${roleColor[a.role]||'#888'};">${ini(a.name||a.login)}</div>
+    <div class="acc-info"><div class="acc-name">${a.name||a.login}</div>
+    <div class="acc-sub">Логин: ${a.login} · <span style="color:${roleColor[a.role]};font-weight:500">${roleName[a.role]||a.role}</span></div>
+    </div>
+    <button onclick="showEditAccount('${a.id}')" class="btn btn-sec btn-sm">✏️</button>
+    <button onclick="delAccount('${a.id}')" class="btn btn-dan btn-sm">✕</button>
+  </div>`;
   el.innerHTML=`
     <div class="ph">
       <div><div class="pt">${tr('accounts')}</div><div class="ps">${accs.length} аккаунтов</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-sec btn-sm" onclick="gotoPage('duties')">📅 Дежурства</button>
-        <button class="btn btn-dan btn-sm" onclick="showAddAdmin()">Новый админ</button>
-        <button class="btn btn-sec btn-sm" onclick="showAddTeacher()">Новый преподаватель</button>
-        <button class="btn btn-pri btn-sm" onclick="showAddSupporter()">Новый supporter</button>
+        <button class="btn btn-sec btn-sm" onclick="showAddStaff()">+ Новый сотрудник</button>
       </div>
     </div>
-    ${admins.length?`<div class="card">
+    ${admins.length?`<div class="card" style="margin-bottom:10px">
       <div class="card-title" style="margin-bottom:14px">👑 Администраторы (${admins.length})</div>
-      ${admins.map(a=>`
-        <div class="acc-row">
-          <div class="t-av" style="width:38px;height:38px;font-size:13px;border-radius:10px;background:linear-gradient(135deg,#e94560,#c62828)">${ini(a.name||a.login)}</div>
-          <div class="acc-info"><div class="acc-name">${a.name||a.login}</div>
-            <div class="acc-login">Логин: <b>${a.login}</b></div></div>
-          <span class="role-badge rb-admin">Администратор</span>
-          <button class="btn btn-sec btn-sm" onclick="showEditAccount('${a.id}')">✏️</button>
-        </div>`).join('')}
+      ${admins.map(accCard).join('')}
     </div>`:''}
-    <div class="card">
-      <div class="card-title" style="margin-bottom:14px">👤 Учителя (${teachers.length})</div>
-      ${!teachers.length?`<div style="color:#bbb;font-size:13px;padding:10px 0">Нет аккаунтов учителей</div>`:''}
-      ${teachers.map(a=>{
-        const tc=D.teachers.find(x=>x.id===a.teacherId);
-        return `<div class="acc-row">
-          <div class="t-av" style="width:38px;height:38px;font-size:13px;border-radius:10px">${ini(tc?tc.name:a.login)}</div>
-          <div class="acc-info"><div class="acc-name">${tc?tc.name:a.login}</div>
-            <div class="acc-login">Логин: <b>${a.login}</b></div></div>
-          <span class="role-badge rb-teacher">Учитель</span>
-          <button class="btn btn-sec btn-sm" onclick="showEditAccount('${a.id}')">✏️</button>
-        </div>`;
-      }).join('')}
-    </div>
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div class="card-title">🤝 Supporters (${supporters.length})</div>
-        <button class="btn btn-sec btn-sm" onclick="gotoPage('duties')">📅 Расписание дежурств</button>
-      </div>
-      ${!supporters.length?`<div style="color:#bbb;font-size:13px;padding:10px 0">Нет аккаунтов supporters</div>`:''}
-      ${supporters.map(a=>{
-        const typeLabel=supTypeLabel(a.supType||'eng-ru',true)||'Англ (рус)';
-        const typeCls=supTypeCls(a.supType||'eng-ru')||'sup-type-eng-ru';
-        const activeReplace=(a.replacements||[]).find(r=>r.active);
-        const replCount=(a.replacements||[]).length;
-        const DEMO_LEVELS=a.supType==='rus'?['rus-1','rus-2','rus-3','rus-4']:['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
-        const demoDone=DEMO_LEVELS.filter(l=>(a.demos||{})[l]).length;
-        return `<div style="padding:12px 0;border-bottom:0.5px solid var(--color-border-tertiary,#f0f0f0)">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-            <div class="t-av" style="width:38px;height:38px;font-size:13px;border-radius:10px;background:linear-gradient(135deg,#2b9348,#1b5e20)">${ini(a.name||a.login)}</div>
-            <div style="flex:1">
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <span class="acc-name">${a.name||a.login}</span>
-                <span class="sup-type-badge ${typeCls}">${typeLabel}</span>
-                ${activeReplace?`<span style="background:#FAEEDA;color:#633806;font-size:11px;padding:2px 8px;border-radius:10px">Занят до ${activeReplace.dateTo||'?'}</span>`:`<span style="background:#EAF3DE;color:#27500A;font-size:11px;padding:2px 8px;border-radius:10px">Свободен</span>`}
-              </div>
-              <div style="font-size:11px;color:var(--color-text-secondary,#888);margin-top:3px">Логин: <b>${a.login}</b> · Замен: ${replCount} · Демо: ${demoDone}/${DEMO_LEVELS.length}</div>
-            </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              <button class="btn btn-sec btn-sm" onclick="showSupporterProfile('${a.id}')">👤 Профиль</button>
-              <button class="btn btn-pri btn-sm" onclick="showAssignReplace('${a.id}')" ${activeReplace?'style="opacity:.5" disabled':''}>📅 Замена</button>
-              <button class="btn btn-sec btn-sm" onclick="showAssignEvent('${a.id}')">📝 Событие</button>
-              <button class="btn btn-sec btn-sm" onclick="showEditAccount('${a.id}')">✏️</button>
-            </div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
+    ${academics.length?`<div class="card" style="margin-bottom:10px">
+      <div class="card-title" style="margin-bottom:14px;color:#0891b2">🎓 Academic Department (${academics.length})</div>
+      ${academics.map(accCard).join('')}
+    </div>`:''}
+    ${observers.length?`<div class="card" style="margin-bottom:10px">
+      <div class="card-title" style="margin-bottom:14px;color:#059669">👁 Наблюдатели — Операторы (${observers.length})</div>
+      ${observers.map(accCard).join('')}
+    </div>`:''}
+    ${teachers.length?`<div class="card" style="margin-bottom:10px">
+      <div class="card-title" style="margin-bottom:14px">👤 Преподаватели (${teachers.length})</div>
+      ${teachers.map(accCard).join('')}
+    </div>`:''}
+    ${supporters.length?`<div class="card" style="margin-bottom:10px">
+      <div class="card-title" style="margin-bottom:14px">🤝 Supporter (${supporters.length})</div>
+      ${supporters.map(accCard).join('')}
+    </div>`:''}
+    ${!accs.length?`<div class="empty"><h3>Нет аккаунтов</h3></div>`:''}
+  `;
 }
+
 function showSupporterProfile(id){window._supProfileId=id;view='supporter_profile';curPage=null;renderAll();}
 function gotoSupporterProfile(id){showSupporterProfile(id);}
 
@@ -4811,9 +4796,52 @@ function showAddStaff(){
     <div style="display:flex;flex-direction:column;gap:10px">
       <button class="btn btn-sec" onclick="closeModal();showAddTeacher()" style="padding:14px;font-size:14px;border-radius:10px">👤 Преподаватель</button>
       <button class="btn btn-pri" onclick="closeModal();showAddSupporter()" style="padding:14px;font-size:14px;border-radius:10px">🤝 Supporter</button>
-      <button class="btn" onclick="closeModal();showAddAdmin()" style="padding:14px;font-size:14px;border-radius:10px;border:1.5px solid #e94560;color:#e94560;background:white">👑 Администратор</button>
+      <button class="btn" onclick="closeModal();showAddAcademic()" style="padding:14px;font-size:14px;border-radius:10px;border:1.5px solid #0891b2;color:#0891b2;background:white">🎓 Academic Department</button>
+      <button class="btn" onclick="closeModal();showAddObserver()" style="padding:14px;font-size:14px;border-radius:10px;border:1.5px solid #059669;color:#059669;background:white">👁 Наблюдатель (Оператор)</button>
+      ${isSuperAdmin()?`<button class="btn" onclick="closeModal();showAddAdmin()" style="padding:14px;font-size:14px;border-radius:10px;border:1.5px solid #e94560;color:#e94560;background:white">👑 Администратор</button>`:''}
     </div>
     <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Отмена</button></div>`);
+}
+
+function showAddAcademic(){
+  openModal(`<div class="modal-title">🎓 Новый сотрудник Academic</div>
+    <div class="fg"><label class="fl">Имя</label><input type="text" class="fi" id="ac-name" placeholder="Полное имя"></div>
+    <div class="fg"><label class="fl">Логин</label><input type="text" class="fi" id="ac-login" placeholder="Логин для входа"></div>
+    <div class="fg"><label class="fl">Пароль</label><input type="password" class="fi" id="ac-pass" placeholder="Мин. 4 символа"></div>
+    <div style="background:#e0f7fa;border-radius:10px;padding:10px 14px;font-size:12px;color:#006064;margin-bottom:12px">
+      🎓 Academic имеет полный доступ как администратор, кроме изменения системных настроек
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveAddSpecialAcc('academic')">✓ Создать</button>
+    </div>`);
+}
+
+function showAddObserver(){
+  openModal(`<div class="modal-title">👁 Новый наблюдатель</div>
+    <div class="fg"><label class="fl">Имя</label><input type="text" class="fi" id="ac-name" placeholder="Полное имя"></div>
+    <div class="fg"><label class="fl">Логин</label><input type="text" class="fi" id="ac-login" placeholder="Логин для входа"></div>
+    <div class="fg"><label class="fl">Пароль</label><input type="password" class="fi" id="ac-pass" placeholder="Мин. 4 символа"></div>
+    <div style="background:#e8f5e9;border-radius:10px;padding:10px 14px;font-size:12px;color:#1b5e20;margin-bottom:12px">
+      👁 Наблюдатель видит все результаты и может искать студентов, но не может ничего изменять
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveAddSpecialAcc('observer')">✓ Создать</button>
+    </div>`);
+}
+
+async function saveAddSpecialAcc(role){
+  const name=document.getElementById('ac-name')?.value?.trim();
+  const login=document.getElementById('ac-login')?.value?.trim().toLowerCase();
+  const pass=document.getElementById('ac-pass')?.value;
+  if(!name||!login||!pass){toast('Заполните все поля','error');return;}
+  if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
+  if((D.accounts||[]).some(a=>(a.login||'').toLowerCase()===login)){toast('Логин уже занят','error');return;}
+  if(!D.accounts) D.accounts=[];
+  D.accounts.push({id:uid(),role,name,login,password:await hashPass(pass)});
+  closeModal();sched();renderAll();
+  toast(`${role==='academic'?'Academic':'Наблюдатель'} ${name} создан ✓`,'success');
 }
 
 function sched(){
@@ -4876,17 +4904,27 @@ async function doLogin(){
     if(login===adminLogin||login==='admin'){
       if(await checkPass(pass,adminPin)||pass===DPIN){restoreBtn();curUser={role:'admin',name:D.settings?.adminName||'Администратор'};startApp();return;}
     }
-    let tAcc=null;
-    for(const a of(D.accounts||[])){if((a.login||'').toLowerCase()===login&&a.role!=='supporter'&&await checkPass(pass,a.password)){tAcc=a;break;}}
-    if(tAcc){
-      const teacher=D.teachers.find(x=>x.id===tAcc.teacherId);
-      restoreBtn();curUser={role:'teacher',teacherId:tAcc.teacherId,name:teacher?teacher.name:login,accountId:tAcc.id};startApp();return;
+    // Check all account types
+    const allAccs=D.accounts||[];
+    for(const a of allAccs){
+      if((a.login||'').toLowerCase()!==login) continue;
+      if(!await checkPass(pass,a.password)) continue;
+      if(a.role==='teacher'){
+        const teacher=D.teachers.find(x=>x.id===a.teacherId);
+        restoreBtn();curUser={role:'teacher',teacherId:a.teacherId,name:teacher?teacher.name:login,accountId:a.id};startApp();return;
+      }
+      if(a.role==='supporter'){
+        restoreBtn();curUser={role:'supporter',name:a.name||login,accountId:a.id};startApp();return;
+      }
+      if(a.role==='academic'){
+        restoreBtn();curUser={role:'academic',name:a.name||login,accountId:a.id};startApp();return;
+      }
+      if(a.role==='observer'){
+        restoreBtn();curUser={role:'observer',name:a.name||login,accountId:a.id};startApp();return;
+      }
     }
-    let sAcc=null;
-    for(const a of(D.accounts||[])){if((a.login||'').toLowerCase()===login&&a.role==='supporter'&&await checkPass(pass,a.password)){sAcc=a;break;}}
-    if(sAcc){restoreBtn();curUser={role:'supporter',name:sAcc.name||login,accountId:sAcc.id};startApp();return;}
     restoreBtn();
-    showLoginErr((D.accounts||[]).length>0?'Неверный логин или пароль':'Данные не загружены. Обновите страницу.');
+    showLoginErr(allAccs.length>0?'Неверный логин или пароль':'Данные не загружены. Обновите страницу.');
     document.getElementById('li-pass').value='';
   }catch(err){showLoginErr('Ошибка: '+err.message);const btn=document.getElementById('li-btn');if(btn){btn.disabled=false;btn.textContent='Войти';}}
 }
@@ -4897,24 +4935,29 @@ function startApp(){
   if(D.settings?.firebaseUrl)FIREBASE_URL=D.settings.firebaseUrl;
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
-  const isAdm=curUser.role==='admin',isSup=curUser.role==='supporter',isTch=curUser.role==='teacher';
+  const isAdm=curUser.role==='admin'||curUser.role==='academic';
+  const isSup=curUser.role==='supporter';
+  const isTch=curUser.role==='teacher';
+  const isObs=curUser.role==='observer';
   document.getElementById('adm-bar').style.display=isAdm?'flex':'none';
   const tb=document.getElementById('tch-bar');if(tb)tb.style.display=isTch?'flex':'none';
   const sb=document.getElementById('sup-bar');if(sb)sb.style.display=isSup?'flex':'none';
   if(isTch){const nb=document.getElementById('tch-bar-name');if(nb)nb.textContent='👤 '+curUser.name;}
   const pill=document.getElementById('who-pill');
-  const avCls=isAdm?'wa-admin':isSup?'wa-supporter':'wa-teacher';
-  if(pill)pill.innerHTML=`<div class="who-av ${avCls}" style="width:24px;height:24px;font-size:10px;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(curUser.name)}</div> ${curUser.name}`;
+  const avCls=curUser.role==='admin'?'wa-admin':curUser.role==='academic'?'wa-academic':isSup?'wa-supporter':isObs?'wa-observer':'wa-teacher';
+  const roleLabel={admin:'Администратор',academic:'Academic',observer:'Наблюдатель',teacher:'Преподаватель',supporter:'Суппортер'}[curUser.role]||curUser.role;
+  if(pill)pill.innerHTML=`<div class="who-av ${avCls}" style="width:24px;height:24px;font-size:10px;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center">${ini(curUser.name)}</div> ${curUser.name}<span style="font-size:10px;opacity:.7;margin-left:4px">(${roleLabel})</span>`;
   applyLogo();applyI18n();updateLangBtn(curLang);checkMobile();
   if(isAdm) setTimeout(updateNotifBadge,500);
   if(isSup){view='supporter';renderAll();}
+  else if(isObs){view='home';renderAll();}
   else{view='home';renderAll();if(isTch&&curUser.teacherId){selT=curUser.teacherId;view='teacher';renderAll();}}
   if(isAdm)setTimeout(()=>saveData(),1000);
   clearInterval(window._refreshTimer);
   window._refreshTimer=setInterval(async()=>{
     await loadData();
-    if(curUser?.role==='admin') updateNotifBadge();
-    if(curUser?.role==='supporter') renderMain();
+    if(isAdmin()) updateNotifBadge();
+    if(isSup) renderMain();
   },60000);
 }
 
@@ -6095,16 +6138,39 @@ function saveEditFinal(id){
   closeModal();sched();renderAll();toast('Финал обновлён ✓','success');
 }
 
+function cleanupOldFinals(){
+  if(!D.finals||!D.finals.length) return;
+  const now=new Date();now.setHours(0,0,0,0);
+  const before=D.finals.length;
+  D.finals=D.finals.filter(f=>{
+    const speakDate=new Date(f.date2||f.date1);speakDate.setHours(0,0,0,0);
+    const daysPast=Math.round((now-speakDate)/(1000*60*60*24));
+    return daysPast<30;
+  });
+  if(D.finals.length<before) sched();
+}
+
 function renderFinalsBlock(){
+  cleanupOldFinals();
   const today=new Date();today.setHours(0,0,0,0);
   const PER_PAGE=15;
+  const tab=window._finalsTab||'upcoming';
   const fp=window._finalsPage||0;
-  const all=(D.finals||[]).filter(f=>{
+
+  const upcoming=(D.finals||[]).filter(f=>{
     const d=new Date(f.date2||f.date1);d.setHours(0,0,0,0);
     return d>=today;
   }).sort((a,b)=>new Date(a.date1)-new Date(b.date1));
-  const total=Math.ceil(all.length/PER_PAGE)||1;
-  const upcoming=all.slice(fp*PER_PAGE,(fp+1)*PER_PAGE);
+
+  const history=(D.finals||[]).filter(f=>{
+    const d=new Date(f.date2||f.date1);d.setHours(0,0,0,0);
+    return d<today;
+  }).sort((a,b)=>new Date(b.date1)-new Date(a.date1));
+
+  const list=tab==='upcoming'?upcoming:history;
+  const total=Math.ceil(list.length/PER_PAGE)||1;
+  const pageItems=list.slice(fp*PER_PAGE,(fp+1)*PER_PAGE);
+
   const urgencyStyle=(days)=>{
     if(days<=0) return {bg:'#fee2e2',color:'#b91c1c',dot:'#ef4444',label:'Сегодня'};
     if(days===1) return {bg:'#fee2e2',color:'#b91c1c',dot:'#ef4444',label:'Завтра'};
@@ -6113,48 +6179,65 @@ function renderFinalsBlock(){
     return {bg:'var(--color-background-secondary)',color:'var(--color-text-secondary)',dot:'#94a3b8',label:`${days} дней`};
   };
   const fmt=d=>d?new Date(d).toLocaleDateString('ru',{day:'2-digit',month:'2-digit'}):'—';
+
   return `<div class="card" style="margin-bottom:12px" id="finals-block">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-size:13px;font-weight:600">📅 Скорые финальные тесты ${all.length?`<span style="font-size:11px;font-weight:400;color:var(--color-text-secondary)">(${all.length})</span>`:''}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:6px">
+        <button onclick="window._finalsTab='upcoming';window._finalsPage=0;renderAll()"
+          style="padding:5px 14px;border-radius:20px;border:1.5px solid ${tab==='upcoming'?'#4361ee':'var(--color-border-secondary)'};background:${tab==='upcoming'?'#4361ee':'transparent'};color:${tab==='upcoming'?'white':'var(--color-text-secondary)'};cursor:pointer;font-size:12px;font-weight:500">
+          📅 Грядущие (${upcoming.length})
+        </button>
+        <button onclick="window._finalsTab='history';window._finalsPage=0;renderAll()"
+          style="padding:5px 14px;border-radius:20px;border:1.5px solid ${tab==='history'?'#2b9348':'var(--color-border-secondary)'};background:${tab==='history'?'#2b9348':'transparent'};color:${tab==='history'?'white':'var(--color-text-secondary)'};cursor:pointer;font-size:12px;font-weight:500">
+          ✅ История (${history.length})
+        </button>
+      </div>
       <div style="display:flex;gap:6px;align-items:center">
         ${isAdmin()?`<button class="btn btn-sec btn-sm" onclick="showAddFinal()">+ Добавить</button>`:''}
         ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showFinalsUpload()">⬆ Excel</button>`:''}
       </div>
     </div>
-    ${!all.length
-      ?`<div style="text-align:center;padding:16px;color:var(--color-text-secondary);font-size:13px">
-        Нет предстоящих финалов · <span style="color:#4361ee;cursor:pointer" onclick="showAddFinal()">Добавить</span> или <span style="color:#4361ee;cursor:pointer" onclick="showFinalsUpload()">загрузить файл</span>
+
+    ${!list.length
+      ?`<div style="text-align:center;padding:20px;color:var(--color-text-secondary);font-size:13px">
+        ${tab==='upcoming'
+          ?`Нет предстоящих финалов · <span style="color:#4361ee;cursor:pointer" onclick="showAddFinal()">Добавить</span> или <span style="color:#4361ee;cursor:pointer" onclick="showFinalsUpload()">загрузить файл</span>`
+          :'Нет прошедших финалов'}
       </div>`
       :`<div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead><tr style="border-bottom:1.5px solid var(--color-border-secondary)">
-            <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Группа</th>
-            <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Преподаватель</th>
-            <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Филиал</th>
-            <th style="text-align:center;padding:5px 8px;color:#4361ee">📝 Final</th>
-            <th style="text-align:center;padding:5px 8px;color:#7c3aed">🎤 Speaking</th>
-            <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Суппортер</th>
-            ${isAdmin()?'<th style="width:60px;text-align:center;padding:5px 4px;color:var(--color-text-secondary)">Действия</th>':''}
-          </tr></thead>
+          <thead>
+            <tr style="border-bottom:1.5px solid var(--color-border-secondary)">
+              <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Группа</th>
+              <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Преподаватель</th>
+              <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Филиал</th>
+              <th style="text-align:center;padding:5px 8px;color:#4361ee">📝 Final</th>
+              <th style="text-align:center;padding:5px 8px;color:#7c3aed">🎤 Speaking</th>
+              <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Суппортер</th>
+              ${isAdmin()?'<th style="width:60px;text-align:center;padding:5px 4px;color:var(--color-text-secondary)">Действия</th>':''}
+            </tr>
+          </thead>
           <tbody>
-            ${upcoming.map(f=>{
+            ${pageItems.map(f=>{
               const days=getFinalsDays(f.date1);
-              const u=urgencyStyle(days);
-              return `<tr style="border-bottom:0.5px solid var(--color-border-secondary)">
-                <td style="padding:5px 8px;font-weight:500">${f.group}</td>
+              const isPast=tab==='history';
+              return `<tr style="border-bottom:0.5px solid var(--color-border-secondary);${isPast?'background:var(--color-background-secondary)':''}">
+                <td style="padding:5px 8px;font-weight:500;${isPast?'color:var(--color-text-secondary)':''}">${f.group}</td>
                 <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.teacher}</td>
                 <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.branch||'—'}</td>
                 <td style="padding:5px 8px;text-align:center">
-                  <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:${u.bg};color:${u.color}">
-                    <span style="width:6px;height:6px;border-radius:50%;background:${u.dot};flex-shrink:0"></span>
-                    ${fmt(f.date1)} · ${u.label}
-                  </span>
+                  ${isPast
+                    ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:#dcfce7;color:#166534;font-size:11px">✅ ${fmt(f.date1)} · Проведено</span>`
+                    :`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:${urgencyStyle(days).bg};color:${urgencyStyle(days).color}">
+                        <span style="width:6px;height:6px;border-radius:50%;background:${urgencyStyle(days).dot};flex-shrink:0"></span>
+                        ${fmt(f.date1)} · ${urgencyStyle(days).label}
+                      </span>`}
                 </td>
-                <td style="padding:5px 8px;text-align:center;color:#7c3aed">${fmt(f.date2)}</td>
+                <td style="padding:5px 8px;text-align:center;color:${isPast?'var(--color-text-secondary)':'#7c3aed'}">${fmt(f.date2)}</td>
                 <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.supporter||'—'}</td>
                 ${isAdmin()?`<td style="padding:3px;text-align:center;white-space:nowrap">
-                  <button onclick="showEditFinal('${f.id}')" style="border:none;background:none;color:#4361ee;cursor:pointer;font-size:13px;padding:2px 5px" title="Редактировать">✏️</button>
-                  <button onclick="deleteFinal('${f.id}')" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:13px;padding:2px 5px" title="Удалить">✕</button>
+                  <button onclick="showEditFinal('${f.id}')" style="border:none;background:none;color:#4361ee;cursor:pointer;font-size:13px;padding:2px 5px">✏️</button>
+                  <button onclick="deleteFinal('${f.id}')" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:13px;padding:2px 5px">✕</button>
                 </td>`:''}
               </tr>`;
             }).join('')}
@@ -6163,24 +6246,11 @@ function renderFinalsBlock(){
       </div>
       ${total>1?`<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-secondary)">
         <button onclick="window._finalsPage=Math.max(0,(window._finalsPage||0)-1);renderAll();setTimeout(()=>document.getElementById('finals-block')?.scrollIntoView({behavior:'smooth',block:'start'}),100)"
-          style="padding:4px 14px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px" ${fp===0?'disabled style="opacity:.4"':''}>← Пред.</button>
+          style="padding:4px 14px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px;${fp===0?'opacity:.4':''}">← Пред.</button>
         <span style="font-size:12px;color:var(--color-text-secondary)">${fp+1} / ${total}</span>
         <button onclick="window._finalsPage=Math.min(${total-1},(window._finalsPage||0)+1);renderAll();setTimeout(()=>document.getElementById('finals-block')?.scrollIntoView({behavior:'smooth',block:'start'}),100)"
-          style="padding:4px 14px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px" ${fp>=total-1?'disabled style="opacity:.4"':''}>След. →</button>
+          style="padding:4px 14px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px;${fp>=total-1?'opacity:.4':''}">След. →</button>
       </div>`:''}`}
   </div>`;
-}function deleteFinal(id){
-  if(!confirm('Удалить финал?')) return;
-  D.finals=(D.finals||[]).filter(f=>f.id!==id);
-  sched();renderAll();toast('Удалено ✓','success');
 }
-
-// ── Init ──────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded',()=>{
-  applyTheme();applyI18n();updateLangBtn(curLang);checkMobile();
-});
-initApp();
-setTimeout(()=>{applyI18n();updateLangBtn(curLang);},300);
-</script>
-</body>
-</html>
+>
