@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787139590';
+  const APP_VERSION='1787139773';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -6246,16 +6246,16 @@ function renderFinalsBlock(){
                 <td style="padding:5px 8px;text-align:center">
                   ${isPast
                     ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:#dcfce7;color:#166534;font-size:11px">✅ ${fmt(f.date1)} · Проведено</span>`
-                    :`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:${urgencyStyle(urgencyDays).bg};color:${urgencyStyle(urgencyDays).color}">
-                        <span style="width:6px;height:6px;border-radius:50%;background:${urgencyStyle(urgencyDays).dot};flex-shrink:0"></span>
-                        ${fmt(f.date1)}${days<0?' · Прошёл':' · '+urgencyStyle(days).label}
+                    :`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:${days<0?'#f3f4f6':urgencyStyle(days).bg};color:${days<0?'#9ca3af':urgencyStyle(days).color}">
+                        <span style="width:6px;height:6px;border-radius:50%;background:${days<0?'#d1d5db':urgencyStyle(days).dot};flex-shrink:0"></span>
+                        ${fmt(f.date1)} · ${days<0?'Прошёл':urgencyStyle(days).label}
                       </span>`}
                 </td>
                 <td style="padding:5px 8px;text-align:center">
                   ${isPast?`<span style="font-size:11px;color:#9ca3af">${fmt(f.date2)}</span>`
-                    :`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:${urgencyStyle(urgencyDays).bg};color:${urgencyStyle(urgencyDays).color}">
-                        <span style="width:6px;height:6px;border-radius:50%;background:${urgencyStyle(urgencyDays).dot};flex-shrink:0"></span>
-                        ${fmt(f.date2)}${daysSpeak>=0?' · '+urgencyStyle(daysSpeak).label:''}
+                    :`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:${urgencyStyle(daysSpeak).bg};color:${urgencyStyle(daysSpeak).color}">
+                        <span style="width:6px;height:6px;border-radius:50%;background:${urgencyStyle(daysSpeak).dot};flex-shrink:0"></span>
+                        ${fmt(f.date2)} · ${urgencyStyle(daysSpeak).label}
                       </span>`}
                 </td>
                 <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.supporter||'—'}</td>
