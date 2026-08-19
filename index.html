@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787142216';
+  const APP_VERSION='1787142564';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1459,6 +1459,15 @@ function renderMain(){
 }
 
 function renderHome(el){
+  if(!dataLoaded){
+    el.innerHTML=`<div style="padding:60px;text-align:center;color:var(--color-text-secondary)">
+      <div style="font-size:40px;margin-bottom:16px">⏳</div>
+      <div style="font-size:15px">Загрузка данных...</div>
+    </div>`;
+    setTimeout(()=>{if(dataLoaded)renderMain();},1000);
+    return;
+  }
+  try{
   const teachers=isAdmin()?D.teachers:D.teachers.filter(t=>t.id===curUser?.teacherId);
   // Sort by average student score descending
   const sortedTeachers=[...teachers].sort((a,b)=>{
@@ -1550,7 +1559,11 @@ function renderHome(el){
       <div class="stat-card"><div class="stat-val">${ts}</div><div class="stat-lbl">${tr('students')}</div></div>
       <div class="stat-card"><div class="stat-val">${cnt>0?(sum/cnt).toFixed(1):'—'}</div><div class="stat-lbl">${tr('avg')}</div></div>
     </div>
-    ${renderDashboardStats()}`;
+    ${(()=>{try{return renderDashboardStats();}catch(e){console.error('Dashboard error:',e);return '';}})()}`;
+  }catch(e){
+    console.error('renderHome error:',e);
+    el.innerHTML=`<div style="padding:40px;text-align:center;color:var(--color-text-secondary)"><div style="font-size:40px">⚠️</div><div style="margin:12px 0">${e.message}</div><button onclick="renderMain()" style="padding:8px 20px;background:#4361ee;color:white;border:none;border-radius:8px;cursor:pointer">Обновить</button></div>`;
+  }
 }
 
 function renderTeacher(el){
@@ -5818,11 +5831,12 @@ function renderDashboardStats(){
     const d=new Date();d.setMonth(d.getMonth()-i);
     months.push({label:d.toLocaleDateString('ru',{month:'short'}),key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`});
   }
-  const monthAvg=months.map(m=>{
-    const scores=[];
-    allStudents.forEach(({s,g})=>{const v=calcFinal(s,g.level);if(v!==null)scores.push(v);});
-    return scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length):0;
-  });
+  // Use current overall avg for all months (real month tracking requires timestamps)
+  const overallAvg=allStudents.length?(()=>{
+    const sc=allStudents.map(({s,g})=>calcFinal(s,g.level)).filter(v=>v!==null);
+    return sc.length?sc.reduce((a,b)=>a+b,0)/sc.length:0;
+  })():0;
+  const monthAvg=months.map(()=>overallAvg);
   const avgMax=Math.max(...monthAvg,1);
   const avgMin=Math.min(...monthAvg.filter(v=>v>0),0);
 
