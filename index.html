@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787140998';
+  const APP_VERSION='1787141529';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1219,10 +1219,18 @@ function createArchive(){
 }
 
 function gotoArch(id){
-  // Remember current teacher/group so we can return
   window._preArchT=selT;
   window._preArchG=selG;
-  selArch=id;selT=null;selG=null;view='archive';curPage=null;renderAll();
+  selArch=id;selT=null;selG=null;view='archive';curPage=null;
+  curSbTab='archives';
+  renderAll();
+}
+
+function gotoT(id){
+  if(window._qrViewMode) return;
+  selT=id;selG=null;selArch=null;view='teacher';curPage=null;
+  curSbTab='teachers';
+  renderAll();
 }
 
 function renderArchive(el){
@@ -1318,6 +1326,17 @@ function renderAll(){
 }
 
 function renderSidebar(){
+  // Sync tab button active state
+  document.querySelectorAll('.sb-nav-btn').forEach((b,i)=>{
+    const tabs=['teachers','supporters','archives'];
+    b.classList.toggle('active', tabs[i]===curSbTab);
+  });
+  // Sync panel visibility
+  const panels={teachers:'sb-teachers',supporters:'sb-supporters',archives:'sb-archives'};
+  Object.entries(panels).forEach(([tab,id])=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display=curSbTab===tab?'block':'none';
+  });
   const teachers=(isAdmin()||isObserver())?D.teachers:D.teachers.filter(t=>t.id===curUser?.teacherId);
   const tLangBadge=t=>{
     if(t.lang==='kk') return `<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px;margin-left:4px">Англ КК</span>`;
@@ -3846,7 +3865,6 @@ function checkMobile(){
 window.addEventListener('resize',checkMobile);
 
 function goHome(){if(window._qrViewMode) return;view='home';selT=null;selG=null;selArch=null;selStu=null;curPage=null;renderAll();}
-function gotoT(id){if(window._qrViewMode) return;selT=id;selG=null;selArch=null;view='teacher';curPage=null;renderAll();}
 function gotoG(id){selG=id;view='group';curPage=null;renderAll();
   // Autofocus first grade input after render — only for admin/teacher
   if(!window._qrViewMode&&(isAdmin()||curUser?.role==='teacher')){
