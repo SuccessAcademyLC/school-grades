@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1786801472';
+  const APP_VERSION='1787113359';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -5849,10 +5849,33 @@ function renderTop5List(){
 
 // ── Finals ────────────────────────────────────────────────────────────────
 
+function downloadFinalsTemplate(){
+  const wb=XLSX.utils.book_new();
+  const today=new Date();
+  const fmt=d=>`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+  const d1=new Date(today);d1.setDate(d1.getDate()+7);
+  const d2=new Date(today);d2.setDate(d2.getDate()+9);
+  const rows=[
+    ['Дата финала','Дата спикинга','Группа','Преподаватель','Филиал','Суппортер'],
+    [fmt(d1),fmt(d2),'MWF 09:00 Intermediate','Oralbaev Aman','Main','Janibek'],
+    [fmt(d1),fmt(d2),'TTS 15:30 Beginner','Maksetov Dior','Khodjeli','Amyrbekh'],
+    ['','','','','',''],
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  // Column widths
+  ws['!cols']=[{wch:14},{wch:14},{wch:28},{wch:20},{wch:12},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,ws,'Финалы');
+  XLSX.writeFile(wb,'finals_template.xlsx');
+}
+
 function showFinalsUpload(){
   openModal(`<div class="modal-title">📅 Загрузить финальные тесты</div>
-    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px">
-      Формат Excel: Дата финала · Дата спикинга · Группа · Преподаватель · Филиал · Суппортер
+    <div style="background:#f0fdf4;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;display:flex;align-items:center;justify-content:space-between">
+      <span style="color:var(--color-text-secondary)">Нет шаблона? Скачайте готовый файл Excel</span>
+      <button onclick="downloadFinalsTemplate()" class="btn btn-sec btn-sm">⬇ Скачать шаблон</button>
+    </div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">
+      Колонки: <b>Дата финала</b> · <b>Дата спикинга</b> · <b>Группа</b> · <b>Преподаватель</b> · <b>Филиал</b> · <b>Суппортер</b>
     </div>
     <div class="fg">
       <label class="fl">Выберите файл Excel</label>
