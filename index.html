@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787137848';
+  const APP_VERSION='1787138190';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -6267,4 +6267,12 @@ function renderFinalsBlock(){
       </div>`:''}`}
   </div>`;
 }
->
+function deleteFinal(id){
+  if(!confirm('Удалить финал?')) return;
+  D.finals=(D.finals||[]).filter(f=>f.id!==id);
+  sched();renderAll();toast('Удалено ✓','success');
+}
+
+</script>
+</body>
+</html>
