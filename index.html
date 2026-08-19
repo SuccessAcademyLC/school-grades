@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787138395';
+  const APP_VERSION='1787139326';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -6244,6 +6244,8 @@ function renderFinalsBlock(){
             ${pageItems.map(f=>{
               const days=getFinalsDays(f.date1);
               const daysSpeak=getFinalsDays(f.date2||f.date1);
+              // Use Speaking date for urgency if Final already passed
+              const urgencyDays=days<0?daysSpeak:days;
               const isPast=tab==='history';
               return `<tr style="border-bottom:0.5px solid var(--color-border-secondary);${isPast?'background:var(--color-background-secondary)':''}">
                 <td style="padding:5px 8px;font-weight:500;${isPast?'color:var(--color-text-secondary)':''}">${f.group}</td>
@@ -6252,13 +6254,17 @@ function renderFinalsBlock(){
                 <td style="padding:5px 8px;text-align:center">
                   ${isPast
                     ?`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:#dcfce7;color:#166534;font-size:11px">✅ ${fmt(f.date1)} · Проведено</span>`
-                    :`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:${urgencyStyle(days).bg};color:${urgencyStyle(days).color}">
-                        <span style="width:6px;height:6px;border-radius:50%;background:${urgencyStyle(days).dot};flex-shrink:0"></span>
-                        ${fmt(f.date1)} · ${urgencyStyle(days).label}
+                    :`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:${urgencyStyle(urgencyDays).bg};color:${urgencyStyle(urgencyDays).color}">
+                        <span style="width:6px;height:6px;border-radius:50%;background:${urgencyStyle(urgencyDays).dot};flex-shrink:0"></span>
+                        ${fmt(f.date1)}${days<0?' · Прошёл':' · '+urgencyStyle(days).label}
                       </span>`}
                 </td>
                 <td style="padding:5px 8px;text-align:center">
-                  ${isPast?`<span style="font-size:11px;color:#9ca3af">${fmt(f.date2)}</span>`:`<span style="color:${speakStyle(daysSpeak).color};font-weight:${daysSpeak<=3?600:400}">${fmt(f.date2)}${speakStyle(daysSpeak).label}</span>`}
+                  ${isPast?`<span style="font-size:11px;color:#9ca3af">${fmt(f.date2)}</span>`
+                    :`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:${urgencyStyle(urgencyDays).bg};color:${urgencyStyle(urgencyDays).color}">
+                        <span style="width:6px;height:6px;border-radius:50%;background:${urgencyStyle(urgencyDays).dot};flex-shrink:0"></span>
+                        ${fmt(f.date2)}${daysSpeak>=0?' · '+urgencyStyle(daysSpeak).label:''}
+                      </span>`}
                 </td>
                 <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.supporter||'—'}</td>
                 ${isAdmin()?`<td style="padding:3px;text-align:center;white-space:nowrap">
