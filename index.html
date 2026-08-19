@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787140101';
+  const APP_VERSION='1787140703';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -817,22 +817,27 @@ function renderRating(el){
   const filtered=q?rows.filter(r=>r.s.name.toLowerCase().includes(q)||r.tcName.toLowerCase().includes(q)):rows;
   const levels=[...new Set(D.teachers.flatMap(t=>(t.groups||[]).map(g=>g.level)).filter(l=>lang==='ru'?isRusL(l):!isRusL(l)))].sort();
   const tabBtn=(key,label)=>`<button onclick="window._ratingTab='${key}';renderMain()" style="padding:6px 16px;border-radius:20px;border:1.5px solid ${tab===key?'#4361ee':'#e0e4f0'};background:${tab===key?'#eef2ff':'var(--color-background-primary)'};color:${tab===key?'#4361ee':'var(--color-text-secondary)'};font-size:12px;font-weight:${tab===key?600:400};cursor:pointer">${label}</button>`;
+  const PER_PAGE=50;
+  const rPage=window._ratingPage||0;
+  const totalPages=Math.ceil(filtered.length/PER_PAGE)||1;
+  const pageRows=filtered.slice(rPage*PER_PAGE,(rPage+1)*PER_PAGE);
+  const startIdx=rPage*PER_PAGE;
   el.innerHTML=`
     <div class="ph"><div><div class="pt">🏆 Рейтинг студентов</div><div class="ps">${filtered.length} студентов</div></div></div>
     <div class="card" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <div style="display:flex;align-items:center;gap:6px;background:var(--color-background-secondary);border-radius:8px;padding:5px 10px;flex:1;min-width:160px">
-        <input type="text" value="${window._ratingSearch||''}" placeholder="Поиск..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="clearTimeout(window._rt);window._rt=setTimeout(()=>{window._ratingSearch=this.value;renderMain();},250)">
+        <input type="text" value="${window._ratingSearch||''}" placeholder="Поиск..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="clearTimeout(window._rt);window._rt=setTimeout(()=>{window._ratingSearch=this.value;window._ratingPage=0;renderMain();},250)">
       </div>
-      <select class="fs" onchange="window._ratingLang=this.value;window._ratingLevel='all';renderMain()">
+      <select class="fs" onchange="window._ratingLang=this.value;window._ratingLevel='all';window._ratingPage=0;renderMain()">
         <option value="en" ${lang==='en'?'selected':''}>English</option>
         <option value="ru" ${lang==='ru'?'selected':''}>Русский язык</option>
       </select>
-      <select class="fs" onchange="window._ratingLevel=this.value;renderMain()">
+      <select class="fs" onchange="window._ratingLevel=this.value;window._ratingPage=0;renderMain()">
         <option value="all">Все уровни</option>
         ${levels.map(l=>`<option value="${l}" ${levelFilter===l?'selected':''}>${lvl(l)}</option>`).join('')}
       </select>
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-        <input type="checkbox" ${showArchive?'checked':''} onchange="window._ratingArchive=this.checked;renderMain()" style="accent-color:#4361ee"> С архивом
+        <input type="checkbox" ${showArchive?'checked':''} onchange="window._ratingArchive=this.checked;window._ratingPage=0;renderMain()" style="accent-color:#4361ee"> С архивом
       </label>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
@@ -846,11 +851,12 @@ function renderRating(el){
         <div>#</div><div>Студент</div>${tab!=='overall'?`<div style="text-align:center">${tab==='unit'?'Unit avg':'AT avg'}</div>`:''}
         <div style="text-align:center">Overall</div>
       </div>
-      ${filtered.map((r,i)=>{
+      ${pageRows.map((r,i)=>{
+        const idx=startIdx+i;
         const sec=tab==='unit'?r.unitAvg:tab==='at'?r.atAvg:null;
         const ovS=r.done?`background:${sb(r.overall)};color:${sc(r.overall)}`:`background:#f5f5f5;color:#aaa`;
         return `<div style="display:grid;grid-template-columns:32px 1fr ${tab!=='overall'?'80px ':''} 80px;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
-          <div style="font-size:14px;text-align:center">${medal(i)}</div>
+          <div style="font-size:14px;text-align:center">${medal(idx)}</div>
           <div><div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${r.s.name}</div>
             <div style="font-size:11px;color:var(--color-text-secondary)">${r.tcName} · ${lvl(r.g.level)}${r.isArch?' 📦':''}</div></div>
           ${tab!=='overall'?`<div style="text-align:center;font-size:13px;font-weight:600;background:${sb(sec)};color:${sc(sec)};padding:2px 8px;border-radius:6px;margin:0 4px">${sec!==null?sec.toFixed(1):'—'}</div>`:''}
@@ -858,9 +864,14 @@ function renderRating(el){
         </div>`;
       }).join('')}
       ${filtered.some(r=>!r.done)?`<div style="font-size:11px;color:#bbb;padding:8px 0 0">* Final/SPT не сданы</div>`:''}
-      `}
+      ${totalPages>1?`<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;padding-top:12px;border-top:0.5px solid var(--color-border-secondary)">
+        <button onclick="window._ratingPage=Math.max(0,(window._ratingPage||0)-1);renderMain()" style="padding:5px 16px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px;${rPage===0?'opacity:.4;cursor:default':''}">← Пред.</button>
+        <span style="font-size:12px;color:var(--color-text-secondary)">${rPage+1} / ${totalPages} · ${startIdx+1}–${Math.min(startIdx+PER_PAGE,filtered.length)} из ${filtered.length}</span>
+        <button onclick="window._ratingPage=Math.min(${totalPages-1},(window._ratingPage||0)+1);renderMain()" style="padding:5px 16px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px;${rPage>=totalPages-1?'opacity:.4;cursor:default':''}">След. →</button>
+      </div>`:''}`}
     </div>`;
 }
+
 
 function supCanReplace(a,tc,g){
   if(!a||!tc||!g) return false;
