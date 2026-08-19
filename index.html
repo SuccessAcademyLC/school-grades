@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787138190';
+  const APP_VERSION='1787138395';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -6186,11 +6186,20 @@ function renderFinalsBlock(){
   const pageItems=list.slice(fp*PER_PAGE,(fp+1)*PER_PAGE);
 
   const urgencyStyle=(days)=>{
-    if(days<=0) return {bg:'#fee2e2',color:'#b91c1c',dot:'#ef4444',label:'Сегодня'};
+    if(days<0)  return {bg:'#f3f4f6',color:'#6b7280',dot:'#9ca3af',label:'Прошёл'};
+    if(days===0) return {bg:'#fee2e2',color:'#b91c1c',dot:'#ef4444',label:'Сегодня'};
     if(days===1) return {bg:'#fee2e2',color:'#b91c1c',dot:'#ef4444',label:'Завтра'};
     if(days<=3) return {bg:'#fff7ed',color:'#c2410c',dot:'#f97316',label:`${days} дня`};
     if(days<=7) return {bg:'#fefce8',color:'#854d0e',dot:'#eab308',label:`${days} дней`};
     return {bg:'var(--color-background-secondary)',color:'var(--color-text-secondary)',dot:'#94a3b8',label:`${days} дней`};
+  };
+  const speakStyle=(days)=>{
+    if(days<0)  return {color:'#9ca3af',label:''};
+    if(days===0) return {color:'#b91c1c',label:' · Сегодня'};
+    if(days===1) return {color:'#b91c1c',label:' · Завтра'};
+    if(days<=3) return {color:'#c2410c',label:` · ${days} дня`};
+    if(days<=7) return {color:'#7c3aed',label:''};
+    return {color:'var(--color-text-secondary)',label:''};
   };
   const fmt=d=>d?new Date(d).toLocaleDateString('ru',{day:'2-digit',month:'2-digit'}):'—';
 
@@ -6234,6 +6243,7 @@ function renderFinalsBlock(){
           <tbody>
             ${pageItems.map(f=>{
               const days=getFinalsDays(f.date1);
+              const daysSpeak=getFinalsDays(f.date2||f.date1);
               const isPast=tab==='history';
               return `<tr style="border-bottom:0.5px solid var(--color-border-secondary);${isPast?'background:var(--color-background-secondary)':''}">
                 <td style="padding:5px 8px;font-weight:500;${isPast?'color:var(--color-text-secondary)':''}">${f.group}</td>
@@ -6247,7 +6257,9 @@ function renderFinalsBlock(){
                         ${fmt(f.date1)} · ${urgencyStyle(days).label}
                       </span>`}
                 </td>
-                <td style="padding:5px 8px;text-align:center;color:${isPast?'var(--color-text-secondary)':'#7c3aed'}">${fmt(f.date2)}</td>
+                <td style="padding:5px 8px;text-align:center">
+                  ${isPast?`<span style="font-size:11px;color:#9ca3af">${fmt(f.date2)}</span>`:`<span style="color:${speakStyle(daysSpeak).color};font-weight:${daysSpeak<=3?600:400}">${fmt(f.date2)}${speakStyle(daysSpeak).label}</span>`}
+                </td>
                 <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.supporter||'—'}</td>
                 ${isAdmin()?`<td style="padding:3px;text-align:center;white-space:nowrap">
                   <button onclick="showEditFinal('${f.id}')" style="border:none;background:none;color:#4361ee;cursor:pointer;font-size:13px;padding:2px 5px">✏️</button>
