@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787142920';
+  const APP_VERSION='1787143316';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -6362,6 +6362,9 @@ function deleteFinal(id){
   D.finals=(D.finals||[]).filter(f=>f.id!==id);
   sched();renderAll();toast('Удалено ✓','success');
 }
+
+// ── Startup ───────────────────────────────────────────────────────────────
+window.addEventListener('load', ()=>{ initApp(); });
 
 </script>
 </body>
