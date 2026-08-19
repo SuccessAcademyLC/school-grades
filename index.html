@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787137093';
+  const APP_VERSION='1787137848';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -4973,6 +4973,10 @@ function doLogout(){
 function loadAndRestoreSession(){
   const saved=loadSession();if(!saved)return;
   if(saved.role==='admin'){curUser=saved;startApp();return;}
+  if(saved.role==='academic'||saved.role==='observer'){
+    const acc=(D.accounts||[]).find(a=>a.id===saved.accountId);
+    if(acc){curUser=saved;startApp();return;}
+  }
   if(saved.role==='teacher'){
     const acc=(D.accounts||[]).find(a=>a.id===saved.accountId);
     const teacher=D.teachers.find(x=>x.id===saved.teacherId);
@@ -5000,7 +5004,17 @@ function showQRPublicView(tid,gid){
 async function initApp(){
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('app').style.display='none';
-  await loadData();
+  // Load with timeout - if Firebase doesn't respond in 8 sec, proceed anyway
+  try{
+    await Promise.race([
+      loadData(),
+      new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),8000))
+    ]);
+  }catch(e){
+    // Timeout or error - try from localStorage
+    try{const loc=JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}');if(loc.teachers)D=loc;}catch(_){}
+    dataLoaded=true;
+  }
   if(window._qrViewMode){showQRPublicView(window._qrT,window._qrG);return;}
   loadAndRestoreSession();
 }
