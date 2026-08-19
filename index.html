@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787140703';
+  const APP_VERSION='1787140998';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1218,7 +1218,12 @@ function createArchive(){
   gotoArch(newArch.id);
 }
 
-function gotoArch(id){selArch=id;selT=null;selG=null;view='archive';curPage=null;renderAll();}
+function gotoArch(id){
+  // Remember current teacher/group so we can return
+  window._preArchT=selT;
+  window._preArchG=selG;
+  selArch=id;selT=null;selG=null;view='archive';curPage=null;renderAll();
+}
 
 function renderArchive(el){
   const arch=D.archives.find(a=>a.id===selArch);
@@ -1261,8 +1266,9 @@ function renderArchive(el){
   }
 
   // Show archive teachers list
+  const backBtn=window._preArchT?`<span class="bc-l" onclick="selT=window._preArchT;selG=window._preArchG;selArch=null;view=window._preArchG?'group':'teacher';window._preArchT=null;window._preArchG=null;renderAll()">← Назад</span><span class="bc-s">›</span>`:'';
   el.innerHTML=`
-    <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">${arch.label}</span></div>
+    <div class="bc">${backBtn}<span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">${arch.label}</span></div>
     <div class="ph"><div><div class="pt">📦 ${arch.label}</div><div class="ps">${arch.date}</div></div>
       ${isAdmin()?`<button class="btn btn-dan btn-sm" onclick="delArchive('${arch.id}')">Удалить</button>`:''}
     </div>
@@ -1312,7 +1318,7 @@ function renderAll(){
 }
 
 function renderSidebar(){
-  const teachers=isAdmin()?D.teachers:D.teachers.filter(t=>t.id===curUser?.teacherId);
+  const teachers=(isAdmin()||isObserver())?D.teachers:D.teachers.filter(t=>t.id===curUser?.teacherId);
   const tLangBadge=t=>{
     if(t.lang==='kk') return `<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px;margin-left:4px">Англ КК</span>`;
     if(t.lang==='rus') return `<span style="font-size:10px;background:#EEEDFE;color:#3C3489;padding:1px 6px;border-radius:8px;margin-left:4px">Рус яз</span>`;
