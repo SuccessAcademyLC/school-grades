@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787143316';
+  const APP_VERSION='1787143458';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1932,13 +1932,29 @@ function calc(s,level){
   if(!s||!s.name) return null;
   const ok=v=>v!==null&&v!==undefined&&v!=='';
   const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+  // Convert Firebase objects to arrays if needed
+  const toArr=v=>{
+    if(!v) return [];
+    if(Array.isArray(v)) return v;
+    if(typeof v==='object'){
+      const keys=Object.keys(v);
+      if(keys.every(k=>!isNaN(parseInt(k)))){
+        const max=Math.max(...keys.map(Number));
+        const arr=Array(max+1).fill(null);
+        keys.forEach(k=>arr[parseInt(k)]=v[k]);
+        return arr;
+      }
+      return Object.values(v);
+    }
+    return [];
+  };
 
   // Russian language formula
   if(RUS_LEVELS.includes(level)){
-    const conv=(s.conversations||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
-    const hw=(s.homework||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
-    const vocab=(s.vocabulary||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
-    const ppts=(s.presentations||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
+    const conv=toArr(s.conversations).filter(ok).map(Number).filter(v=>!isNaN(v));
+    const hw=toArr(s.homework).filter(ok).map(Number).filter(v=>!isNaN(v));
+    const vocab=toArr(s.vocabulary).filter(ok).map(Number).filter(v=>!isNaN(v));
+    const ppts=toArr(s.presentations).filter(ok).map(Number).filter(v=>!isNaN(v));
     const finConv=ok(s.finalConversation)?Number(s.finalConversation):null;
     const finTest=ok(s.finalTest)?Number(s.finalTest):null;
     if(!conv.length&&!hw.length&&!vocab.length&&!ppts.length&&finConv===null) return null;
@@ -1953,9 +1969,9 @@ function calc(s,level){
   }
 
   // English formula
-  const u=(s.units||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
-  const hw=(s.homework||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
-  const at=(s.achievements||[]).filter(ok).map(Number).filter(v=>!isNaN(v));
+  const u=toArr(s.units).filter(ok).map(Number).filter(v=>!isNaN(v));
+  const hw=toArr(s.homework).filter(ok).map(Number).filter(v=>!isNaN(v));
+  const at=toArr(s.achievements).filter(ok).map(Number).filter(v=>!isNaN(v));
   const ppt=ok(s.presentation)?Number(s.presentation):null;
   const spt=ok(s.speaking)?Number(s.speaking):null;
   const fin=ok(s.final)?Number(s.final):null;
