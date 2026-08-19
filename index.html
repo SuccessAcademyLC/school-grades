@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787113359';
+  const APP_VERSION='1787114482';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -5994,13 +5994,117 @@ function getFinalsDays(dateStr){
   return Math.round((d-now)/(1000*60*60*24));
 }
 
+function showAddFinal(){
+  const teachers=D.teachers||[];
+  openModal(`<div class="modal-title">➕ Добавить финал</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">📝 Дата финала</label><input type="date" class="fi" id="af-d1" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="fg"><label class="fl">🎤 Дата спикинга</label><input type="date" class="fi" id="af-d2"></div>
+    </div>
+    <div class="fg"><label class="fl">Группа</label><input type="text" class="fi" id="af-group" placeholder="MWF 09:00 Intermediate"></div>
+    <div class="fg"><label class="fl">Преподаватель</label>
+      <select class="fi" id="af-teacher">
+        <option value="">— выбрать —</option>
+        ${teachers.map(t=>`<option value="${t.name}">${t.name}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Филиал</label>
+        <select class="fi" id="af-branch">
+          <option value="Main">Main</option>
+          <option value="Khodjeli">Khodjeli</option>
+          <option value="Kids">Kids</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Суппортер</label>
+        <select class="fi" id="af-supporter">
+          <option value="">— выбрать —</option>
+          ${(D.accounts||[]).filter(a=>a.role==='supporter').map(a=>`<option value="${a.name||a.login}">${a.name||a.login}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveAddFinal()">✓ Сохранить</button>
+    </div>`);
+}
+
+function saveAddFinal(){
+  const d1=document.getElementById('af-d1')?.value;
+  const group=document.getElementById('af-group')?.value?.trim();
+  const teacher=document.getElementById('af-teacher')?.value;
+  if(!d1||!group||!teacher){toast('Заполните дату, группу и преподавателя','error');return;}
+  if(!D.finals) D.finals=[];
+  const isDupe=D.finals.some(f=>f.date1===d1&&f.group===group&&f.teacher===teacher);
+  if(isDupe){toast('Такой финал уже существует','error');return;}
+  D.finals.push({
+    id:uid(),
+    date1:d1,
+    date2:document.getElementById('af-d2')?.value||'',
+    group,
+    teacher,
+    branch:document.getElementById('af-branch')?.value||'Main',
+    supporter:document.getElementById('af-supporter')?.value||'',
+    createdAt:new Date().toISOString()
+  });
+  closeModal();sched();renderAll();toast('Финал добавлен ✓','success');
+}
+
+function showEditFinal(id){
+  const f=(D.finals||[]).find(x=>x.id===id);if(!f) return;
+  const teachers=D.teachers||[];
+  openModal(`<div class="modal-title">✏️ Редактировать финал</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">📝 Дата финала</label><input type="date" class="fi" id="ef-d1" value="${f.date1||''}"></div>
+      <div class="fg"><label class="fl">🎤 Дата спикинга</label><input type="date" class="fi" id="ef-d2" value="${f.date2||''}"></div>
+    </div>
+    <div class="fg"><label class="fl">Группа</label><input type="text" class="fi" id="ef-group" value="${f.group||''}"></div>
+    <div class="fg"><label class="fl">Преподаватель</label>
+      <select class="fi" id="ef-teacher">
+        ${teachers.map(t=>`<option value="${t.name}" ${f.teacher===t.name?'selected':''}>${t.name}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Филиал</label>
+        <select class="fi" id="ef-branch">
+          ${['Main','Khodjeli','Kids'].map(b=>`<option value="${b}" ${f.branch===b?'selected':''}>${b}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Суппортер</label>
+        <select class="fi" id="ef-supporter">
+          <option value="">— выбрать —</option>
+          ${(D.accounts||[]).filter(a=>a.role==='supporter').map(a=>`<option value="${a.name||a.login}" ${f.supporter===(a.name||a.login)?'selected':''}>${a.name||a.login}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="fa">
+      <button class="btn btn-dan btn-sm" onclick="deleteFinal('${id}');closeModal()">🗑 Удалить</button>
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveEditFinal('${id}')">✓ Сохранить</button>
+    </div>`);
+}
+
+function saveEditFinal(id){
+  const f=(D.finals||[]).find(x=>x.id===id);if(!f) return;
+  f.date1=document.getElementById('ef-d1')?.value||f.date1;
+  f.date2=document.getElementById('ef-d2')?.value||'';
+  f.group=document.getElementById('ef-group')?.value?.trim()||f.group;
+  f.teacher=document.getElementById('ef-teacher')?.value||f.teacher;
+  f.branch=document.getElementById('ef-branch')?.value||f.branch;
+  f.supporter=document.getElementById('ef-supporter')?.value||'';
+  closeModal();sched();renderAll();toast('Финал обновлён ✓','success');
+}
+
 function renderFinalsBlock(){
   const today=new Date();today.setHours(0,0,0,0);
-  const upcoming=(D.finals||[]).filter(f=>{
+  const PER_PAGE=15;
+  const fp=window._finalsPage||0;
+  const all=(D.finals||[]).filter(f=>{
     const d=new Date(f.date2||f.date1);d.setHours(0,0,0,0);
     return d>=today;
-  }).sort((a,b)=>new Date(a.date1)-new Date(b.date1)).slice(0,15);
-
+  }).sort((a,b)=>new Date(a.date1)-new Date(b.date1));
+  const total=Math.ceil(all.length/PER_PAGE)||1;
+  const upcoming=all.slice(fp*PER_PAGE,(fp+1)*PER_PAGE);
   const urgencyStyle=(days)=>{
     if(days<=0) return {bg:'#fee2e2',color:'#b91c1c',dot:'#ef4444',label:'Сегодня'};
     if(days===1) return {bg:'#fee2e2',color:'#b91c1c',dot:'#ef4444',label:'Завтра'};
@@ -6008,55 +6112,64 @@ function renderFinalsBlock(){
     if(days<=7) return {bg:'#fefce8',color:'#854d0e',dot:'#eab308',label:`${days} дней`};
     return {bg:'var(--color-background-secondary)',color:'var(--color-text-secondary)',dot:'#94a3b8',label:`${days} дней`};
   };
-
-  return `<div class="card" style="margin-bottom:12px">
+  const fmt=d=>d?new Date(d).toLocaleDateString('ru',{day:'2-digit',month:'2-digit'}):'—';
+  return `<div class="card" style="margin-bottom:12px" id="finals-block">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-size:13px;font-weight:600">📅 Скорые финальные тесты ${upcoming.length?`<span style="font-size:11px;font-weight:400;color:var(--color-text-secondary)">(${upcoming.length})</span>`:''}</div>
-      ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showFinalsUpload()">⬆ Загрузить</button>`:''}
+      <div style="font-size:13px;font-weight:600">📅 Скорые финальные тесты ${all.length?`<span style="font-size:11px;font-weight:400;color:var(--color-text-secondary)">(${all.length})</span>`:''}</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${isAdmin()?`<button class="btn btn-sec btn-sm" onclick="showAddFinal()">+ Добавить</button>`:''}
+        ${isAdmin()?`<button class="btn btn-pri btn-sm" onclick="showFinalsUpload()">⬆ Excel</button>`:''}
+      </div>
     </div>
-    ${!upcoming.length?`<div style="text-align:center;padding:16px;color:var(--color-text-secondary);font-size:13px">
-      Нет предстоящих финалов · <span style="color:#4361ee;cursor:pointer" onclick="showFinalsUpload()">Загрузить файл</span>
-    </div>`:`
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr style="border-bottom:1.5px solid var(--color-border-secondary)">
+    ${!all.length
+      ?`<div style="text-align:center;padding:16px;color:var(--color-text-secondary);font-size:13px">
+        Нет предстоящих финалов · <span style="color:#4361ee;cursor:pointer" onclick="showAddFinal()">Добавить</span> или <span style="color:#4361ee;cursor:pointer" onclick="showFinalsUpload()">загрузить файл</span>
+      </div>`
+      :`<div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="border-bottom:1.5px solid var(--color-border-secondary)">
             <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Группа</th>
             <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Преподаватель</th>
             <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Филиал</th>
             <th style="text-align:center;padding:5px 8px;color:#4361ee">📝 Final</th>
             <th style="text-align:center;padding:5px 8px;color:#7c3aed">🎤 Speaking</th>
             <th style="text-align:left;padding:5px 8px;color:var(--color-text-secondary)">Суппортер</th>
-            ${isAdmin()?'<th style="width:28px"></th>':''}
-          </tr>
-        </thead>
-        <tbody>
-          ${upcoming.map(f=>{
-            const days=getFinalsDays(f.date1);
-            const u=urgencyStyle(days);
-            const fmt=d=>d?new Date(d).toLocaleDateString('ru',{day:'2-digit',month:'2-digit'}):'—';
-            return `<tr style="border-bottom:0.5px solid var(--color-border-secondary)">
-              <td style="padding:5px 8px;font-weight:500">${f.group}</td>
-              <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.teacher}</td>
-              <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.branch||'—'}</td>
-              <td style="padding:5px 8px;text-align:center">
-                <span style="display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:20px;background:${u.bg};color:${u.color}">
-                  <span style="width:6px;height:6px;border-radius:50%;background:${u.dot}"></span>
-                  ${fmt(f.date1)} · ${u.label}
-                </span>
-              </td>
-              <td style="padding:5px 8px;text-align:center;color:#7c3aed">${fmt(f.date2)}</td>
-              <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.supporter||'—'}</td>
-              ${isAdmin()?`<td style="padding:3px;text-align:center"><button onclick="deleteFinal('${f.id}')" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:14px" title="Удалить">✕</button></td>`:''}
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>`}
+            ${isAdmin()?'<th style="width:60px;text-align:center;padding:5px 4px;color:var(--color-text-secondary)">Действия</th>':''}
+          </tr></thead>
+          <tbody>
+            ${upcoming.map(f=>{
+              const days=getFinalsDays(f.date1);
+              const u=urgencyStyle(days);
+              return `<tr style="border-bottom:0.5px solid var(--color-border-secondary)">
+                <td style="padding:5px 8px;font-weight:500">${f.group}</td>
+                <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.teacher}</td>
+                <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.branch||'—'}</td>
+                <td style="padding:5px 8px;text-align:center">
+                  <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:${u.bg};color:${u.color}">
+                    <span style="width:6px;height:6px;border-radius:50%;background:${u.dot};flex-shrink:0"></span>
+                    ${fmt(f.date1)} · ${u.label}
+                  </span>
+                </td>
+                <td style="padding:5px 8px;text-align:center;color:#7c3aed">${fmt(f.date2)}</td>
+                <td style="padding:5px 8px;color:var(--color-text-secondary)">${f.supporter||'—'}</td>
+                ${isAdmin()?`<td style="padding:3px;text-align:center;white-space:nowrap">
+                  <button onclick="showEditFinal('${f.id}')" style="border:none;background:none;color:#4361ee;cursor:pointer;font-size:13px;padding:2px 5px" title="Редактировать">✏️</button>
+                  <button onclick="deleteFinal('${f.id}')" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:13px;padding:2px 5px" title="Удалить">✕</button>
+                </td>`:''}
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      ${total>1?`<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-secondary)">
+        <button onclick="window._finalsPage=Math.max(0,(window._finalsPage||0)-1);renderAll();setTimeout(()=>document.getElementById('finals-block')?.scrollIntoView({behavior:'smooth',block:'start'}),100)"
+          style="padding:4px 14px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px" ${fp===0?'disabled style="opacity:.4"':''}>← Пред.</button>
+        <span style="font-size:12px;color:var(--color-text-secondary)">${fp+1} / ${total}</span>
+        <button onclick="window._finalsPage=Math.min(${total-1},(window._finalsPage||0)+1);renderAll();setTimeout(()=>document.getElementById('finals-block')?.scrollIntoView({behavior:'smooth',block:'start'}),100)"
+          style="padding:4px 14px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px" ${fp>=total-1?'disabled style="opacity:.4"':''}>След. →</button>
+      </div>`:''}`}
   </div>`;
-}
-
-function deleteFinal(id){
+}function deleteFinal(id){
   if(!confirm('Удалить финал?')) return;
   D.finals=(D.finals||[]).filter(f=>f.id!==id);
   sched();renderAll();toast('Удалено ✓','success');
