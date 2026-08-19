@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Success Academy Control</title>
+</head>
+<body style="font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f0f2f5; overflow: hidden; position: relative;">
+
+    <img src="logo.jpg" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; opacity: 0.1; z-index: -1; pointer-events: none;">
+
+    <div id="timesup-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); z-index: 100; justify-content: center; align-items: center;">
+        <div style="background: #fff; border-radius: 40px; padding: 60px 80px; text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,0.4);">
+            <div style="font-size: 100px; margin-bottom: 10px;">⏰</div>
+            <div style="font-size: 72px; font-weight: 900; color: #dc2626; font-family: 'Arial Black'; letter-spacing: 2px;">TIME'S UP!</div>
+            <div style="font-size: 32px; color: #475569; margin-top: 15px; font-weight: 600;">The exam has ended. Please submit your work.</div>
+            <button style="margin-top: 40px; padding: 20px 60px; font-size: 26px; font-weight: 800; color: #fff; background: #2563eb; border: none; border-radius: 20px; cursor: pointer;" onclick="restart()">↩ New Exam</button>
+        </div>
+    </div>
+
+    <div style="background: rgba(255, 255, 255, 0.95); border-radius: 40px; padding: 50px; text-align: center; width: 90%; max-width: 1000px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); z-index: 10; overflow: hidden;">
+        <div id="setup">
+            <h1 style="font-size: 36px; margin-bottom: 20px; color: #1e293b;">SUCCESS ACADEMY</h1>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-top: 30px;">
+                <button style="padding: 25px; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 15px; border: 2px solid #ddd; background: #fff;" onclick="setLvl('beginner')">BEGINNER</button>
+                <button style="padding: 25px; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 15px; border: 2px solid #ddd; background: #fff;" onclick="setLvl('elementary')">ELEMENTARY</button>
+                <button style="padding: 25px; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 15px; border: 2px solid #ddd; background: #fff;" onclick="setLvl('pre-intermediate')">PRE-INTER</button>
+                <button style="padding: 25px; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 15px; border: 2px solid #ddd; background: #fff;" onclick="setLvl('intermediate')">INTERMEDIATE</button>
+                <button style="padding: 25px; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 15px; border: 2px solid #ddd; background: #fff;" onclick="setLvl('upper-intermediate')">UPPER-INTER</button>
+                <button style="padding: 25px; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 15px; border: 2px solid #ffccd5; background: #fff5f5; color: #c53030;" onclick="setLvl('russian')">RUSSIAN</button>
+            </div>
+        </div>
+
+        <div id="start-scr" style="display:none">
+            <h1 id="lvl-name" style="font-size: 42px; margin-bottom: 30px; color: #1e293b;">LEVEL</h1>
+            <button style="padding: 40px 80px; font-size: 50px; font-weight: 900; color: #fff; background: #16a34a; border: none; border-radius: 25px; cursor: pointer;" onclick="go()">START EXAM</button>
+        </div>
+
+        <div id="exam-scr" style="display:none">
+            <div id="badge" style="display: inline-block; padding: 10px 40px; background: #2563eb; color: white; border-radius: 50px; font-size: 30px; font-weight: bold;">PREPARATION</div>
+            <div style="width: 100%; overflow: hidden; display: flex; justify-content: center; align-items: center;">
+                <div id="disp" style="font-size: 240px; font-weight: 900; margin: 10px 0; font-family: 'Arial Black'; white-space: nowrap; display: inline-block; transform-origin: center center;">01:00</div>
+            </div>
+            <div id="info" style="font-size: 32px; color: #334155; margin-top: 20px; font-weight: 600;">Review the tasks</div>
+            <button id="skip" style="background: #64748b; color: white; border: none; padding: 15px 40px; font-size: 20px; border-radius: 50px; cursor: pointer; margin-top: 20px;" onclick="skip()">SKIP ➔</button>
+            <div id="debug" style="font-size: 14px; color: green; margin-top: 10px;"></div>
+            <div style="display: flex; align-items: center; gap: 12px; justify-content: center; margin-top: 18px;">
+                <label style="font-size: 15px; color: #94a3b8; font-weight: 600; white-space: nowrap;">🔡 Timer size</label>
+                <input type="range" id="size-slider" min="80" max="400" value="240" step="10" style="width: 220px; height: 6px; cursor: pointer;">
+                <span id="size-val" style="font-size: 15px; color: #64748b; font-weight: 700; min-width: 38px;">240px</span>
+            </div>
+        </div>
+    </div>
+
+    <audio id="player" preload="auto"></audio>
+
+    <script>
+        const tracks = {
+            'beginner':          ['Beginner Audio 1.mp3', 'Beginner Audio 2.mp3'],
+            'elementary':        ['Elementary Audio 1.mp3', 'Elementary Audio 2.mp3'],
+            'pre-intermediate':  ['Pre Inter Audio 1.mp3', 'Pre Inter Audio 2.mp3'],
+            'intermediate':      ['Inter Audio 1.mp3'],
+            'upper-intermediate':['Upper Inter Audio 1.mp3', 'Upper Inter Audio 2.mp3'],
+            // Точный путь, указанный вами
+            'russian':           ['file:///D:/Final/Level%201.mp3']
+        };
+
+        let currentLvl = '';
+        let queue = [];
+        let step = 0;
+        let timer;
+        let pulseInterval;
+        const p = document.getElementById('player');
+        let audioCtx = null;
+
+        function ensureAudioCtx() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playEndSignal() {
+            ensureAudioCtx();
+            const beeps = [0, 0.35, 0.7, 1.1];
+            beeps.forEach((startAt, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.value = (i < 3) ? 880 : 1100;
+                gain.gain.setValueAtTime(0.6, audioCtx.currentTime + startAt);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + startAt + 0.28);
+                osc.start(audioCtx.currentTime + startAt);
+                osc.stop(audioCtx.currentTime + startAt + 0.3);
+            });
+        }
+
+        function setLvl(l) {
+            currentLvl = l;
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('start-scr').style.display = 'block';
+            document.getElementById('lvl-name').innerText = l.toUpperCase();
+        }
+
+        function go() {
+            ensureAudioCtx();
+            p.play().then(() => { p.pause(); }).catch(() => {});
+
+            document.getElementById('start-scr').style.display = 'none';
+            document.getElementById('exam-scr').style.display = 'block';
+
+            queue = [];
+            step = 0;
+
+            const files = tracks[currentLvl];
+            
+            if (currentLvl === 'russian') {
+                // Аудио ставится 2 раза подряд, затем 10 секунд паузы
+                queue.push({t: 'play', s: files[0]});
+                queue.push({t: 'play', s: files[0]});
+                queue.push({t: 'pause', d: 10});
+            } else if (currentLvl !== 'upper-intermediate') {
+                files.forEach(f => {
+                    queue.push({t: 'play', s: f});
+                    queue.push({t: 'play', s: f});
+                    queue.push({t: 'pause', d: 10});
+                });
+            } else {
+                queue.push({t: 'play', s: files[0]});
+                queue.push({t: 'play', s: files[1]});
+                queue.push({t: 'pause', d: 10});
+            }
+            startTimer(60, 'preview');
+        }
+
+        function restart() {
+            document.getElementById('timesup-overlay').style.display = 'none';
+            document.getElementById('exam-scr').style.display = 'none';
+            document.getElementById('setup').style.display = 'block';
+            clearInterval(timer);
+            stopPulse();
+            p.pause();
+            p.src = '';
+            queue = [];
+            step = 0;
+        }
+
+        function startTimer(s, mode) {
+            clearInterval(timer);
+            stopPulse();
+            let left = s;
+            const disp = document.getElementById('disp');
+            updateUI(mode);
+            disp.innerText = fmt(left);
+
+            timer = setInterval(() => {
+                left--;
+                disp.innerText = fmt(left);
+
+                if (mode === 'exam' && left <= 10) {
+                    disp.style.color = '#dc2626';
+                    startPulse(disp);
+                }
+
+                if (left <= 0) {
+                    clearInterval(timer);
+                    stopPulse();
+                    if (mode === 'exam') {
+                        examFinished();
+                    } else {
+                        next();
+                    }
+                }
+            }, 1000);
+        }
+
+        function startPulse(el) {
+            if (pulseInterval) return;
+            let isDim = false;
+            pulseInterval = setInterval(() => {
+                el.style.opacity = isDim ? '1' : '0.4';
+                isDim = !isDim;
+            }, 500);
+        }
+
+        function stopPulse() {
+            clearInterval(pulseInterval);
+            pulseInterval = null;
+            const disp = document.getElementById('disp');
+            disp.style.opacity = '1';
+            disp.style.color = '#000';
+        }
+
+        function examFinished() {
+            playEndSignal();
+            document.getElementById('timesup-overlay').style.display = 'flex';
+        }
+
+        function skip() {
+            clearInterval(timer);
+            p.onended = null;
+            p.pause();
+            next();
+        }
+
+        function next() {
+            if (step >= queue.length) { startTimer(3600, 'exam'); return; }
+            const item = queue[step++];
+            if (item.t === 'play') { play(item.s); }
+            else { startTimer(item.d, 'pause'); }
+        }
+
+        function play(src) {
+            updateUI('play');
+            document.getElementById('debug').innerText = 'Loading: ' + src;
+
+            p.oncanplaythrough = null;
+            p.onerror = null;
+            p.onended = null;
+
+            p.src = src;
+            p.load();
+
+            p.oncanplaythrough = () => {
+                p.play().catch(() => {
+                    document.getElementById('info').innerText = 'CLICK FOR SOUND!';
+                });
+            };
+
+            p.onerror = () => {
+                document.getElementById('debug').innerText = 'ERROR: File not found — ' + src;
+                setTimeout(() => next(), 1500);
+            };
+
+            p.onended = () => next();
+        }
+
+        function updateUI(m) {
+            const b = document.getElementById('badge');
+            const i = document.getElementById('info');
+            const s = document.getElementById('skip');
+
+            s.style.display = (m === 'preview' || m === 'play') ? 'inline-block' : 'none';
+
+            if (m === 'preview') { b.innerText = 'PREVIEW';   b.style.background = '#2563eb'; i.innerText = 'Review the tasks'; }
+            if (m === 'play')    { b.innerText = 'LISTENING'; b.style.background = '#16a34a'; i.innerText = '🔊 Audio playing...'; document.getElementById('disp').innerText = '🔊'; }
+            if (m === 'pause')   { b.innerText = '10s BREAK'; b.style.background = '#d97706'; i.innerText = 'Finish your notes'; }
+            if (m === 'exam')    { b.innerText = 'EXAM';      b.style.background = '#dc2626'; i.innerText = 'Written section'; }
+        }
+
+        const slider = document.getElementById('size-slider');
+        const sizeVal = document.getElementById('size-val');
+
+        function applyTimerSize(px) {
+            const disp = document.getElementById('disp');
+            disp.style.fontSize = px + 'px';
+            disp.style.transform = '';
+            const wrap = disp.parentElement;
+            const wrapW = wrap.clientWidth;
+            const dispW = disp.scrollWidth;
+            if (dispW > wrapW) {
+                const scale = wrapW / dispW;
+                disp.style.transform = 'scaleX(' + scale + ')';
+            }
+            sizeVal.innerText = px + 'px';
+        }
+
+        slider.addEventListener('input', () => {
+            applyTimerSize(parseInt(slider.value));
+        });
+
+        function fmt(s) {
+            const m = Math.floor(s / 60), sec = s % 60;
+            return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+        }
+    </script>
+</body>
+</html>
