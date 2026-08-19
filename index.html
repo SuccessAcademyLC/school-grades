@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787141529';
+  const APP_VERSION='1787142216';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1392,11 +1392,32 @@ function renderSidebar(){
       }).join('')}`
     :'<div style="padding:16px;font-size:13px;color:#bbb">Нет суппортеров</div>');
 
-  document.getElementById('alist').innerHTML=(D.archives||[]).length
-    ?(D.archives||[]).slice().reverse().map(a=>`<div class="t-item ${selArch===a.id&&view==='archive'?'active':''}" onclick="gotoArch('${a.id}')">
-        <div class="t-av arch">📦</div>
-        <div><div class="t-name" style="font-size:13px">${a.label}</div><div class="t-sub">${a.date}</div></div>
-      </div>`).join('')
+  const allArchives=(D.archives||[]).slice().reverse();
+  const last10=allArchives.slice(0,10);
+  const archAvg=a=>{
+    const scores=[];
+    (a.teachers||[]).forEach(t=>(t.groups||[]).forEach(g=>(g.students||[]).forEach(s=>{
+      const v=calcFinal(s,g.level);if(v!==null)scores.push(v);
+    })));
+    return scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1):null;
+  };
+  document.getElementById('alist').innerHTML=last10.length
+    ?`${last10.map(a=>{
+        const avg=archAvg(a);
+        const color=avg!==null?(parseFloat(avg)>=75?'#166534':parseFloat(avg)>=60?'#854d0e':'#be123c'):'#bbb';
+        const bg=avg!==null?(parseFloat(avg)>=75?'#dcfce7':parseFloat(avg)>=60?'#fef3c7':'#fee2e2'):'#f5f5f5';
+        return `<div class="t-item ${selArch===a.id&&view==='archive'?'active':''}" onclick="gotoArch('${a.id}')">
+          <div class="t-av arch">📦</div>
+          <div style="flex:1;min-width:0">
+            <div class="t-name" style="font-size:12px">${a.label}</div>
+            <div class="t-sub" style="display:flex;align-items:center;gap:6px">
+              <span>${a.date}</span>
+              ${avg!==null?`<span style="font-size:11px;font-weight:600;padding:1px 6px;border-radius:8px;background:${bg};color:${color}">${avg}</span>`:''}
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+      ${allArchives.length>10?`<div style="padding:8px 14px;font-size:11px;color:#bbb;cursor:pointer" onclick="showArchivesList()">Все архивы (${allArchives.length}) →</div>`:''}`
     :'<div style="padding:16px;font-size:13px;color:#bbb">Архивов нет</div>';
 }
 
