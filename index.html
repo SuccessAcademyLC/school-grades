@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787142564';
+  const APP_VERSION='1787142920';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1494,7 +1494,7 @@ function renderHome(el){
     (a.reports||[]).filter(r=>r.status==='new').forEach(r=>newReports.push({a,r}));
   });
   el.innerHTML=`
-    ${renderFinalsBlock()}
+    ${(()=>{try{return renderFinalsBlock();}catch(e){console.error(e);return '';}})()}
     ${newReports.length?`<div style="background:#FFF3E0;border:1.5px solid #FFB74D;border-radius:12px;padding:14px 18px;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <div style="font-size:20px">⚠️</div>
@@ -6230,14 +6230,18 @@ function saveEditFinal(id){
 
 function cleanupOldFinals(){
   if(!D.finals||!D.finals.length) return;
-  const now=new Date();now.setHours(0,0,0,0);
-  const before=D.finals.length;
-  D.finals=D.finals.filter(f=>{
-    const speakDate=new Date(f.date2||f.date1);speakDate.setHours(0,0,0,0);
-    const daysPast=Math.round((now-speakDate)/(1000*60*60*24));
-    return daysPast<30;
-  });
-  if(D.finals.length<before) sched();
+  try{
+    const now=new Date();now.setHours(0,0,0,0);
+    const before=D.finals.length;
+    D.finals=D.finals.filter(f=>{
+      if(!f||(!f.date1&&!f.date2)) return false;
+      const speakDate=new Date(f.date2||f.date1);
+      if(isNaN(speakDate.getTime())) return true;
+      speakDate.setHours(0,0,0,0);
+      return Math.round((now-speakDate)/(1000*60*60*24))<30;
+    });
+    if(D.finals.length<before) sched();
+  }catch(e){console.error('cleanupOldFinals:',e);}
 }
 
 function renderFinalsBlock(){
