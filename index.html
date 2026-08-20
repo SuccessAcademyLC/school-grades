@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787143458';
+  const APP_VERSION='1787198581';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1903,6 +1903,11 @@ function srow(s,num,g,ed,archMode){
         const raw=score!==''?Math.round(Number(score)/2):'';
         const isZero=score===0;
         const color=score===''?'':Number(score)>=75?'#1b5e20':Number(score)>=70?'#e65100':'#b71c1c';
+        if(isObserver()){
+          // Read-only clickable for observer
+          const bg=score===''?'transparent':Number(score)>=75?'#e8f5e9':Number(score)>=70?'#fff8e1':'#ffebee';
+          return `<td${i===0?' class="gb"':''}><div onclick="showUnitPopup('${sid}',${i},'${g.level}')" style="width:42px;min-height:26px;border:1.5px solid #e8eaf0;border-radius:5px;padding:3px 4px;text-align:center;font-size:12.5px;cursor:pointer;background:${bg};color:${color};font-weight:${score!==''?700:400}">${score!==''?fmt(score):'—'}</div></td>`;
+        }
         return `<td${i===0?' class="gb"':''}><input class="gi${isZero?' zero':''}" type="text" inputmode="decimal" value="${score!==''?fmt(score):''}" data-raw="${raw}" placeholder="" title="Вводить 0–50, ×2" style="${score!==''?`color:${color};font-weight:700`:''}" onfocus="this.value=this.dataset.raw||'';this.select()" onblur="const v=parseFloat(this.value);if(!isNaN(v)&&v>=0&&v<=50){const s=v*2;this.value=s;this.dataset.raw=String(v);this.style.color=s>=75?'#1b5e20':s>=70?'#e65100':'#b71c1c';this.style.fontWeight='700';}else if(this.value===''){this.value='';this.dataset.raw='';this.style.color='';this.style.fontWeight='';}" oninput="gchX2('${sid}','units',${i},this.value)" onkeydown="gradeKey(event,this)"></td>`;
       }
       return `<td${i===0?' class="gb"':''}>${gcell(v,'units',i)}</td>`;
@@ -2066,6 +2071,35 @@ function showUnitPopup(sid,idx,level){
   const gr=s.units_grammar?.[idx]??'';
   const vc=s.units_vocab?.[idx]??'';
   const cur=s.units?.[idx]??'';
+  const readOnly=isObserver()||window._qrViewMode;
+  const hasBothParts=['beginner','elementary'].includes(level||g?.level);
+
+  if(readOnly||!hasBothParts){
+    // Read-only view or non-split levels
+    const scoreColor=cur!==''?(Number(cur)>=75?'#1b5e20':Number(cur)>=70?'#e65100':'#b71c1c'):'#888';
+    openModal(`<div class="modal-title">📝 Unit Test ${idx+1} — ${s.name}</div>
+      ${hasBothParts&&(gr!==''||vc!=='')?`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="background:#f0f4ff;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:11px;color:#4361ee;font-weight:600;margin-bottom:6px">ГРАММАТИКА</div>
+          <div style="font-size:28px;font-weight:800;color:#4361ee">${gr!==''?gr:'—'}</div>
+          <div style="font-size:11px;color:#888;margin-top:4px">из 50</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:11px;color:#2b9348;font-weight:600;margin-bottom:6px">СЛОВАРЬ</div>
+          <div style="font-size:28px;font-weight:800;color:#2b9348">${vc!==''?vc:'—'}</div>
+          <div style="font-size:11px;color:#888;margin-top:4px">из 50</div>
+        </div>
+      </div>`:''}
+      <div style="background:#f8f9fb;border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:12px;color:#888;margin-bottom:6px">Итоговый балл</div>
+        <div style="font-size:36px;font-weight:900;color:${scoreColor}">${cur!==''?fmt(cur):'—'}</div>
+        ${hasBothParts&&gr!==''&&vc!==''?`<div style="font-size:11px;color:#aaa;margin-top:4px">(${gr}÷50×70) + (${vc}÷50×30)</div>`:''}
+      </div>
+      <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Закрыть</button></div>`);
+    return;
+  }
+
   openModal(`<div class="modal-title">📝 Unit Test ${idx+1}</div>
     <div class="modal-desc" style="margin-bottom:16px">
       Введите результаты. Итог = (Грамматика÷50×70) + (Словарь÷50×30)
