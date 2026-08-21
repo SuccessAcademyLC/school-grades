@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787198581';
+  const APP_VERSION='1787288557';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1510,7 +1510,7 @@ function renderHome(el){
       </div>`).join('')}
     </div>`:''}
     ${riskAlert.length?`<div style="background:#fff1f2;border:1.5px solid #fecdd3;border-radius:12px;padding:16px 20px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="const b=document.getElementById('risk-body');const btn=document.getElementById('risk-toggle');if(b.style.display==='none'){b.style.display='flex';btn.textContent='▲';}else{b.style.display='none';btn.textContent='▼';}">
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="const b=document.getElementById('risk-body');const btn=document.getElementById('risk-toggle');if(b.style.display==='none'){b.style.display='block';btn.textContent='▲';}else{b.style.display='none';btn.textContent='▼';}">
         <div style="font-size:22px">🔴</div>
         <div style="flex:1">
           <div style="font-weight:700;color:#be123c;font-size:15px">${riskAlert.length} студентов в зоне риска</div>
@@ -1518,15 +1518,28 @@ function renderHome(el){
         </div>
         <span id="risk-toggle" style="font-size:14px;color:#be123c;padding:4px 8px;border-radius:6px;border:1px solid #fecdd3;background:white">▲</span>
       </div>
-      <div id="risk-body" style="display:flex;flex-direction:column;gap:6px;margin-top:12px">
-        ${riskAlert.map(({s,g,tc})=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:white;border-radius:8px;border:1px solid #fecdd3;cursor:pointer" onclick="gotoT('${tc.id}');setTimeout(()=>{selG='${g.id}';view='group';renderAll();},150)">
-          <div style="width:28px;height:28px;border-radius:50%;background:#fecdd3;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#be123c;flex-shrink:0">${ini(s.name)}</div>
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:600;color:#be123c">${s.name}</div>
-            <div style="font-size:11px;color:#888">${tc.name} · ${lvl(g.level)} ${g.day} ${g.time}</div>
+      <div id="risk-body" style="display:block;margin-top:12px">
+        ${(()=>{
+          const PER=10;
+          const rp=window._riskPage||0;
+          const pages=Math.ceil(riskAlert.length/PER);
+          const slice=riskAlert.slice(rp*PER,(rp+1)*PER);
+          return `<div style="display:flex;flex-direction:column;gap:6px">
+            ${slice.map(({s,g,tc})=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:white;border-radius:8px;border:1px solid #fecdd3;cursor:pointer" onclick="gotoT('${tc.id}');setTimeout(()=>{selG='${g.id}';view='group';renderAll();},150)">
+              <div style="width:28px;height:28px;border-radius:50%;background:#fecdd3;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#be123c;flex-shrink:0">${ini(s.name)}</div>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:600;color:#be123c">${s.name}</div>
+                <div style="font-size:11px;color:#888">${tc.name} · ${lvl(g.level)} ${g.day} ${g.time}</div>
+              </div>
+              <span style="font-size:11px;color:#f43f5e">→</span>
+            </div>`).join('')}
           </div>
-          <span style="font-size:11px;color:#f43f5e">→</span>
-        </div>`).join('')}
+          ${pages>1?`<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #fecdd3">
+            <button onclick="event.stopPropagation();window._riskPage=Math.max(0,(window._riskPage||0)-1);renderMain()" style="padding:3px 12px;border-radius:8px;border:1px solid #fecdd3;background:white;color:#be123c;cursor:pointer;font-size:12px;${rp===0?'opacity:.4;cursor:default':''}">← Пред.</button>
+            <span style="font-size:12px;color:#be123c">${rp+1} / ${pages}</span>
+            <button onclick="event.stopPropagation();window._riskPage=Math.min(${pages-1},(window._riskPage||0)+1);renderMain()" style="padding:3px 12px;border-radius:8px;border:1px solid #fecdd3;background:white;color:#be123c;cursor:pointer;font-size:12px;${rp>=pages-1?'opacity:.4;cursor:default':''}">След. →</button>
+          </div>`:''}`;
+        })()}
       </div>
     </div>`:''}
         ${hiddenAlert.length?`<div style="background:#fff3e0;border:1.5px solid #ffb74d;border-radius:12px;padding:16px 20px;margin-bottom:16px">
@@ -2882,8 +2895,51 @@ function renderAccounts(el){
       <div class="card-title" style="margin-bottom:14px">🤝 Supporter (${supporters.length})</div>
       ${supporters.map(accCard).join('')}
     </div>`:''}
+    ${teachers.length?`<div class="card" style="margin-bottom:10px">
+      <div class="card-title" style="margin-bottom:14px">👤 Преподаватели (${teachers.length})</div>
+      ${teachers.map(accCard).join('')}
+    </div>`:''}
+    ${(()=>{
+      const accTeacherIds=new Set((D.accounts||[]).filter(a=>a.role==='teacher').map(a=>a.teacherId));
+      const noAcc=(D.teachers||[]).filter(t=>!accTeacherIds.has(t.id));
+      if(!noAcc.length) return '';
+      return `<div class="card" style="margin-bottom:10px;border:1.5px solid #fef3c7">
+        <div class="card-title" style="margin-bottom:14px;color:#854d0e">⚠️ Преподаватели без логина (${noAcc.length})</div>
+        ${noAcc.map(t=>`<div class="acc-row">
+          <div class="t-av" style="width:38px;height:38px;font-size:13px;border-radius:10px;background:#4361ee">${ini(t.name)}</div>
+          <div class="acc-info"><div class="acc-name">${t.name}</div>
+            <div class="acc-sub" style="color:#854d0e">Нет аккаунта для входа</div>
+          </div>
+          <button onclick="showCreateTeacherAcc('${t.id}')" class="btn btn-sec btn-sm">+ Создать логин</button>
+        </div>`).join('')}
+      </div>`;
+    })()}
     ${!accs.length?`<div class="empty"><h3>Нет аккаунтов</h3></div>`:''}
   `;
+}
+
+function showCreateTeacherAcc(teacherId){
+  const t=D.teachers.find(x=>x.id===teacherId);if(!t) return;
+  const suggestedLogin=t.name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+  openModal(`<div class="modal-title">🔑 Создать логин для ${t.name}</div>
+    <div class="fg"><label class="fl">Логин</label><input type="text" class="fi" id="cta-login" value="${suggestedLogin}" placeholder="Логин для входа"></div>
+    <div class="fg"><label class="fl">Пароль</label><input type="password" class="fi" id="cta-pass" placeholder="Минимум 4 символа"></div>
+    <div class="fa">
+      <button class="btn btn-sec" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-pri" onclick="saveCreateTeacherAcc('${teacherId}')">✓ Создать</button>
+    </div>`);
+}
+
+async function saveCreateTeacherAcc(teacherId){
+  const t=D.teachers.find(x=>x.id===teacherId);if(!t) return;
+  const login=document.getElementById('cta-login')?.value?.trim().toLowerCase();
+  const pass=document.getElementById('cta-pass')?.value;
+  if(!login||!pass){toast('Заполните все поля','error');return;}
+  if(pass.length<4){toast('Пароль минимум 4 символа','error');return;}
+  if((D.accounts||[]).some(a=>(a.login||'').toLowerCase()===login)){toast('Логин уже занят','error');return;}
+  if(!D.accounts) D.accounts=[];
+  D.accounts.push({id:uid(),role:'teacher',teacherId,name:t.name,login,password:await hashPass(pass)});
+  closeModal();sched();renderAll();toast(`Логин для ${t.name} создан ✓`,'success');
 }
 
 function showSupporterProfile(id){window._supProfileId=id;view='supporter_profile';curPage=null;renderAll();}
@@ -3966,23 +4022,35 @@ function gotoPage(p){
 
 // ── CRUD Teachers ─────────────────────────────────────────────────────────
 function isAtRisk(s, level){
-  // Collect all filled scores from units, achievements, homework (and rus conversations)
-  const isRus=RUS_LEVELS.includes(level);
-  const scores=[];
-  const filled=v=>v!==null&&v!==undefined&&v!=='';
-  if(isRus){
-    (s.conversations||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'conv'}));
-    (s.homework||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'hw'}));
-    (s.vocabulary||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'vocab'}));
-  } else {
-    (s.units||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'unit'}));
-    (s.achievements||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'at'}));
-    (s.homework||[]).filter(filled).forEach(v=>scores.push({v:Number(v),field:'hw'}));
-  }
-  if(scores.length<3) return false;
-  // Check if last 3 consecutive filled scores are all below 60
-  const last3=scores.slice(-3);
-  return last3.length===3&&last3.every(x=>x.v<60);
+  try{
+    const isRus=RUS_LEVELS.includes(level);
+    const scores=[];
+    const filled=v=>v!==null&&v!==undefined&&v!=='';
+    const toArr=v=>{
+      if(!v) return [];
+      if(Array.isArray(v)) return v;
+      if(typeof v==='object'){
+        const keys=Object.keys(v).filter(k=>!isNaN(parseInt(k)));
+        const max=Math.max(...keys.map(Number));
+        const arr=Array(max+1).fill(null);
+        keys.forEach(k=>arr[parseInt(k)]=v[k]);
+        return arr;
+      }
+      return [];
+    };
+    if(isRus){
+      toArr(s.conversations).filter(filled).forEach(v=>scores.push({v:Number(v),field:'conv'}));
+      toArr(s.homework).filter(filled).forEach(v=>scores.push({v:Number(v),field:'hw'}));
+      toArr(s.vocabulary).filter(filled).forEach(v=>scores.push({v:Number(v),field:'vocab'}));
+    } else {
+      toArr(s.units).filter(filled).forEach(v=>scores.push({v:Number(v),field:'unit'}));
+      toArr(s.achievements).filter(filled).forEach(v=>scores.push({v:Number(v),field:'at'}));
+      toArr(s.homework).filter(filled).forEach(v=>scores.push({v:Number(v),field:'hw'}));
+    }
+    if(scores.length<3) return false;
+    const last3=scores.slice(-3);
+    return last3.length===3&&last3.every(x=>x.v<60);
+  }catch(e){return false;}
 }
 
 function countGroupAtRisk(g){
