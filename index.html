@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787288557';
+  const APP_VERSION='1787290584';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1315,7 +1315,8 @@ function isSuperAdmin(){return curUser?.role==='admin';}
 function canEdit(tid){
   if(isObserver()) return false;
   if(curUser?.role==='viewer') return false;
-  if(isAdmin()) return true; // admin + academic
+  if(isAdmin()) return true;
+  if(curUser?.role==='teacher') return !tid||curUser?.teacherId===tid;
   return false;
 }
 
