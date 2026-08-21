@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787290584';
+  const APP_VERSION='1787318021';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -556,6 +556,11 @@ function applyTheme(){
 
 // Apply i18n and theme immediately
 const RUS_LEVELS=['rus-1','rus-2','rus-3','rus-4'];
+// Course definitions - add new courses here in future
+const COURSES=[
+  {id:'speakout', label:'SpeakOut',   color:'#0C447C', bg:'#E6F1FB', langs:['ru','kk']},
+  {id:'poekhali', label:'Поехали',    color:'#3C3489', bg:'#EEEDFE', langs:['rus']},
+];
 // Levels where unit test is entered as 0-50 and multiplied x2
 const UNIT_X2_LEVELS=['pre-intermediate','intermediate','upper-intermediate'];
 const RUS_CFG={
@@ -1260,7 +1265,7 @@ function renderArchive(el){
       </div></div>
       <div class="card"><div class="gg">
         ${(t.groups||[]).map(g=>`
-          <div class="gc" onclick="selG='${g.id}';renderAll()">
+          <div class="gc" onclick="selG='${g.id}';view='archive';renderAll()">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
               <span class="lp lv-${lvc(g.level)}">${lvl(g.level)}</span>
             </div>
@@ -1282,7 +1287,7 @@ function renderArchive(el){
     </div>
     <div class="card"><div class="gg">
       ${(arch.teachers||[]).map(t=>`
-        <div class="gc" onclick="selT='${t.id}';renderAll()">
+        <div class="gc" onclick="selT='${t.id}';view='archive';renderAll()">
           <div class="gc-name">${t.name}</div>
           <div class="gc-meta"><div><div class="gm-v">${(t.groups||[]).length}</div><div class="gm-l">групп</div></div></div>
         </div>`).join('')}
@@ -1340,15 +1345,16 @@ function renderSidebar(){
   });
   const teachers=(isAdmin()||isObserver())?D.teachers:D.teachers.filter(t=>t.id===curUser?.teacherId);
   const tLangBadge=t=>{
-    if(t.lang==='kk') return `<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px;margin-left:4px">Англ КК</span>`;
-    if(t.lang==='rus') return `<span style="font-size:10px;background:#EEEDFE;color:#3C3489;padding:1px 6px;border-radius:8px;margin-left:4px">Рус яз</span>`;
-    return `<span style="font-size:10px;background:#E6F1FB;color:#0C447C;padding:1px 6px;border-radius:8px;margin-left:4px">Англ РУС</span>`;
+    const course=t.course?COURSES.find(c=>c.id===t.course):null;
+    if(course) return `<span style="font-size:10px;background:${course.bg};color:${course.color};padding:1px 6px;border-radius:8px;margin-left:4px">${course.label}</span>`;
+    if(t.lang==='kk') return `<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px;margin-left:4px">SpeakOut КК</span>`;
+    if(t.lang==='rus') return `<span style="font-size:10px;background:#EEEDFE;color:#3C3489;padding:1px 6px;border-radius:8px;margin-left:4px">Поехали</span>`;
+    return `<span style="font-size:10px;background:#E6F1FB;color:#0C447C;padding:1px 6px;border-radius:8px;margin-left:4px">SpeakOut</span>`;
   };
   document.getElementById('tlist').innerHTML=(()=>{
     if(!teachers.length) return '<div style="padding:16px;font-size:13px;color:#bbb">Нет преподавателей</div>';
     const sorted=[...teachers].sort((a,b)=>a.name.localeCompare(b.name));
-    const eng=sorted.filter(t=>t.lang!=='rus');
-    const rus=sorted.filter(t=>t.lang==='rus');
+    const getTC=t=>t.course||(t.lang==='rus'?'poekhali':'speakout');
     const renderT=t=>`<div class="t-item ${selT===t.id&&(view==='teacher'||view==='group')?'active':''}" onclick="gotoT('${t.id}')">
         <div class="t-av">${ini(t.name)}</div>
         <div style="flex:1;min-width:0">
@@ -1359,8 +1365,8 @@ function renderSidebar(){
     const section=(label,color,bg,list)=>list.length?`
       <div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:${color};background:${bg};letter-spacing:.5px;text-transform:uppercase">${label} (${list.length})</div>
       ${list.map(renderT).join('')}`:'';
-    return section('Английский','#0C447C','#f0f5ff',eng)
-         + section('Русский язык','#3C3489','#f3f0ff',rus);
+    return COURSES.map(c=>section(c.label,c.color,c.bg+'33',sorted.filter(t=>getTC(t)===c.id))).join('')
+         ||'<div style="padding:16px;font-size:13px;color:#bbb">Нет преподавателей</div>';
   })();
 
   // Supporters tab
@@ -1668,9 +1674,9 @@ function renderRusRow(s,num,g,ed){
     <td><span class="ob ${ovc}" data-ov="${sid}">${ov!==null?ov.toFixed(1):'—'}</span></td>
     ${ed&&!empty?`<td><div class="row-acts">
       <button class="ra" onclick="showSetStart('${sid}')" title="Начало с разговорки" style="font-size:11px;padding:2px 6px">▶П${(s?.startConv)||1}</button>
-      <button class="ra ra-move" onclick="showMoveStudent('${sid}')" title="Перенести">↗</button>
+      ${isAdmin()?`<button class="ra ra-move" onclick="showMoveStudent('${sid}')" title="Перенести">↗</button>
       <button class="ra ra-arch" onclick="archiveStudent('${sid}')" title="В архив">📦</button>
-      <button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>
+      <button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>`:''}
     </div></td>`:(ed?'<td></td>':'')}
   </tr>`;
 }
@@ -1937,7 +1943,7 @@ function srow(s,num,g,ed,archMode){
     <td><span class="ob ${ovc}" data-ov="${sid}">${finalOv!==null?finalOv.toFixed(1):'—'}</span></td>
     <td style="background:#fffbf5">${ed&&s?`<input class="gi" type="text" inputmode="decimal" value="${s.retake||''}" oninput="gch('${sid}','retake',null,this.value)" placeholder="">`:(s?.retake&&s.retake>0?`<span style="color:#e65100;font-weight:700">+${fmt(s.retake)}</span>`:'<span style="color:#ddd">—</span>')}</td>
     ${!empty?`<td><div class="row-acts">
-      ${ed?`<button class="ra" onclick="showSetStart('${sid}')" title="Начало с юнита" style="font-size:11px;padding:2px 6px">▶U${(s&&s.startUnit)||1}</button>
+      ${isAdmin()?`<button class="ra" onclick="showSetStart('${sid}')" title="Начало с юнита" style="font-size:11px;padding:2px 6px">▶U${(s&&s.startUnit)||1}</button>
       <button class="ra ra-move" onclick="showMoveStudent('${sid}')" title="Перенести">↗</button>
       <button class="ra ra-arch" onclick="archiveStudent('${sid}')" title="В архив">📦</button>
       <button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>`:''}
@@ -3035,11 +3041,18 @@ function renderSupporterProfile(el){
 function showAddTeacher(){
   openModal(`<div class="modal-title">👤 Новый преподаватель</div>
     <div class="fg"><label class="fl">Имя и фамилия</label><input type="text" class="fi" id="nt-name" placeholder="Иванов Иван"></div>
+    <div class="fg"><label class="fl">Курс</label>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-top:4px">
+        ${COURSES.map((c,i)=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid ${c.bg};border-radius:8px;cursor:pointer;font-size:13px;background:${c.bg}20">
+          <input type="radio" name="nt-course" value="${c.id}" ${i===0?'checked':''}> 
+          <span style="font-weight:500;color:${c.color}">${c.label}</span>
+        </label>`).join('')}
+      </div>
+    </div>
     <div class="fg"><label class="fl">Направление</label>
       <div style="display:flex;flex-direction:column;gap:5px;margin-top:4px">
-        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="nt-lang" value="ru" checked> Англ (русскоговорящий)</label>
-        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="nt-lang" value="kk"> Англ (каракалпакоговорящий)</label>
-        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="nt-lang" value="rus"> Русский язык</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="nt-lang" value="ru" checked> Русскоговорящий</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="nt-lang" value="kk"> Каракалпакоговорящий</label>
       </div>
     </div>
     <div class="fg"><label class="fl">Логин</label><input type="text" class="fi" id="nt-login" placeholder="например: ivanov"></div>
@@ -3053,15 +3066,19 @@ async function addTeacher(){
   const name=document.getElementById('nt-name')?.value?.trim();
   const login=document.getElementById('nt-login')?.value?.trim().toLowerCase();
   const pass=document.getElementById('nt-pass')?.value?.trim();
-  const lang=document.querySelector('input[name="nt-lang"]:checked')?.value||'ru';
+  const courseId=document.querySelector('input[name="nt-course"]:checked')?.value||'speakout';
+  const course=COURSES.find(c=>c.id===courseId)||COURSES[0];
+  // Determine lang from course
+  const langRadio=document.querySelector('input[name="nt-lang"]:checked')?.value||'ru';
+  const lang=courseId==='poekhali'?'rus':langRadio;
   if(!name){toast('Введите имя','error');return;}
   if(!login){toast('Введите логин','error');return;}
   if(!pass||pass.length<4){toast('Пароль минимум 4 символа','error');return;}
   if((D.accounts||[]).find(a=>a.login===login)){toast('Логин уже занят','error');return;}
   const tid=uid();
-  D.teachers.push({id:tid,name,lang,groups:[]});
-  D.accounts.push({id:uid(),teacherId:tid,login,password:await hashPass(pass)});
-  closeModal();renderAll();sched();toast('Преподаватель создан ✓','success');
+  D.teachers.push({id:tid,name,lang,course:courseId,groups:[]});
+  D.accounts.push({id:uid(),role:'teacher',teacherId:tid,name,login,password:await hashPass(pass)});
+  closeModal();renderAll();sched();toast(`Преподаватель ${name} создан ✓`,'success');
 }
 
 function showAddAdmin(){
@@ -4270,6 +4287,7 @@ function renderDutyPage(el){
       ${isAdmin()?`<div style="display:flex;gap:8px">
         <button onclick="showDutyQueue()" style="padding:7px 14px;border-radius:8px;border:1.5px solid #4361ee;background:#eef2ff;color:#4361ee;cursor:pointer;font-size:13px;font-weight:500">🔄 Очередь</button>
         <button onclick="fillMonthFromQueue('${month}')" style="padding:7px 14px;border-radius:8px;border:1.5px solid #27500A;background:#EAF3DE;color:#27500A;cursor:pointer;font-size:13px;font-weight:500">⚡ Заполнить месяц</button>
+        <button onclick="if(confirm('Сбросить очередь? Следующий месяц начнётся с первого суппортера в списке.')){if(D.settings?.dutyQueue){D.settings.dutyQueue.mOffset=0;D.settings.dutyQueue.eOffset=0;}sched();toast('Очередь сброшена ✓','success');}" style="padding:7px 12px;border-radius:8px;border:1.5px solid #bbb;background:white;color:#888;cursor:pointer;font-size:12px" title="Начать очередь заново">↺ Сброс</button>
       </div>`:''}
     </div>
     <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -4943,29 +4961,44 @@ function fillMonthFromQueue(month){
   const mQueue=q.morning||[];
   const eQueue=q.evening||[];
 
-  // Сначала удаляем все авто-дни этого месяца
+  // Independent counters for morning and evening — each slot rotates separately
+  let mPtr=q.mOffset||0;
+  let ePtr=q.eOffset||0;
+
+  // Delete auto days of this month
   Object.keys(D.duties).forEach(d=>{
     if(d.startsWith(month)&&D.duties[d]._auto!==false) delete D.duties[d];
   });
 
-  // Заполняем с 0 — день 1 = индекс 0, день 2 = индекс 1...
-  let mPtr=0, ePtr=0, filled=0;
+  let filled=0;
   for(let d=1;d<=daysInMonth;d++){
     const dateStr=`${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     if(new Date(yr,mo-1,d).getDay()===0) continue; // skip Sunday
     const existing=D.duties[dateStr];
     if(existing&&existing._auto===false) continue; // preserve manual
+
+    // Each queue rotates independently every working day
     const mId=mQueue.length?mQueue[mPtr%mQueue.length]:null;
     const eId=eQueue.length?eQueue[ePtr%eQueue.length]:null;
+
     D.duties[dateStr]={morning:mId||null,evening:eId||null,_auto:true};
-    mPtr++;
-    ePtr++;
+
+    // Advance each counter independently
+    if(mQueue.length) mPtr++;
+    if(eQueue.length) ePtr++;
     filled++;
   }
-  sched();gotoPage('duties');toast(`${filled} дней заполнено ✓`,'success');
+
+  // Save offsets so next month continues sequence
+  if(!D.settings) D.settings={};
+  D.settings.dutyQueue={...q,mOffset:mPtr,eOffset:ePtr};
+
+  sched();gotoPage('duties');
+  const info=[];
+  if(mQueue.length===1) info.push(`Утро: ${(D.accounts||[]).find(a=>a.id===mQueue[0])?.name||'?'} — каждый день`);
+  if(eQueue.length===1) info.push(`Вечер: ${(D.accounts||[]).find(a=>a.id===eQueue[0])?.name||'?'} — каждый день`);
+  toast(`${filled} дней заполнено ✓${info.length?' · '+info.join(', '):''}`, 'success');
 }
-
-
 function supResolveReport(supId,reportId){
   const a=(D.accounts||[]).find(x=>x.id===supId);if(!a) return;
   const r=(a.reports||[]).find(x=>x.id===reportId);if(!r) return;
