@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787318021';
+  const APP_VERSION='1787370748';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -572,6 +572,13 @@ const RUS_CFG={
 const TIMES=['09:00','10:30','14:00','15:30','17:00','18:30'];
 const LEVELS=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate','rus-1','rus-2','rus-3','rus-4'];
 const LEVEL_ORDER=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+
+function getCourse(t){
+  if(t?.course) return COURSES.find(c=>c.id===t.course)||COURSES[0];
+  if(t?.lang==='rus') return COURSES.find(c=>c.id==='poekhali')||COURSES[1];
+  return COURSES[0];
+}
+function getCourseById(id){return COURSES.find(c=>c.id===id)||COURSES[0];}
 const SUP_LEVELS_ENG=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
 const SUP_LEVELS_RUS=['rus-1','rus-2','rus-3','rus-4'];
 const SUP_LEVEL_LABELS={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int','intermediate':'Intermediate','upper-intermediate':'Upper-Int','rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4'};
