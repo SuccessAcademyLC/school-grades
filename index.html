@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787370748';
+  const APP_VERSION='1787376872';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -4919,6 +4919,19 @@ function showDutyQueue(){
   if(!D.settings) D.settings={};
   const q=D.settings.dutyQueue||{morning:[],evening:[]};
   const supporters=(D.accounts||[]).filter(a=>a.role==='supporter'&&a.supType!=='rus');
+  const validIds=new Set(supporters.map(a=>a.id));
+
+  // Auto-clean deleted supporters from queue
+  let cleaned=false;
+  ['morning','evening'].forEach(slot=>{
+    if(q[slot]){
+      const before=q[slot].length;
+      q[slot]=q[slot].filter(id=>validIds.has(id));
+      if(q[slot].length!==before) cleaned=true;
+    }
+  });
+  if(cleaned){ D.settings.dutyQueue=q; sched(); }
+
   const morningOk=supporters.filter(a=>a.schedule==='morning'||a.schedule==='full');
   const eveningOk=supporters.filter(a=>a.schedule==='evening'||a.schedule==='full');
   const renderList=(slot)=>{
@@ -4965,10 +4978,10 @@ function fillMonthFromQueue(month){
   const [yr,mo]=month.split('-').map(Number);
   const daysInMonth=new Date(yr,mo,0).getDate();
   if(!D.duties) D.duties={};
-  const mQueue=q.morning||[];
-  const eQueue=q.evening||[];
+  const mQueue=(q.morning||[]).filter(id=>(D.accounts||[]).some(a=>a.id===id));
+  const eQueue=(q.evening||[]).filter(id=>(D.accounts||[]).some(a=>a.id===id));
 
-  // Independent counters for morning and evening — each slot rotates separately
+  // Truly independent counters stored separately
   let mPtr=q.mOffset||0;
   let ePtr=q.eOffset||0;
 
@@ -4980,30 +4993,28 @@ function fillMonthFromQueue(month){
   let filled=0;
   for(let d=1;d<=daysInMonth;d++){
     const dateStr=`${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    if(new Date(yr,mo-1,d).getDay()===0) continue; // skip Sunday
+    if(new Date(yr,mo-1,d).getDay()===0) continue;
     const existing=D.duties[dateStr];
-    if(existing&&existing._auto===false) continue; // preserve manual
+    if(existing&&existing._auto===false) continue;
 
-    // Each queue rotates independently every working day
     const mId=mQueue.length?mQueue[mPtr%mQueue.length]:null;
     const eId=eQueue.length?eQueue[ePtr%eQueue.length]:null;
 
     D.duties[dateStr]={morning:mId||null,evening:eId||null,_auto:true};
 
-    // Advance each counter independently
     if(mQueue.length) mPtr++;
     if(eQueue.length) ePtr++;
     filled++;
   }
 
-  // Save offsets so next month continues sequence
   if(!D.settings) D.settings={};
   D.settings.dutyQueue={...q,mOffset:mPtr,eOffset:ePtr};
 
   sched();gotoPage('duties');
+  const nm=id=>(D.accounts||[]).find(a=>a.id===id)?.name||'?';
   const info=[];
-  if(mQueue.length===1) info.push(`Утро: ${(D.accounts||[]).find(a=>a.id===mQueue[0])?.name||'?'} — каждый день`);
-  if(eQueue.length===1) info.push(`Вечер: ${(D.accounts||[]).find(a=>a.id===eQueue[0])?.name||'?'} — каждый день`);
+  if(eQueue.length===1) info.push(`Вечер: ${nm(eQueue[0])} — каждый день`);
+  if(mQueue.length===1) info.push(`Утро: ${nm(mQueue[0])} — каждый день`);
   toast(`${filled} дней заполнено ✓${info.length?' · '+info.join(', '):''}`, 'success');
 }
 function supResolveReport(supId,reportId){
