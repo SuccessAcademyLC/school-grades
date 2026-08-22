@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787376872';
+  const APP_VERSION='1787377373';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2673,33 +2673,125 @@ function clickStudent(sid){
 
 // ── Students page ─────────────────────────────────────────────────────────
 function renderStudentsPage(el){
-  const stus=D.students||[];
+  const PER=50;
+  const tab=window._stuTab||'active';
+  const pg=window._stuPage||0;
+  const search=(window._stuSearch||'').toLowerCase().trim();
+
+  // Collect all students with their group info
+  const allActive=[];
+  const allArchived=[];
+  D.teachers.forEach(t=>(t.groups||[]).forEach(g=>{
+    (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
+      if(s.hidden) return;
+      allActive.push({s,g,t,key:s.id});
+    });
+    (g.archived_students||[]).filter(s=>s&&s.name).forEach(s=>{
+      allArchived.push({s,g,t,key:s.id,isArch:true});
+    });
+  }));
+
+  // Find duplicates in active
+  const nameCounts={};
+  allActive.forEach(({s})=>{
+    const n=s.name.trim().toLowerCase();
+    nameCounts[n]=(nameCounts[n]||0)+1;
+  });
+  const dupeNames=new Set(Object.keys(nameCounts).filter(n=>nameCounts[n]>1));
+
+  const list=tab==='active'?allActive:allArchived;
+  const filtered=search?list.filter(({s})=>s.name.toLowerCase().includes(search)):list;
+  const total=Math.ceil(filtered.length/PER)||1;
+  const page=filtered.slice(pg*PER,(pg+1)*PER);
+
   el.innerHTML=`
     <div class="ph">
-      <div><div class="pt">${tr('stuBase')}</div><div class="ps">${stus.length} ${tr('stuCount')}</div></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-pri btn-sm" onclick="showAddStudentGlobal()">+ Добавить</button>
+      <div><div class="pt">${tr('stuBase')}</div>
+        <div class="ps">${allActive.length} активных · ${allArchived.length} архивных</div>
       </div>
+      <button class="btn btn-pri btn-sm" onclick="showAddStudentGlobal()">+ Добавить</button>
     </div>
+
+    ${dupeNames.size&&tab==='active'?`<div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px 16px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:600;color:#c2410c;margin-bottom:8px">⚠️ Найдены дублирующиеся имена (${dupeNames.size})</div>
+      ${[...dupeNames].map(name=>{
+        const dupes=allActive.filter(({s})=>s.name.toLowerCase()===name);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid #fed7aa;font-size:12px">
+          <span style="flex:1;font-weight:500">${dupes[0].s.name}</span>
+          <span style="color:#888">${dupes.length} записей · ${dupes.map(({t,g})=>t.name+' '+g.day+' '+g.time).join(' | ')}</span>
+          <button onclick="showMergeDupes('${name}')" style="padding:2px 10px;border-radius:6px;border:1px solid #c2410c;color:#c2410c;background:white;cursor:pointer;font-size:11px">Объединить</button>
+        </div>`;
+      }).join('')}
+    </div>`:''}
+
     <div class="card">
-      <input type="text" class="fi" placeholder="Поиск студента..." style="margin-bottom:16px" oninput="filterStudentsList(this.value)">
-      <div id="stu-list">
-        ${!stus.length?`<div class="empty"><h3>База пуста</h3><p>Студенты добавляются автоматически при добавлении в группу</p></div>`:''}
-        ${stus.map(s=>{
-          const groups=findStudentGroups(s.id,s.name);
-          return `<div class="acc-row" data-sname="${s.name.toLowerCase()}">
-            <div class="t-av stu" style="width:38px;height:38px;font-size:13px;border-radius:10px">${ini(s.name)}</div>
-            <div class="acc-info">
-              <div class="acc-name" style="cursor:pointer;color:#4361ee" onclick="viewStudentProfile('${s.id}')">${s.name}</div>
-              <div class="acc-login">${groups.length?groups.map(({t,g})=>`${t.name} · ${g.day} ${g.time}`).join(' | '):'Не в группе'}</div>
-            </div>
-            <span class="status-pill ${s.status==='active'?'sp-active':s.status==='archived'?'sp-archived':'sp-graduated'}">${s.status==='active'?'Активен':s.status==='archived'?'Архив':'Выпускник'}</span>
-            <button class="btn btn-pri btn-sm" onclick="showAssignToGroup('${s.id}')">↗ В группу</button>
-          </div>`;
-        }).join('')}
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;gap:4px">
+          <button onclick="window._stuTab='active';window._stuPage=0;renderMain()" style="padding:5px 14px;border-radius:20px;border:1.5px solid ${tab==='active'?'#4361ee':'var(--color-border-secondary)'};background:${tab==='active'?'#4361ee':'transparent'};color:${tab==='active'?'white':'var(--color-text-secondary)'};cursor:pointer;font-size:12px;font-weight:500">
+            Активные (${allActive.length})
+          </button>
+          <button onclick="window._stuTab='archived';window._stuPage=0;renderMain()" style="padding:5px 14px;border-radius:20px;border:1.5px solid ${tab==='archived'?'#7c3aed':'var(--color-border-secondary)'};background:${tab==='archived'?'#7c3aed':'transparent'};color:${tab==='archived'?'white':'var(--color-text-secondary)'};cursor:pointer;font-size:12px;font-weight:500">
+            Архив (${allArchived.length})
+          </button>
+        </div>
+        <input type="text" class="fi" placeholder="🔍 Поиск по имени..." value="${window._stuSearch||''}" style="flex:1;min-width:160px;padding:6px 10px"
+          oninput="clearTimeout(window._stuST);window._stuST=setTimeout(()=>{window._stuSearch=this.value;window._stuPage=0;renderMain();},250)">
       </div>
+
+      ${!page.length?`<div class="empty"><h3>Ничего не найдено</h3></div>`:`
+      <div style="display:grid;grid-template-columns:32px 1fr auto auto;gap:0;border-bottom:1.5px solid var(--color-border-secondary);padding:4px 8px;font-size:11px;color:var(--color-text-secondary)">
+        <div>#</div><div>Студент</div><div style="text-align:right;padding-right:8px">Группа</div><div></div>
+      </div>
+      ${page.map(({s,g,t,isArch},i)=>{
+        const num=pg*PER+i+1;
+        const isDupe=!isArch&&dupeNames.has(s.name.toLowerCase());
+        const archDate=s.archived_at?new Date(s.archived_at).toLocaleDateString('ru',{day:'2-digit',month:'2-digit',year:'2-digit'}):'';
+        return `<div style="display:grid;grid-template-columns:32px 1fr auto auto;align-items:center;padding:7px 8px;border-bottom:0.5px solid var(--color-border-tertiary);${isDupe?'background:#fff7ed':''}">
+          <div style="font-size:11px;color:var(--color-text-secondary)">${num}</div>
+          <div>
+            <div style="font-size:13px;font-weight:500;cursor:pointer;color:${isDupe?'#c2410c':'var(--color-text-primary)'}" onclick="viewStudentProfile('${s.id}')">${s.name}${isDupe?' ⚠️':''}</div>
+            <div style="font-size:11px;color:var(--color-text-secondary)">${isArch?`📦 Архив из: ${t.name} · ${g.day} ${g.time}${archDate?' · '+archDate:''}`:t.name+' · '+g.day+' '+g.time}</div>
+          </div>
+          <div style="font-size:11px;color:var(--color-text-secondary);padding-right:8px;text-align:right">${isArch?`<span style="background:#ede9fe;color:#5b21b6;padding:1px 6px;border-radius:8px;font-size:11px">Архив</span>`:`<span style="background:#dcfce7;color:#166534;padding:1px 6px;border-radius:8px;font-size:11px">Активен</span>`}</div>
+          <div>${!isArch?`<button class="btn btn-sec btn-sm" onclick="showAssignToGroup('${s.id}')">↗</button>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+
+      ${total>1?`<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding-top:10px;border-top:0.5px solid var(--color-border-secondary)">
+        <button onclick="window._stuPage=Math.max(0,(window._stuPage||0)-1);renderMain()" style="padding:4px 14px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px;${pg===0?'opacity:.4':''}">← Пред.</button>
+        <span style="font-size:12px;color:var(--color-text-secondary)">${pg+1} / ${total} · ${pg*PER+1}–${Math.min((pg+1)*PER,filtered.length)} из ${filtered.length}</span>
+        <button onclick="window._stuPage=Math.min(${total-1},(window._stuPage||0)+1);renderMain()" style="padding:4px 14px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:12px;${pg>=total-1?'opacity:.4':''}">След. →</button>
+      </div>`:''}`}
     </div>`;
 }
+
+function showMergeDupes(name){
+  const allActive=[];
+  D.teachers.forEach(t=>(t.groups||[]).forEach(g=>{
+    (g.students||[]).filter(s=>s&&s.name&&s.name.toLowerCase()===name.toLowerCase()).forEach(s=>{
+      allActive.push({s,g,t});
+    });
+  }));
+  if(allActive.length<2){toast('Нет дублей','error');return;}
+  openModal(`<div class="modal-title">⚠️ Дублирующиеся записи: ${allActive[0].s.name}</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px">Найдено ${allActive.length} записей. Выберите что делать:</div>
+    ${allActive.map(({s,g,t},i)=>`<div style="padding:8px 12px;background:var(--color-background-secondary);border-radius:8px;margin-bottom:6px;font-size:12px">
+      <b>${i+1}.</b> ${t.name} · ${g.day} ${g.time} · ${lvl(g.level)}
+      <button onclick="delDupe('${s.id}','${g.id}','${t.id}')" style="float:right;padding:2px 8px;border-radius:6px;border:1px solid #ef4444;color:#ef4444;background:white;cursor:pointer;font-size:11px">Удалить</button>
+    </div>`).join('')}
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">Закрыть</button></div>`);
+}
+
+function delDupe(sid,gid,tid){
+  const t=D.teachers.find(x=>x.id===tid);
+  const g=(t?.groups||[]).find(x=>x.id===gid);
+  if(!g) return;
+  g.students=g.students.filter(x=>x.id!==sid);
+  closeModal();sched();renderMain();toast('Запись удалена ✓','success');
+}
+
+
 function filterStudentsList(q){
   document.querySelectorAll('#stu-list [data-sname]').forEach(el=>{
     el.style.display=!q||el.dataset.sname.includes(q.toLowerCase())?'flex':'none';
