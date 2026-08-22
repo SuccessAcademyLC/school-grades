@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787377373';
+  const APP_VERSION='1787378318';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -3000,10 +3000,6 @@ function renderAccounts(el){
     ${supporters.length?`<div class="card" style="margin-bottom:10px">
       <div class="card-title" style="margin-bottom:14px">🤝 Supporter (${supporters.length})</div>
       ${supporters.map(accCard).join('')}
-    </div>`:''}
-    ${teachers.length?`<div class="card" style="margin-bottom:10px">
-      <div class="card-title" style="margin-bottom:14px">👤 Преподаватели (${teachers.length})</div>
-      ${teachers.map(accCard).join('')}
     </div>`:''}
     ${(()=>{
       const accTeacherIds=new Set((D.accounts||[]).filter(a=>a.role==='teacher').map(a=>a.teacherId));
