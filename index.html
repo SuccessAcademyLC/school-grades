@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787831687';
+  const APP_VERSION='1787900626';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1715,6 +1715,7 @@ function gchRus(sid,field,idx,val){
 
 
 function renderRusGroup(el,g,t,ed,archMode){
+  window._edFull=isAdmin()&&!archMode;
   const cfg=RUS_CFG[g.level]||RUS_CFG['rus-1'];
   const sts=g.students||[];
   const sorted=[...sts.filter(s=>s.name)].sort((a,b)=>a.name.localeCompare(b.name,'ru'));
@@ -1735,12 +1736,12 @@ function renderRusGroup(el,g,t,ed,archMode){
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${edFull?`<button class="btn btn-ora btn-sm" onclick="showPromoteGroup()">🎓 Завершить группу</button>
+        ${(window._edFull||false)?`<button class="btn btn-ora btn-sm" onclick="showPromoteGroup()">🎓 Завершить группу</button>
           <button class="btn btn-grn btn-sm" onclick="showAddStudentToGroup()">+ Студент</button>`:''} 
         ${ed?`<button class="btn btn-pri btn-sm" onclick="showBulkEntryModal()">📊 + Результаты</button>
           <button class="btn btn-sec btn-sm" onclick="showImport()">📋 Вставить</button>`:''}
         <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">Excel</button>
-        ${!archMode&&edFull?`<button class="btn btn-grn btn-sm" onclick="showUploadExcel()">⬆ Загрузить Excel</button>`:''}
+        ${!archMode&&(window._edFull||false)?`<button class="btn btn-grn btn-sm" onclick="showUploadExcel()">⬆ Загрузить Excel</button>`:''}
         ${!archMode&&(isAdmin()||curUser?.role==='teacher')?`<button class="btn btn-sec btn-sm" onclick="showGroupQR('${g.id}')" title="QR код группы">📱 QR</button>`:''}
         ${!archMode&&(isAdmin()||curUser?.role==='teacher')&&(g.archived_students||[]).length?`<button class="btn btn-sec btn-sm" onclick="showArchivedStudents()" title="Архивированные студенты">📦 ${(g.archived_students||[]).length}</button>`:''}
       </div>
@@ -1769,7 +1770,7 @@ function renderRusGroup(el,g,t,ed,archMode){
       <tbody>
         ${sorted.map((s,i)=>renderRusRow(s,i+1,g,ed)).join('')}
         ${ed?`<tr class="empty-row"><td class="nc">${sorted.length+1}</td>
-          <td class="nmc">${edFull?`<input class="ni" type="text" placeholder="Введите имя..." onblur="nameBlur('',${sorted.length},this)" onkeydown="nameKey(event,'',${sorted.length},this)">`:''}</td>
+          <td class="nmc">${(window._edFull||false)?`<input class="ni" type="text" placeholder="Введите имя..." onblur="nameBlur('',${sorted.length},this)" onkeydown="nameKey(event,'',${sorted.length},this)">`:''}</td>
           ${Array(colCount).fill('<td></td>').join('')}
           ${ed?'<td></td>':''}
         </tr>`:''}
@@ -1783,11 +1784,13 @@ function renderGroup(el,archMode,archSnap){
   const t=teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);
   if(!g){archMode?null:gotoT(selT);return;}
+  // Set edFull globally so srow/renderRusRow can access it
+  window._edFull=isAdmin()&&!archMode;
   if(RUS_LEVELS.includes(g.level)){renderRusGroup(el,g,t,canEdit(t?.id)&&!archMode,archMode);return;}
   const sts=g.students||[];
   const isE=['beginner','elementary'].includes(g.level);
   const ed=canEdit(t?.id)&&!archMode;
-  const edFull=isAdmin()&&!archMode; // full edit: name, add/remove students, archive group
+  const edFull=window._edFull;
   // Sort
   const sortKey=window._sortKey||'name', sortDir=window._sortDir||1;
   const realSts=sts.filter(s=>s.name);
@@ -1824,11 +1827,11 @@ function renderGroup(el,archMode,archSnap){
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${isAdmin()&&!archMode?`<button class="btn btn-sec btn-sm" onclick="showEditG('${g.id}')">⚙️</button>
           <button class="btn btn-ora btn-sm" onclick="showPromoteGroup()">${tr('finishGrp')}</button>`:''}
-        ${edFull?`<button class="btn btn-grn btn-sm" onclick="showAddStudentToGroup()">${tr('addStu')}</button>`:''}
+        ${(window._edFull||false)?`<button class="btn btn-grn btn-sm" onclick="showAddStudentToGroup()">${tr('addStu')}</button>`:''}
         ${ed?`<button class="btn btn-pri btn-sm" onclick="showBulkEntryModal()">📊 + Результаты</button>
               <button class="btn btn-sec btn-sm" onclick="showImport()">${tr('paste')}</button>`:''}
         <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">${tr('excel')}</button>
-        ${!archMode&&edFull?`<button class="btn btn-grn btn-sm" onclick="showUploadExcel()">${tr('uploadXl')}</button>`:''}
+        ${!archMode&&(window._edFull||false)?`<button class="btn btn-grn btn-sm" onclick="showUploadExcel()">${tr('uploadXl')}</button>`:''}
         ${!archMode&&(isAdmin()||curUser?.role==='teacher')?`<button class="btn btn-sec btn-sm" onclick="showGroupQR('${g.id}')" title="QR код группы">📱 QR</button>`:''}
         ${!archMode&&(isAdmin()||curUser?.role==='teacher')&&(g.archived_students||[]).length?`<button class="btn btn-sec btn-sm" onclick="showArchivedStudents()" title="Архивированные студенты">📦 ${(g.archived_students||[]).length}</button>`:''}
       </div>
@@ -1861,7 +1864,7 @@ function renderGroup(el,archMode,archSnap){
       <tbody>
         ${sorted.map((s,i)=>srow(s,i+1,g,ed,archMode)).join('')}
         ${ed?`<tr class="empty-row"><td class="nc">${sorted.length+1}</td>
-          <td class="nmc">${edFull?`<input class="ni" type="text" placeholder="Введите имя..." onblur="nameBlur('',${sorted.length},this)" onkeydown="nameKey(event,'',${sorted.length},this)">`:''}</td>
+          <td class="nmc">${(window._edFull||false)?`<input class="ni" type="text" placeholder="Введите имя..." onblur="nameBlur('',${sorted.length},this)" onkeydown="nameKey(event,'',${sorted.length},this)">`:''}</td>
           ${Array(27+1).fill('<td></td>').join('')}
           <td></td></tr>`:''}
       </tbody>
@@ -1906,7 +1909,7 @@ function srow(s,num,g,ed,archMode){
     return `<span style="color:${v===''?'#ddd':isZero?'#b45309':'inherit'};${isZero?'font-weight:700;background:#fff8f0;padding:1px 5px;border-radius:4px;':''}">` + (v!==''?fmt(v):'—') + `</span>`;
   };
   const atRisk=!empty&&s&&isAtRisk(s,g.level);
-  const namecell=edFull
+  const namecell=window._edFull
     ?`<input class="ni" type="text" value="${s?s.name:''}" placeholder="Введите имя..." onblur="nameBlur('${sid}',${num-1},this)" onkeydown="nameKey(event,'${sid}',${num-1},this)" onfocus="this.select()">`
     :(s?.name?`<span class="name-link" onclick="clickStudent('${sid}')">${atRisk?'<span title="Зона риска: 3+ оценки ниже 60 подряд" style="color:#ef4444;margin-right:4px">🔴</span>':''}${s.name}</span>`:'<span style="color:#ddd">—</span>');
   const us=s?(Array.isArray(s.units)?s.units:Array(12).fill(null)).concat(Array(12).fill(null)).slice(0,12):Array(12).fill(null);
@@ -1958,6 +1961,13 @@ function srow(s,num,g,ed,archMode){
     </div></td>`:'<td></td>'}
   </tr>`;
 }
+
+
+
+
+
+
+
 
 // ── Calc ──────────────────────────────────────────────────────────────────
 function calc(s,level){
