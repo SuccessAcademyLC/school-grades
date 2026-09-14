@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1789362009';
+  const APP_VERSION='1789364262';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -146,6 +146,8 @@ tbody tr.empty-row td{background:#fafafa}
 .ra-move:hover{background:#e8f5e9;border-color:#a5d6a7;color:#1b5e20}
 .name-link{cursor:pointer;color:#1a1a1a;text-decoration:none;transition:.15s}
 .name-link:hover{color:#4361ee;text-decoration:underline}
+tr.stu-selected td{background:#fef3c7!important;transition:background .3s;}
+tr.stu-selected .name-link{color:#92400e;font-weight:700;}
 .gb{border-left:2px solid #e0e4ff}
 .gh{background:#eef2ff!important;color:#4361ee!important}
 .gi{width:42px;border:1.5px solid #e8eaf0;border-radius:5px;padding:3px 4px;text-align:center;font-size:12.5px;background:#fafbff;font-family:inherit;transition:.15s}
@@ -448,11 +450,11 @@ body.dark .replace-card{border-color:#2d74da}
     <div class="sb-nav" id="sb-nav">
       <button class="sb-nav-btn active" onclick="sbTab('teachers',this)">👤</button>
       <button class="sb-nav-btn" onclick="sbTab('supporters',this)">🤝</button>
-      <button class="sb-nav-btn" onclick="sbTab('archives',this)">🗃</button>
+      <button class="sb-nav-btn" onclick="sbTab('archives',this)">📊</button>
     </div>
     <div id="sb-teachers"><div class="sb-hdr"><span data-i18n="teachers">Преподаватели</span></div><div id="tlist"></div></div>
     <div id="sb-supporters" style="display:none"><div class="sb-hdr">Суппортеры</div><div id="suplist"></div></div>
-    <div id="sb-archives" style="display:none"><div class="sb-hdr"><span data-i18n="archivesLbl">Архивы</span></div><div id="alist"></div></div>
+    <div id="sb-archives" style="display:none"><div class="sb-hdr">📊 Последние результаты</div><div id="alist"></div></div>
     <div id="sb-sr" style="display:none"></div>
   </div>
   
@@ -829,16 +831,23 @@ function renderRating(el){
   const levelFilter=window._ratingLevel||'all';
   const showArchive=window._ratingArchive||false;
   const lang=window._ratingLang||'en';
+  const courseFilter=window._ratingCourse||'all';
   const medal=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
   const sc=v=>v===null?'#bbb':v>=75?'#1b5e20':v>=70?'#e65100':'#b71c1c';
   const sb=v=>v===null?'#f5f5f5':v>=75?'#e8f5e9':v>=70?'#fff8e1':'#ffebee';
   const isRusL=l=>RUS_LEVELS.includes(l);
+  const isWWL=l=>WW_LEVELS.includes(l);
   const okv=v=>v!==null&&v!==undefined&&v!==''&&!isNaN(Number(v));
   const avg=arr=>{const a=(arr||[]).filter(okv).map(Number);return a.length?a.reduce((s,v)=>s+v,0)/a.length:null;};
   const rows=[];
   const collect=(teachers,isArch)=>teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
-    if(lang==='ru'&&!isRusL(g.level)) return;
-    if(lang==='en'&&isRusL(g.level)) return;
+    // Course filter
+    const gCourse=getGroupCourse(g);
+    if(courseFilter!=='all'&&gCourse!==courseFilter) return;
+    if(courseFilter==='all'){
+      if(lang==='ru'&&!isRusL(g.level)) return;
+      if(lang==='en'&&isRusL(g.level)) return;
+    }
     if(levelFilter!=='all'&&g.level!==levelFilter) return;
     (g.students||[]).filter(s=>s&&s.name&&!s.hidden).forEach(s=>{
       const overall=calcFinal(s,g.level);
@@ -866,6 +875,10 @@ function renderRating(el){
   const startIdx=rPage*PER_PAGE;
   el.innerHTML=`
     <div class="ph"><div><div class="pt">🏆 Рейтинг студентов</div><div class="ps">${filtered.length} студентов</div></div></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      <button onclick="window._ratingCourse='all';window._ratingPage=0;renderMain()" style="padding:5px 12px;border-radius:20px;border:1.5px solid ${courseFilter==='all'?'#4361ee':'#e0e4f0'};background:${courseFilter==='all'?'#eef2ff':'transparent'};color:${courseFilter==='all'?'#4361ee':'#888'};font-size:12px;cursor:pointer">Все курсы</button>
+      ${COURSES.map(c=>`<button onclick="window._ratingCourse='${c.id}';window._ratingPage=0;renderMain()" style="padding:5px 12px;border-radius:20px;border:1.5px solid ${courseFilter===c.id?c.color:'#e0e4f0'};background:${courseFilter===c.id?c.bg:'transparent'};color:${courseFilter===c.id?c.color:'#888'};font-size:12px;cursor:pointer">${c.label}</button>`).join('')}
+    </div>
     <div class="card" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <div style="display:flex;align-items:center;gap:6px;background:var(--color-background-secondary);border-radius:8px;padding:5px 10px;flex:1;min-width:160px">
         <input type="text" value="${window._ratingSearch||''}" placeholder="Поиск..." style="border:none;outline:none;font-size:13px;background:transparent;color:var(--color-text-primary);width:100%" oninput="clearTimeout(window._rt);window._rt=setTimeout(()=>{window._ratingSearch=this.value;window._ratingPage=0;renderMain();},250)">
@@ -1312,6 +1325,13 @@ function renderArchive(el){
   const arch=D.archives.find(a=>a.id===selArch);
   if(!arch){goHome();return;}
 
+  // New format: single group archive — auto-select teacher and group
+  if(arch._type==='group'&&!selT){
+    const t=arch.teachers?.[0];
+    const g=t?.groups?.[0];
+    if(t&&g){selT=t.id;selG=g.id;}
+  }
+
   // If teacher selected — show their groups
   if(selT){
     const t=(arch.teachers||[]).find(x=>x.id===selT);
@@ -1474,32 +1494,41 @@ function renderSidebar(){
     :'<div style="padding:16px;font-size:13px;color:#bbb">Нет суппортеров</div>');
 
   const allArchives=(D.archives||[]).slice().reverse();
-  const last10=allArchives.slice(0,10);
-  const archAvg=a=>{
-    const scores=[];
-    (a.teachers||[]).forEach(t=>(t.groups||[]).forEach(g=>(g.students||[]).forEach(s=>{
-      const v=calcFinal(s,g.level);if(v!==null)scores.push(v);
-    })));
-    return scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1):null;
-  };
+  // Collect all completed groups from all archives
+  const recentGroups=[];
+  allArchives.forEach(a=>{
+    (a.teachers||[]).forEach(t=>(t.groups||[]).forEach(g=>{
+      const sts=(g.students||[]).filter(s=>s.name);
+      const ovs=sts.map(s=>calcFinal(s,g.level)).filter(v=>v!==null);
+      const avg=ovs.length?(ovs.reduce((x,y)=>x+y,0)/ovs.length):null;
+      recentGroups.push({archId:a.id,archLabel:a.label,date:a.date,t,g,avg,stuCount:sts.length});
+    }));
+  });
+  recentGroups.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const last10=recentGroups.slice(0,10);
+
   document.getElementById('alist').innerHTML=last10.length
-    ?`${last10.map(a=>{
-        const avg=archAvg(a);
-        const color=avg!==null?(parseFloat(avg)>=75?'#166534':parseFloat(avg)>=60?'#854d0e':'#be123c'):'#bbb';
-        const bg=avg!==null?(parseFloat(avg)>=75?'#dcfce7':parseFloat(avg)>=60?'#fef3c7':'#fee2e2'):'#f5f5f5';
-        return `<div class="t-item ${selArch===a.id&&view==='archive'?'active':''}" onclick="gotoArch('${a.id}')">
-          <div class="t-av arch">📦</div>
+    ?`${last10.map(r=>{
+        const avg=r.avg;
+        const color=avg!==null?(avg>=75?'#166534':avg>=60?'#854d0e':'#be123c'):'#bbb';
+        const bg=avg!==null?(avg>=75?'#dcfce7':avg>=60?'#fef3c7':'#fee2e2'):'#f5f5f5';
+        const c=getCourseById(getGroupCourse(r.g));
+        return `<div class="t-item" onclick="gotoArch('${r.archId}');setTimeout(()=>{selT='${r.t.id}';selG='${r.g.id}';view='archive';renderAll();},150)" title="${r.archLabel}">
+          <div class="t-av" style="background:${c.color};font-size:11px;width:34px;height:34px">${lvl(r.g.level)}</div>
           <div style="flex:1;min-width:0">
-            <div class="t-name" style="font-size:12px">${a.label}</div>
-            <div class="t-sub" style="display:flex;align-items:center;gap:6px">
-              <span>${a.date}</span>
-              ${avg!==null?`<span style="font-size:11px;font-weight:600;padding:1px 6px;border-radius:8px;background:${bg};color:${color}">${avg}</span>`:''}
+            <div class="t-name" style="font-size:12px">${r.t.name}</div>
+            <div class="t-sub" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+              <span>${r.g.day} ${r.g.time}</span><span style="color:#ccc">·</span><span>${r.date}</span>
+              ${avg!==null?`<span style="font-size:11px;font-weight:600;padding:1px 5px;border-radius:6px;background:${bg};color:${color}">${avg.toFixed(1)}</span>`:''}
             </div>
           </div>
+          <span style="font-size:11px;color:#bbb">${r.stuCount}</span>
         </div>`;
       }).join('')}
-      ${allArchives.length>10?`<div style="padding:8px 14px;font-size:11px;color:#bbb;cursor:pointer" onclick="showArchivesList()">Все архивы (${allArchives.length}) →</div>`:''}`
-    :'<div style="padding:16px;font-size:13px;color:#bbb">Архивов нет</div>';
+      ${recentGroups.length>10?`<div style="padding:10px 14px;font-size:12px;color:#4361ee;cursor:pointer;text-align:center;border-top:1px solid var(--color-border-secondary)" onclick="showArchivesList()">
+        Все завершённые группы (${recentGroups.length}) →
+      </div>`:''}`
+    :'<div style="padding:16px;font-size:13px;color:#bbb">Завершённых групп нет</div>';
 }
 
 function renderMain(){
@@ -1686,11 +1715,34 @@ function renderTeacher(el){
       }).join('')}</div></div>`;
   const other=groups.filter(g=>g.day!=='MWF'&&g.day!=='TTS');
 
-  // Personal card for logged-in teacher
-  const isOwnCabinet=curUser?.role==='teacher'&&curUser?.teacherId===t.id;
+  // Stats for ALL viewers
   const totalStudents=groups.reduce((s,g)=>s+(g.students||[]).filter(x=>x.name).length,0);
   const allOvs=[];groups.forEach(g=>(g.students||[]).forEach(s=>{const o=calcFinal(s,g.level);if(o!==null)allOvs.push(o);}));
   const avgAll=allOvs.length?(allOvs.reduce((a,b)=>a+b,0)/allOvs.length).toFixed(1):'—';
+  const above75=allOvs.filter(v=>v>=75).length;
+  const below60=allOvs.filter(v=>v<60).length;
+
+  // Archive stats
+  const archGroups=[];
+  (D.archives||[]).forEach(a=>(a.teachers||[]).filter(at=>at.id===t.id).forEach(at=>(at.groups||[]).forEach(g=>archGroups.push(g))));
+  const totalArchStu=archGroups.reduce((s,g)=>s+(g.students||[]).filter(x=>x.name).length,0);
+
+  const statsCard=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:14px">
+    ${[
+      {v:groups.length,l:'Активных групп',c:'#4361ee',bg:'#eef2ff'},
+      {v:totalStudents,l:'Студентов',c:'#0f766e',bg:'#ccfbf1'},
+      {v:avgAll,l:'Средний балл',c:parseFloat(avgAll)>=75?'#166534':parseFloat(avgAll)>=60?'#854d0e':'#b91c1c',bg:parseFloat(avgAll)>=75?'#dcfce7':parseFloat(avgAll)>=60?'#fef3c7':'#fee2e2'},
+      {v:above75,l:'Выше 75',c:'#166534',bg:'#dcfce7'},
+      {v:below60,l:'Ниже 60',c:'#b91c1c',bg:'#fee2e2'},
+      {v:totalArchStu,l:'Завершили курс',c:'#6d28d9',bg:'#ede9fe'},
+    ].map(({v,l,c,bg})=>`<div style="background:${bg};border-radius:10px;padding:10px;text-align:center">
+      <div style="font-size:20px;font-weight:800;color:${c}">${v}</div>
+      <div style="font-size:10px;color:${c};opacity:.8;margin-top:2px">${l}</div>
+    </div>`).join('')}
+  </div>`;
+
+  // Personal card for logged-in teacher
+  const isOwnCabinet=curUser?.role==='teacher'&&curUser?.teacherId===t.id;
   const personalCard=isOwnCabinet?`
     <div style="background:linear-gradient(135deg,#16213e,#0f3460);border-radius:16px;padding:20px 24px;margin-bottom:16px;color:white;display:flex;align-items:center;gap:16px">
       <div style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0">${ini(t.name)}</div>
@@ -1716,6 +1768,7 @@ function renderTeacher(el){
       </div>`:''}
     </div>
     ${!groups.length?`<div class="card"><div class="empty"><h3>Нет групп</h3></div></div>`:`
+    ${statsCard}
     <div class="card">${dayBlock(tr('mwfLabel'),mwf)}${dayBlock(tr('ttsLabel'),tts)}${dayBlock(tr('otherLabel'),other)}</div>`}`;
 }
 
@@ -1750,7 +1803,7 @@ function renderRusRow(s,num,g,ed){
     ${ppts.map((v,i)=>`<td${i===0?' class="gb"':''}>${gcell(v,'presentations',i)}</td>`).join('')}
     <td class="gb">${gcell(s?.finalConversation,'finalConversation')}</td>
     ${cfg.hasFinalTest?`<td>${gcell(s?.finalTest,'finalTest')}</td>`:''}
-    <td><span class="ob ${ovc}" data-ov="${sid}">${ov!==null?ov.toFixed(1):'—'}</span></td>
+    <td><span class="ob ${ovc}" data-ov="${sid}">${ov!==null?ov.toFixed(1):'—'}</span>${trendArrow(sid,s,ov)}</td>
     ${ed&&!empty?`<td><div class="row-acts">
       <button class="ra" onclick="showSetStart('${sid}')" title="Начало с разговорки" style="font-size:11px;padding:2px 6px">▶П${(s?.startConv)||1}</button>
       ${isAdmin()?`<button class="ra ra-move" onclick="showMoveStudent('${sid}')" title="Перенести">↗</button>
@@ -1791,6 +1844,7 @@ function renderWWGroup(el,g,t,ed,archMode){
         ${ed?`<button class="btn btn-pri btn-sm" onclick="showBulkEntryModal()">📊 + Результаты</button>
               <button class="btn btn-sec btn-sm" onclick="showImport()">📋 Вставить</button>`:''}
         <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">Excel</button>
+        <button class="btn btn-sec btn-sm" onclick="exportPDF(${archMode})" title="PDF отчёт">📄 PDF</button>
         ${!archMode&&(isAdmin()||curUser?.role==='teacher')?`<button class="btn btn-sec btn-sm" onclick="showGroupQR('${g.id}')">📱 QR</button>`:''}
       </div>
     </div>
@@ -1867,7 +1921,7 @@ function renderWWRow(s,num,g,ed,archMode,cfg){
     <td style="background:#fce7f3">${gcell(s?.ww_ppt??'','ww_ppt',null,20,'ww_ppt')}</td>
     <td style="background:#fee2e2">${gcell(s?.ww_final??'','ww_final',null,100,'ww_final')}</td>
     <td style="background:#e0e7ff">${gcell(s?.ww_speaking??'','ww_speaking',null,100,'ww_speaking')}</td>
-    <td class="${ovc}">${ov!==null?ov.toFixed(1):'—'}</td>
+    <td class="${ovc}"><span data-ov="${sid}">${ov!==null?ov.toFixed(1):'—'}</span>${trendArrow(sid,s,ov)}</td>
     ${!archMode?`<td><div class="row-acts">
       ${isAdmin()?`<button class="ra ra-arch" onclick="archiveStudent('${sid}')" title="В архив">📦</button>
       <button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>`:''}
@@ -1878,8 +1932,6 @@ function renderWWRow(s,num,g,ed,archMode,cfg){
 
 // ── Wider World grade change ───────────────────────────────────────────────
 function gchWW(sid,field,idx,val){
-
-
   if(!sid) return;
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);
@@ -1887,6 +1939,8 @@ function gchWW(sid,field,idx,val){
   if(!s) return;
   const inp=event?.target||null;
   if(!validateGradeInput(inp,val,100)) return;
+  const prevOv=calcWW(s,g.level);
+  if(prevOv!==null) s.prevOverall=prevOv;
   const n=val===''?null:parseFloat(val);
   if(idx!==null){
     if(!s[field])s[field]=[];
@@ -1898,6 +1952,7 @@ function gchWW(sid,field,idx,val){
   const ov=calcWW(s,g.level);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=ov!==null?ov.toFixed(1):'—';badge.className='ob '+(ov===null?'on':ov>=75?'og':ov>=70?'oy':'or');}
+  const arrow2=document.querySelector(`[data-trend="${sid}"]`);if(arrow2)arrow2.outerHTML=trendArrow(sid,s,ov)||arrow2.outerHTML;
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
@@ -1932,6 +1987,7 @@ function renderRusGroup(el,g,t,ed,archMode){
         ${ed?`<button class="btn btn-pri btn-sm" onclick="showBulkEntryModal()">📊 + Результаты</button>
           <button class="btn btn-sec btn-sm" onclick="showImport()">📋 Вставить</button>`:''}
         <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">Excel</button>
+        <button class="btn btn-sec btn-sm" onclick="exportPDF(${archMode})" title="PDF отчёт">📄 PDF</button>
         ${!archMode&&(window._edFull||false)?`<button class="btn btn-grn btn-sm" onclick="showUploadExcel()">⬆ Загрузить Excel</button>`:''}
         ${!archMode&&(isAdmin()||curUser?.role==='teacher')?`<button class="btn btn-sec btn-sm" onclick="showGroupQR('${g.id}')" title="QR код группы">📱 QR</button>`:''}
         ${!archMode&&(isAdmin()||curUser?.role==='teacher')&&(g.archived_students||[]).length?`<button class="btn btn-sec btn-sm" onclick="showArchivedStudents()" title="Архивированные студенты">📦 ${(g.archived_students||[]).length}</button>`:''}
@@ -2142,7 +2198,7 @@ function srow(s,num,g,ed,archMode){
     <td class="gb">${gcell(s?.presentation,'presentation')}</td>
     <td>${gcell(s?.speaking,'speaking')}</td>
     <td>${gcell(s?.final,'final')}</td>
-    <td><span class="ob ${ovc}" data-ov="${sid}">${finalOv!==null?finalOv.toFixed(1):'—'}</span></td>
+    <td><span class="ob ${ovc}" data-ov="${sid}">${finalOv!==null?finalOv.toFixed(1):'—'}</span>${trendArrow(sid,s,finalOv)}</td>
     <td style="background:#fffbf5">${ed&&s?`<input class="gi" type="text" inputmode="decimal" value="${s.retake||''}" oninput="gch('${sid}','retake',null,this.value)" placeholder="">`:(s?.retake&&s.retake>0?`<span style="color:#e65100;font-weight:700">+${fmt(s.retake)}</span>`:'<span style="color:#ddd">—</span>')}</td>
     ${!empty?`<td><div class="row-acts">
       ${isAdmin()?`<button class="ra" onclick="showSetStart('${sid}')" title="Начало с юнита" style="font-size:11px;padding:2px 6px">▶U${(s&&s.startUnit)||1}</button>
@@ -2331,6 +2387,14 @@ function gchX2(sid,field,idx,val){
   const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 
+function trendArrow(sid,s,ov){
+  if(!s||s.prevOverall==null||ov===null) return '';
+  const d=ov-s.prevOverall;
+  if(d>0.05) return `<span data-trend="${sid}" style="display:block;font-size:10px;color:#16a34a;font-weight:700;line-height:1.2">↑ +${d.toFixed(1)}</span>`;
+  if(d<-0.05) return `<span data-trend="${sid}" style="display:block;font-size:10px;color:#dc2626;font-weight:700;line-height:1.2">↓ ${d.toFixed(1)}</span>`;
+  return `<span data-trend="${sid}" style="display:block;font-size:10px;color:#aaa;line-height:1.2">→</span>`;
+}
+
 function gch(sid,field,idx,val){
   if(!sid) return;
   const t=D.teachers.find(x=>x.id===selT);
@@ -2340,6 +2404,9 @@ function gch(sid,field,idx,val){
   const inp=event?.target||null;
   const max=field==='retake'?6:100;
   if(!validateGradeInput(inp,val,max)) return;
+  // Save previous overall before changing
+  const prevOv=calcFinal(s,g.level);
+  if(prevOv!==null) s.prevOverall=prevOv;
   const n=val===''?null:parseFloat(val);
   if(idx!==null){
     if(!s[field])s[field]=Array(field==='units'?12:5).fill(null);
@@ -2353,7 +2420,8 @@ function gch(sid,field,idx,val){
   const fv=ov!==null?(ov+(r||0)):(r!==null?r:null);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=fv!==null?fv.toFixed(1):'—';badge.className='ob '+(fv===null?'on':fv>=75?'og':fv>=70?'oy':'or');}
-  // Save immediately without delay
+  // Update trend arrow
+  const arrow=document.querySelector(`[data-trend="${sid}"]`);if(arrow)arrow.outerHTML=trendArrow(sid,s,fv)||arrow.outerHTML;
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
@@ -2708,7 +2776,19 @@ function adminRestoreHidden(sid,tid,gid){
 function showPromoteGroup(){
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+
+  // Count missing grades
   const isRus=RUS_LEVELS.includes(g.level);
+  const isWW=WW_LEVELS.includes(g.level);
+  const sts=(g.students||[]).filter(s=>s&&s.name&&!s.hidden);
+  const missing=sts.filter(s=>{
+    if(isRus) return !s.finalConversation&&s.finalConversation!==0;
+    if(isWW) return !s.ww_final&&s.ww_final!==0;
+    return (!s.final&&s.final!==0)||(!s.speaking&&s.speaking!==0);
+  }).length;
+  const missingWarn=missing>0?`<div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#c2410c">
+    ⚠️ <b>${missing} студентов</b> без финального результата — завершение до заполнения всех оценок
+  </div>`:'';
   const levels=isRus?RUS_LEVELS:LEVEL_ORDER;
   const currentIdx=levels.indexOf(g.level);
   const nextLevel=currentIdx>=0&&currentIdx<levels.length-1?levels[currentIdx+1]:null;
@@ -2717,8 +2797,9 @@ function showPromoteGroup(){
     :LEVEL_ORDER.map(l=>`<option value="${l}" ${l===nextLevel?'selected':''}>${lvl(l)}</option>`).join('');
 
   openModal(`<div class="modal-title">🎓 Завершить группу</div>
+    ${missingWarn}
     <div class="fg"><label class="fl">Название архива</label>
-      <input type="text" class="fi" id="prm-label" value="${new Date().toLocaleDateString('ru')} — ${g.day} ${g.time} ${lvl(g.level)}">
+      <input type="text" class="fi" id="prm-label" value="${t.name} — ${lvl(g.level)} ${g.day} ${g.time}">
     </div>
     <div style="background:#f0fdf4;border-radius:12px;padding:14px;margin-bottom:16px">
       <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:10px">🔼 Перевести студентов на следующий уровень</div>
@@ -2760,16 +2841,24 @@ function showPromoteGroup(){
 function promoteGroup(){
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
-  const label=document.getElementById('prm-label')?.value?.trim()||'Архив';
+  const label=document.getElementById('prm-label')?.value?.trim()||`${t.name} — ${lvl(g.level)} ${g.day} ${g.time}`;
   const transfer=document.getElementById('prm-transfer')?.checked;
   const nextLevel=document.getElementById('prm-next-level')?.value;
   const nextTime=document.getElementById('prm-time')?.value||g.time;
   const nextDay=g.day;
 
-  // Archive current group (with all grades)
-  const snap=JSON.parse(JSON.stringify([t]));
+  // Archive ONLY this group (not all teacher groups)
+  const groupSnap=JSON.parse(JSON.stringify(g));
+  const teacherSnap={id:t.id,name:t.name,lang:t.lang,course:t.course,courses:t.courses,phone:t.phone};
   if(!D.archives) D.archives=[];
-  D.archives.push({id:uid(),label,date:new Date().toLocaleDateString('ru'),teachers:snap});
+  D.archives.push({
+    id:uid(),
+    label,
+    date:new Date().toLocaleDateString('ru'),
+    // New format: single group archive
+    _type:'group',
+    teachers:[{...teacherSnap, groups:[groupSnap]}]
+  });
 
   // Students for new group — clean grades, same names
   const activeStudents=(g.students||[]).filter(s=>s&&s.name&&!s.hidden);
@@ -2794,6 +2883,7 @@ function promoteGroup(){
   closeModal();renderAll();
   saveData().then(()=>toast(transfer&&nextLevel?`Архивировано ✓. Открыта новая группа ${lvl(nextLevel)}`:'Группа завершена и архивирована ✓','success'));
 }
+
 
 function delStudent(sid){
   if(!sid||!confirm('Удалить студента из группы?')) return;
@@ -2921,6 +3011,21 @@ function doMove(sid,targetGid){
 }
 
 function clickStudent(sid){
+  // In QR/observer mode — highlight the row instead of navigating
+  if(window._qrViewMode||isObserver()){
+    // Remove previous highlight
+    document.querySelectorAll('tr.stu-selected').forEach(r=>r.classList.remove('stu-selected'));
+    // Find and highlight this student's row
+    const nameEl=document.querySelector(`.name-link[onclick="clickStudent('${sid}')"]`);
+    if(nameEl){
+      const row=nameEl.closest('tr');
+      if(row){
+        row.classList.add('stu-selected');
+        row.scrollIntoView({behavior:'smooth',block:'nearest'});
+      }
+    }
+    return;
+  }
   const found=[];
   D.teachers.forEach(t=>(t.groups||[]).forEach(g=>{
     const s=(g.students||[]).find(x=>x.id===sid);
@@ -4280,6 +4385,63 @@ function exportGroup(archMode){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sheetData(g)),`${g.day} ${g.time}`.slice(0,31));
   XLSX.writeFile(wb,`${t.name} ${g.day} ${g.time} ${lvl(g.level)}.xlsx`);
+}
+
+function exportPDF(archMode){
+  const arch=archMode?D.archives.find(a=>a.id===selArch):null;
+  const teachers=arch?arch.teachers:D.teachers;
+  const t=teachers.find(x=>x.id===selT);
+  const g=(t?.groups||[]).find(x=>x.id===selG);if(!g) return;
+  const sts=(g.students||[]).filter(s=>s&&s.name).sort((a,b)=>a.name.localeCompare(b.name));
+  const logo=D.settings?.orgLogo?`<img src="${D.settings.orgLogo}" style="height:50px;object-fit:contain">`:
+    `<div style="font-size:20px;font-weight:800;color:#4361ee">Success Academy</div>`;
+  const course=getCourseById(getGroupCourse(g));
+  const date=new Date().toLocaleDateString('ru',{day:'2-digit',month:'long',year:'numeric'});
+  const rows=sts.map((s,i)=>{
+    const ov=calcFinal(s,g.level);
+    const ovc=ov===null?'#888':ov>=75?'#166534':ov>=70?'#e65100':'#b91c1c';
+    const ovbg=ov===null?'#f5f5f5':ov>=75?'#dcfce7':ov>=70?'#fff3cd':'#fee2e2';
+    const status=ov===null?'—':ov>=75?'✓ Прошёл':'✗ Не прошёл';
+    return `<tr style="background:${i%2===0?'#fafafa':'white'}">
+      <td style="padding:8px 12px;font-size:13px">${i+1}</td>
+      <td style="padding:8px 12px;font-size:13px;font-weight:500">${s.name}</td>
+      <td style="padding:8px 12px;font-size:14px;font-weight:800;color:${ovc};background:${ovbg};text-align:center">${ov!==null?ov.toFixed(1):'—'}</td>
+      <td style="padding:8px 12px;font-size:12px;color:${ovc};text-align:center">${status}</td>
+    </tr>`;
+  }).join('');
+  const above75=sts.filter(s=>calcFinal(s,g.level)>=75).length;
+  const avgOv=(()=>{const vs=sts.map(s=>calcFinal(s,g.level)).filter(v=>v!==null);return vs.length?(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(1):'—';})();
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>Отчёт — ${t.name} — ${lvl(g.level)}</title>
+  <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a;}table{width:100%;border-collapse:collapse;}th{background:#1e3a5f;color:white;padding:10px 12px;font-size:12px;text-align:left;}tr:hover{background:#f0f4ff!important;}</style>
+  </head><body>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e0e4f0">
+    ${logo}
+    <div style="text-align:right">
+      <div style="font-size:11px;color:#888">${date}</div>
+      <div style="font-size:11px;color:${course.color};background:${course.bg};padding:2px 8px;border-radius:6px;display:inline-block;margin-top:4px">${course.label}</div>
+    </div>
+  </div>
+  <div style="margin-bottom:20px">
+    <div style="font-size:20px;font-weight:700;margin-bottom:4px">${t.name}</div>
+    <div style="font-size:14px;color:#666">${lvl(g.level)} · ${g.day} ${g.time}</div>
+  </div>
+  <div style="display:flex;gap:16px;margin-bottom:20px">
+    ${[{v:sts.length,l:'Студентов'},{v:avgOv,l:'Средний балл'},{v:above75,l:'Прошли (≥75)'},{v:sts.length-above75,l:'Не прошли'}].map(({v,l})=>`
+    <div style="background:#f8f9fb;border-radius:10px;padding:12px 16px;flex:1;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#1e3a5f">${v}</div>
+      <div style="font-size:11px;color:#888;margin-top:2px">${l}</div>
+    </div>`).join('')}
+  </div>
+  <table>
+    <thead><tr><th style="width:40px">#</th><th>Студент</th><th style="width:100px;text-align:center">Overall</th><th style="width:120px;text-align:center">Статус</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="margin-top:20px;font-size:11px;color:#aaa;text-align:center">Сформировано платформой Success Academy · ${date}</div>
+  <scr'+'ipt>window.onload=()=>window.print();</scr'+'ipt>
+  </body></html>`;
+  const w=window.open('','_blank');
+  if(w){w.document.write(html);w.document.close();}
 }
 function exportAll(){
   const wb=XLSX.utils.book_new();
