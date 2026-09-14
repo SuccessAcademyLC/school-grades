@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1789360543';
+  const APP_VERSION='1789362009';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -588,6 +588,28 @@ function getCourse(t){
   return COURSES[0];
 }
 function getCourseById(id){return COURSES.find(c=>c.id===id)||COURSES[0];}
+
+// Get all courses a teacher can teach
+function getTeacherCourses(t){
+  if(t?.courses&&t.courses.length) return t.courses;
+  // Legacy: derive from lang
+  if(t?.lang==='rus') return ['poekhali'];
+  if(t?.lang==='ww') return ['widerworld'];
+  return ['speakout'];
+}
+
+// Get course of a specific group by its level
+function getGroupCourse(g){
+  if(!g) return 'speakout';
+  if(RUS_LEVELS.includes(g.level)) return 'poekhali';
+  if(WW_LEVELS.includes(g.level)) return 'widerworld';
+  return 'speakout';
+}
+
+// Get groups of teacher filtered by course
+function getTeacherGroupsByCourse(t, courseId){
+  return (t?.groups||[]).filter(g=>getGroupCourse(g)===courseId);
+}
 const SUP_LEVELS_ENG=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
 const SUP_LEVELS_RUS=['rus-1','rus-2','rus-3','rus-4'];
 const SUP_LEVEL_LABELS={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int','intermediate':'Intermediate','upper-intermediate':'Upper-Int','rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4'};
@@ -1023,27 +1045,56 @@ function fixFirebaseArrays(obj){
 }
 
 // ── Groups / navigation helpers ───────────────────────────────────────────
-function showAddGroup(tid){
+function showAddGroup(tid, presetCourseId){
   const t=D.teachers.find(x=>x.id===tid);if(!t) return;
-  const isRus=t.lang==='rus';
-  const isWW=t.lang==='ww'||t.course==='widerworld';
-  const levels=isRus?['rus-1','rus-2','rus-3','rus-4']:isWW?['ww-1','ww-2','ww-3','ww-4']:['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
-  openModal(`<div class="modal-title">+ Новая группа</div>
-    <div class="fg"><label class="fl">Уровень</label>
-      <select class="fi" id="glvl">${levels.map(l=>`<option value="${l}">${lvl(l)}</option>`).join('')}</select>
-    </div>
-    <div class="fg"><label class="fl">Расписание</label>
-      <div style="display:flex;gap:8px">
-        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="gday" value="MWF" checked> MWF</label>
-        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="gday" value="TTS"> TTS</label>
+  const teacherCourses=getTeacherCourses(t);
+
+  const showLevelPicker=(courseId)=>{
+    const isRus=courseId==='poekhali';
+    const isWW=courseId==='widerworld';
+    const levels=isRus?['rus-1','rus-2','rus-3','rus-4']:isWW?['ww-1','ww-2','ww-3','ww-4']:['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+    const course=getCourseById(courseId);
+    openModal(`<div class="modal-title">+ Новая группа <span style="font-size:12px;background:${course.bg};color:${course.color};padding:2px 8px;border-radius:8px;margin-left:6px">${course.label}</span></div>
+      <input type="hidden" id="g-course" value="${courseId}">
+      <div class="fg"><label class="fl">Уровень</label>
+        <select class="fi" id="glvl">${levels.map(l=>`<option value="${l}">${lvl(l)}</option>`).join('')}</select>
       </div>
+      <div class="fg"><label class="fl">Расписание</label>
+        <div style="display:flex;gap:8px">
+          <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="gday" value="MWF" checked> MWF</label>
+          <label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border:1.5px solid #e0e4f0;border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="gday" value="TTS"> TTS</label>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Время</label>
+        <select class="fi" id="gtm">${TIMES.map(tm=>`<option>${tm}</option>`).join('')}</select>
+      </div>
+      <div class="fa">
+        ${teacherCourses.length>1?`<button class="btn btn-sec" onclick="showAddGroup('${tid}')">← Назад</button>`:`<button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>`}
+        <button class="btn btn-pri" onclick="addGroup('${tid}')">Создать</button>
+      </div>`);
+  };
+
+  // If preset course or only 1 course — skip course picker
+  const courseId=presetCourseId||null;
+  if(courseId||(teacherCourses.length===1)){
+    showLevelPicker(courseId||teacherCourses[0]);
+    return;
+  }
+
+  // Multiple courses — show course picker first
+  openModal(`<div class="modal-title">+ Новая группа — выберите курс</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin:16px 0">
+      ${teacherCourses.map(cid=>{
+        const c=getCourseById(cid);
+        return `<button onclick="closeModal();setTimeout(()=>showAddGroup('${tid}','${cid}'),50)" style="padding:16px;border-radius:12px;border:2px solid ${c.bg};background:${c.bg};color:${c.color};cursor:pointer;font-size:15px;font-weight:600;text-align:left;display:flex;align-items:center;gap:10px">
+          <span style="font-size:20px">${cid==='speakout'?'📘':cid==='widerworld'?'🌍':'📗'}</span>
+          ${c.label}
+        </button>`;
+      }).join('')}
     </div>
-    <div class="fg"><label class="fl">Время</label>
-      <select class="fi" id="gtm">${(window.TIMES||['09:00','10:30','14:00','15:30','17:00','18:30']).map(tm=>`<option>${tm}</option>`).join('')}</select>
-    </div>
-    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
-      <button class="btn btn-pri" onclick="addGroup('${tid}')">Создать</button></div>`);
+    <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button></div>`);
 }
+
 
 function addGroup(tid){
   const t=D.teachers.find(x=>x.id===tid);if(!t) return;
@@ -1054,6 +1105,7 @@ function addGroup(tid){
   if(!t.groups) t.groups=[];
   const newG={id:uid(),level,day,time,students:[]};
   t.groups.push(newG);
+  window._selTCourse=getGroupCourse(newG);
   closeModal();
   selG=newG.id;selT=tid;view='group';
   renderAll();sched();toast('Группа создана ✓','success');
@@ -1247,10 +1299,12 @@ function gotoArch(id){
   renderAll();
 }
 
-function gotoT(id){
+function gotoT(id, courseId){
   if(window._qrViewMode) return;
   selT=id;selG=null;selArch=null;view='teacher';curPage=null;
   curSbTab='teachers';
+  // Store which course context we're viewing for this teacher
+  window._selTCourse=courseId||null;
   renderAll();
 }
 
@@ -1371,18 +1425,21 @@ function renderSidebar(){
   document.getElementById('tlist').innerHTML=(()=>{
     if(!teachers.length) return '<div style="padding:16px;font-size:13px;color:#bbb">Нет преподавателей</div>';
     const sorted=[...teachers].sort((a,b)=>a.name.localeCompare(b.name));
-    const getTC=t=>t.course||(t.lang==='rus'?'poekhali':t.lang==='ww'?'widerworld':'speakout');
-    const renderT=t=>`<div class="t-item ${selT===t.id&&(view==='teacher'||view==='group')?'active':''}" onclick="gotoT('${t.id}')">
+    const renderT=(t,courseId)=>{
+      const grpCount=courseId?getTeacherGroupsByCourse(t,courseId).length:(t.groups||[]).length;
+      const isActive=selT===t.id&&(view==='teacher'||view==='group');
+      return `<div class="t-item ${isActive?'active':''}" onclick="gotoT('${t.id}','${courseId||''}')">
         <div class="t-av">${ini(t.name)}</div>
         <div style="flex:1;min-width:0">
-          <div class="t-name">${t.name}${tLangBadge(t)}</div>
-          <div class="t-sub">${(t.groups||[]).length} ${tr('grpCount')}${t.phone?` · ${t.phone}`:''}</div>
+          <div class="t-name">${t.name}</div>
+          <div class="t-sub">${grpCount} ${tr('grpCount')}${t.phone?` · ${t.phone}`:''}</div>
         </div>
       </div>`;
-    const section=(label,color,bg,list)=>list.length?`
+    };
+    const section=(label,color,bg,courseId,list)=>list.length?`
       <div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:${color};background:${bg};letter-spacing:.5px;text-transform:uppercase">${label} (${list.length})</div>
-      ${list.map(renderT).join('')}`:'';
-    return COURSES.map(c=>section(c.label,c.color,c.bg+'33',sorted.filter(t=>getTC(t)===c.id))).join('')
+      ${list.map(t=>renderT(t,courseId)).join('')}`:'';
+    return COURSES.map(c=>section(c.label,c.color,c.bg+'33',c.id,sorted.filter(t=>getTeacherCourses(t).includes(c.id)))).join('')
          ||'<div style="padding:16px;font-size:13px;color:#bbb">Нет преподавателей</div>';
   })();
 
@@ -1606,7 +1663,12 @@ function renderHome(el){
 function renderTeacher(el){
   const t=D.teachers.find(x=>x.id===selT);
   if(!t){goHome();return;}
-  const groups=t.groups||[];
+  const courseId=window._selTCourse||null;
+  // Filter groups by course if courseId is set
+  const allGroups=t.groups||[];
+  const groups=courseId?allGroups.filter(g=>getGroupCourse(g)===courseId):allGroups;
+  const course=courseId?getCourseById(courseId):null;
+
   const sortByTime=arr=>[...arr].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
   const mwf=sortByTime(groups.filter(g=>g.day==='MWF')),tts=sortByTime(groups.filter(g=>g.day==='TTS'));
   const otherDays=sortByTime(groups.filter(g=>g.day!=='MWF'&&g.day!=='TTS'));
@@ -1645,12 +1707,12 @@ function renderTeacher(el){
     </div>`:'';
   el.innerHTML=`
     ${personalCard}
-    <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">${t.name}</span></div>
+    <div class="bc"><span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span><span class="bc-c">${t.name}${course?` <span style="font-size:11px;background:${course.bg};color:${course.color};padding:1px 8px;border-radius:8px;margin-left:6px">${course.label}</span>`:''}</span></div>
     <div class="ph">
-      <div><div class="pt">${t.name}</div><div class="ps">${groups.length} ${tr('grpCount')}</div></div>
+      <div><div class="pt">${t.name}${course?` <span style="font-size:12px;background:${course.bg};color:${course.color};padding:2px 10px;border-radius:8px;margin-left:8px">${course.label}</span>`:''}</div><div class="ps">${groups.length} ${tr('grpCount')}</div></div>
       ${isAdmin()?`<div style="display:flex;gap:8px">
         <button class="btn btn-sec btn-sm" onclick="showEditT('${t.id}')">✏️</button>
-        <button class="btn btn-pri btn-sm" onclick="showAddGroup('${t.id}')">+ Группа</button>
+        <button class="btn btn-pri btn-sm" onclick="showAddGroup('${t.id}','${courseId||''}')">+ Группа</button>
       </div>`:''}
     </div>
     ${!groups.length?`<div class="card"><div class="empty"><h3>Нет групп</h3></div></div>`:`
@@ -3501,6 +3563,7 @@ async function addAccount(){
 }
 function showEditT(id){
   const t=D.teachers.find(x=>x.id===id);if(!t) return;
+  const tCourses=getTeacherCourses(t);
   openModal(`<div class="modal-title">✏️ Изменить преподавателя</div>
     <div class="fg"><label class="fl">Имя и фамилия</label>
       <input type="text" class="fi" id="et-name" value="${t.name||''}">
@@ -3508,17 +3571,13 @@ function showEditT(id){
     <div class="fg"><label class="fl">Телефон <span style="font-size:11px;color:#888;font-weight:400">(необязательно)</span></label>
       <input type="text" class="fi" id="et-phone" value="${t.phone||''}" placeholder="+998 90 123 45 67">
     </div>
-    <div class="fg"><label class="fl">Направление</label>
+    <div class="fg"><label class="fl">Курсы</label>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="et-lang" value="ru" ${(t.lang||'ru')==='ru'?'checked':''}> Англ (русскоговорящий)
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="et-lang" value="kk" ${t.lang==='kk'?'checked':''}> Англ (каракалпакоговорящий)
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid #e0e4f0;border-radius:10px;cursor:pointer;font-size:13px">
-          <input type="radio" name="et-lang" value="rus" ${t.lang==='rus'?'checked':''}> Русский язык
-        </label>
+        ${COURSES.map(c=>`<label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid ${tCourses.includes(c.id)?c.bg:'#e0e4f0'};background:${tCourses.includes(c.id)?c.bg+'44':'transparent'};border-radius:10px;cursor:pointer;font-size:13px">
+          <input type="checkbox" name="et-course" value="${c.id}" ${tCourses.includes(c.id)?'checked':''}
+            onchange="this.closest('label').style.borderColor=this.checked?'${c.bg}':'#e0e4f0';this.closest('label').style.background=this.checked?'${c.bg}44':'transparent'">
+          <span style="color:${c.color};font-weight:500">${c.label}</span>
+        </label>`).join('')}
       </div>
     </div>
     <div class="fg"><label class="fl">Новый пароль <span style="font-size:11px;color:#888;font-weight:400">(оставьте пустым чтобы не менять)</span></label>
@@ -3541,7 +3600,14 @@ async function editT(id){
   if(!name){toast('Введите имя','error');return;}
   t.name=name;
   t.phone=document.getElementById('et-phone')?.value?.trim()||t.phone||'';
-  t.lang=document.querySelector('input[name="et-lang"]:checked')?.value||t.lang||'ru';
+  // Save selected courses
+  const checked=[...document.querySelectorAll('input[name="et-course"]:checked')].map(x=>x.value);
+  if(checked.length===0){toast('Выберите хотя бы один курс','error');return;}
+  t.courses=checked;
+  // Update legacy lang field based on primary course
+  if(checked.includes('poekhali')&&!checked.includes('speakout')&&!checked.includes('widerworld')) t.lang='rus';
+  else if(checked.includes('widerworld')&&!checked.includes('speakout')&&!checked.includes('poekhali')) t.lang='ww';
+  else t.lang=t.lang||'ru';
   const pass=document.getElementById('et-pass')?.value?.trim();
   if(pass&&pass.length>=4){
     const acc=(D.accounts||[]).find(a=>a.teacherId===id);
