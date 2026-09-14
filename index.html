@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1789366785';
+  const APP_VERSION='1789383732';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -266,17 +266,28 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   .bc{font-size:11px;flex-wrap:wrap}
   /* Таблица — горизонтальный скролл */
   .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
-  /* Sticky колонки # и Студент */
-  .tw table td:nth-child(1),.tw table th:nth-child(1){position:sticky;left:0;z-index:2;background:var(--color-background-primary)}
-  .tw table td:nth-child(2),.tw table th:nth-child(2){position:sticky;left:30px;z-index:2;background:var(--color-background-primary);box-shadow:2px 0 4px rgba(0,0,0,.07)}
-  body.dark .tw table td:nth-child(1),body.dark .tw table th:nth-child(1),
-  body.dark .tw table td:nth-child(2),body.dark .tw table th:nth-child(2){background:#161927}
+  /* Sticky колонки # и Студент — исправлены для мобильного */
+  tbody td.nc,thead th.nc{position:sticky;left:0;z-index:3;background:white;box-shadow:none}
+  tbody td.nmc,thead th.nmc{position:sticky;left:28px;z-index:3;background:white;box-shadow:2px 0 6px rgba(0,0,0,.08)}
+  thead th.nc{background:#f8f9fb;z-index:4}
+  thead th.nmc{background:#f8f9fb;z-index:4}
+  tbody tr:hover td.nc,tbody tr:hover td.nmc{background:#eef2ff!important}
+  tr.stu-selected td.nc,tr.stu-selected td.nmc{background:#fef3c7!important}
+  /* Убираем старые nth-child sticky чтобы не конфликтовали */
+  .tw table td:nth-child(1),.tw table th:nth-child(1){position:static;background:inherit}
+  .tw table td:nth-child(2),.tw table th:nth-child(2){position:static;background:inherit;box-shadow:none}
   /* Ячейки ввода */
-  .gi{width:34px;font-size:11px;padding:2px}
-  .ob{font-size:11px;padding:2px 6px}
+  .gi{width:32px;font-size:11px;padding:2px}
+  .ob{font-size:11px;padding:2px 5px}
+  /* Имена студентов короче на мобильном */
+  tbody td.nmc,thead th.nmc{min-width:120px;max-width:140px;font-size:12px}
+  .name-link{font-size:12px}
   /* Модальные окна — снизу */
   #mbg{align-items:flex-end}
   #mbox{width:100%!important;max-width:100%!important;max-height:88vh;overflow-y:auto;border-radius:20px 20px 0 0;margin:0!important}
+  body.dark tbody td.nc,body.dark thead th.nc{background:#1a1d27!important}
+  body.dark tbody td.nmc,body.dark thead th.nmc{background:#1a1d27!important}
+  body.dark tbody tr:hover td.nc,body.dark tbody tr:hover td.nmc{background:#1e2340!important}
   /* Hamburger */
   .menu-btn{display:flex!important}
   /* Teacher bar */
