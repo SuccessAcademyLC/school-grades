@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1789364262';
+  const APP_VERSION='1789366785';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1939,8 +1939,9 @@ function gchWW(sid,field,idx,val){
   if(!s) return;
   const inp=event?.target||null;
   if(!validateGradeInput(inp,val,100)) return;
-  const prevOv=calcWW(s,g.level);
-  if(prevOv!==null) s.prevOverall=prevOv;
+  // Save current overall as prevOverall BEFORE the change
+  const oldOv=calcWW(s,g.level);
+  if(oldOv!==null) s.prevOverall=oldOv;
   const n=val===''?null:parseFloat(val);
   if(idx!==null){
     if(!s[field])s[field]=[];
@@ -2404,9 +2405,9 @@ function gch(sid,field,idx,val){
   const inp=event?.target||null;
   const max=field==='retake'?6:100;
   if(!validateGradeInput(inp,val,max)) return;
-  // Save previous overall before changing
-  const prevOv=calcFinal(s,g.level);
-  if(prevOv!==null) s.prevOverall=prevOv;
+  // Save current overall as prevOverall BEFORE the change
+  const oldOv=calcFinal(s,g.level);
+  if(oldOv!==null) s.prevOverall=oldOv;
   const n=val===''?null:parseFloat(val);
   if(idx!==null){
     if(!s[field])s[field]=Array(field==='units'?12:5).fill(null);
@@ -4553,7 +4554,7 @@ function checkMobile(){
 window.addEventListener('resize',checkMobile);
 
 function goHome(){if(window._qrViewMode) return;view='home';selT=null;selG=null;selArch=null;selStu=null;curPage=null;renderAll();}
-function gotoG(id){selG=id;view='group';curPage=null;renderAll();
+function gotoG(id){if(id!==selG)window._prevSavedFor=null;selG=id;view='group';curPage=null;renderAll();
   // Autofocus first grade input after render — only for admin/teacher
   if(!window._qrViewMode&&(isAdmin()||curUser?.role==='teacher')){
     setTimeout(()=>{
