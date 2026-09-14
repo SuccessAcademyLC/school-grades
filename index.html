@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1787921574';
+  const APP_VERSION='1789360543';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -558,8 +558,9 @@ function applyTheme(){
 const RUS_LEVELS=['rus-1','rus-2','rus-3','rus-4'];
 // Course definitions - add new courses here in future
 const COURSES=[
-  {id:'speakout', label:'SpeakOut',   color:'#0C447C', bg:'#E6F1FB', langs:['ru','kk']},
-  {id:'poekhali', label:'Поехали',    color:'#3C3489', bg:'#EEEDFE', langs:['rus']},
+  {id:'speakout',    label:'SpeakOut',     color:'#0C447C', bg:'#E6F1FB', langs:['ru','kk']},
+  {id:'poekhali',    label:'Поехали',      color:'#3C3489', bg:'#EEEDFE', langs:['rus']},
+  {id:'widerworld',  label:'Wider World',  color:'#0f766e', bg:'#CCFBF1', langs:['ru','kk']},
 ];
 // Levels where unit test is entered as 0-50 and multiplied x2
 const UNIT_X2_LEVELS=['pre-intermediate','intermediate','upper-intermediate'];
@@ -570,12 +571,20 @@ const RUS_CFG={
   'rus-4':{conv:8,hw:8,vocab:8,ppt:2,hasFinalTest:false}
 };
 const TIMES=['09:00','10:30','14:00','15:30','17:00','18:30'];
-const LEVELS=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate','rus-1','rus-2','rus-3','rus-4'];
+const WW_LEVELS=['ww-1','ww-2','ww-3','ww-4'];
+const WW_CFG={
+  'ww-1':{gc:9,vc:9,ut:9,st:1,hw:9,ppt:1,speaking:10,finalTest:25},
+  'ww-2':{gc:9,vc:9,ut:9,st:1,hw:9,ppt:1,speaking:10,finalTest:25},
+  'ww-3':{gc:9,vc:9,ut:9,st:1,hw:9,ppt:1,speaking:25,finalTest:10},
+  'ww-4':{gc:9,vc:9,ut:9,st:1,hw:9,ppt:1,speaking:25,finalTest:10},
+};
+const LEVELS=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate','rus-1','rus-2','rus-3','rus-4','ww-1','ww-2','ww-3','ww-4'];
 const LEVEL_ORDER=['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
 
 function getCourse(t){
   if(t?.course) return COURSES.find(c=>c.id===t.course)||COURSES[0];
   if(t?.lang==='rus') return COURSES.find(c=>c.id==='poekhali')||COURSES[1];
+  if(t?.lang==='ww') return COURSES.find(c=>c.id==='widerworld')||COURSES[2];
   return COURSES[0];
 }
 function getCourseById(id){return COURSES.find(c=>c.id===id)||COURSES[0];}
@@ -602,7 +611,7 @@ let curLang=localStorage.getItem('sa_lang')||'ru';
 function uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 function ini(n){if(!n)return'?';const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
 function fmt(v){if(v===null||v===undefined||v==='')return'';const n=parseFloat(v);return isNaN(n)?v:Number.isInteger(n)?String(n):n.toFixed(1);}
-function lvl(l){const m={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int','intermediate':'Intermediate','upper-intermediate':'Upper-Int','rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4'};return m[l]||l;}
+function lvl(l){const m={'beginner':'Beginner','elementary':'Elementary','pre-intermediate':'Pre-Int','intermediate':'Intermediate','upper-intermediate':'Upper-Int','rus-1':'Rus-1','rus-2':'Rus-2','rus-3':'Rus-3','rus-4':'Rus-4','ww-1':'WW-1','ww-2':'WW-2','ww-3':'WW-3','ww-4':'WW-4'};return m[l]||l;}
 function lvc(l){const m={'beginner':'beg','elementary':'elem','pre-intermediate':'pre','intermediate':'int','upper-intermediate':'upp','rus-1':'rus','rus-2':'rus','rus-3':'rus','rus-4':'rus'};return m[l]||'beg';}
 
 // ── i18n ──────────────────────────────────────────────────────────────────
@@ -654,7 +663,6 @@ const LANGS={
     searchPlaceholder:'🔍 Search...',
   }
 };
-const t=tr;
 function tr(k){try{return(LANGS[curLang]||LANGS.ru)[k]||k;}catch(e){return k;}}
 
 function countGroupDebts(g){
@@ -1018,7 +1026,8 @@ function fixFirebaseArrays(obj){
 function showAddGroup(tid){
   const t=D.teachers.find(x=>x.id===tid);if(!t) return;
   const isRus=t.lang==='rus';
-  const levels=isRus?['rus-1','rus-2','rus-3','rus-4']:['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
+  const isWW=t.lang==='ww'||t.course==='widerworld';
+  const levels=isRus?['rus-1','rus-2','rus-3','rus-4']:isWW?['ww-1','ww-2','ww-3','ww-4']:['beginner','elementary','pre-intermediate','intermediate','upper-intermediate'];
   openModal(`<div class="modal-title">+ Новая группа</div>
     <div class="fg"><label class="fl">Уровень</label>
       <select class="fi" id="glvl">${levels.map(l=>`<option value="${l}">${lvl(l)}</option>`).join('')}</select>
@@ -1030,7 +1039,7 @@ function showAddGroup(tid){
       </div>
     </div>
     <div class="fg"><label class="fl">Время</label>
-      <select class="fi" id="gtm">${(window.TIMES||['09:00','10:30','14:00','15:30','17:00','18:30']).map(t=>`<option>${t}</option>`).join('')}</select>
+      <select class="fi" id="gtm">${(window.TIMES||['09:00','10:30','14:00','15:30','17:00','18:30']).map(tm=>`<option>${tm}</option>`).join('')}</select>
     </div>
     <div class="fa"><button class="btn btn-sec" onclick="closeModal()">${tr('cancel')}</button>
       <button class="btn btn-pri" onclick="addGroup('${tid}')">Создать</button></div>`);
@@ -1356,12 +1365,13 @@ function renderSidebar(){
     if(course) return `<span style="font-size:10px;background:${course.bg};color:${course.color};padding:1px 6px;border-radius:8px;margin-left:4px">${course.label}</span>`;
     if(t.lang==='kk') return `<span style="font-size:10px;background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px;margin-left:4px">SpeakOut КК</span>`;
     if(t.lang==='rus') return `<span style="font-size:10px;background:#EEEDFE;color:#3C3489;padding:1px 6px;border-radius:8px;margin-left:4px">Поехали</span>`;
+    if(t.lang==='ww') return `<span style="font-size:10px;background:#CCFBF1;color:#0f766e;padding:1px 6px;border-radius:8px;margin-left:4px">Wider World</span>`;
     return `<span style="font-size:10px;background:#E6F1FB;color:#0C447C;padding:1px 6px;border-radius:8px;margin-left:4px">SpeakOut</span>`;
   };
   document.getElementById('tlist').innerHTML=(()=>{
     if(!teachers.length) return '<div style="padding:16px;font-size:13px;color:#bbb">Нет преподавателей</div>';
     const sorted=[...teachers].sort((a,b)=>a.name.localeCompare(b.name));
-    const getTC=t=>t.course||(t.lang==='rus'?'poekhali':'speakout');
+    const getTC=t=>t.course||(t.lang==='rus'?'poekhali':t.lang==='ww'?'widerworld':'speakout');
     const renderT=t=>`<div class="t-item ${selT===t.id&&(view==='teacher'||view==='group')?'active':''}" onclick="gotoT('${t.id}')">
         <div class="t-av">${ini(t.name)}</div>
         <div style="flex:1;min-width:0">
@@ -1688,7 +1698,126 @@ function renderRusRow(s,num,g,ed){
   </tr>`;
 }
 
-function gchRus(sid,field,idx,val){
+// ── Wider World Group ─────────────────────────────────────────────────────
+function renderWWGroup(el,g,t,ed,archMode){
+  window._edFull=isAdmin()&&!archMode;
+  const cfg=WW_CFG[g.level]||WW_CFG['ww-1'];
+  const sts=g.students||[];
+  const sorted=[...sts.filter(s=>s.name)].sort((a,b)=>{
+    const k=window._sortKey||'name', d=window._sortDir||1;
+    if(k==='name') return d*a.name.localeCompare(b.name);
+    const va=calcWW(a,g.level)??-1, vb=calcWW(b,g.level)??-1;
+    return d*(vb-va);
+  });
+  const tName=t?.name||'';
+  const color='#0f766e'; const bg='#CCFBF1';
+
+  el.innerHTML=`
+    <div class="bc">
+      <span class="bc-l" onclick="goHome()">Главная</span><span class="bc-s">›</span>
+      <span class="bc-l" onclick="gotoT('${t?.id||''}')">${tName}</span><span class="bc-s">›</span>
+      <span class="bc-c">${g.day} ${g.time} <span style="background:${bg};color:${color};padding:1px 6px;border-radius:6px;font-size:11px">Wider World ${lvl(g.level)}</span></span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <div>
+        <div style="font-size:16px;font-weight:700">${tName} — ${g.day} ${g.time} (${lvl(g.level)})</div>
+        <div style="font-size:12px;color:#888">${sorted.length} студентов · Wider World</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${isAdmin()&&!archMode?`<button class="btn btn-ora btn-sm" onclick="showPromoteGroup()">🎓 Завершить</button>
+          <button class="btn btn-grn btn-sm" onclick="showAddStudentToGroup()">+ Студент</button>`:''}
+        ${ed?`<button class="btn btn-pri btn-sm" onclick="showBulkEntryModal()">📊 + Результаты</button>
+              <button class="btn btn-sec btn-sm" onclick="showImport()">📋 Вставить</button>`:''}
+        <button class="btn btn-sec btn-sm" onclick="exportGroup(${archMode})">Excel</button>
+        ${!archMode&&(isAdmin()||curUser?.role==='teacher')?`<button class="btn btn-sec btn-sm" onclick="showGroupQR('${g.id}')">📱 QR</button>`:''}
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="gt">
+      <thead>
+        <tr>
+          <th class="nc">#</th>
+          <th class="nmc" style="text-align:left">Студент</th>
+          ${Array.from({length:cfg.gc},(_,i)=>`<th title="Grammar Check ${i+1}" style="background:#fef9c3;color:#854d0e">GC${i+1}</th>`).join('')}
+          ${Array.from({length:cfg.vc},(_,i)=>`<th title="Vocab Check ${i+1}" style="background:#dcfce7;color:#166534">VC${i+1}</th>`).join('')}
+          ${Array.from({length:cfg.ut},(_,i)=>`<th title="Unit Test ${i+1}" style="background:#dbeafe;color:#1d4ed8">UT${i+1}</th>`).join('')}
+          <th title="Skills Test" style="background:#ede9fe;color:#5b21b6">ST</th>
+          ${Array.from({length:cfg.hw},(_,i)=>`<th title="Homework ${i+1}">HW${i+1}</th>`).join('')}
+          <th title="Presentation" style="background:#fce7f3;color:#9d174d">PPT</th>
+          <th title="Final Test" style="background:#fee2e2;color:#b91c1c">Final</th>
+          <th title="Speaking" style="background:#e0e7ff;color:#3730a3">SPT</th>
+          <th style="background:#f0fdf4;color:#166534">Overall</th>
+          ${!archMode?'<th></th>':''}
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map((s,i)=>renderWWRow(s,i+1,g,ed,archMode,cfg)).join('')}
+        ${ed&&(window._edFull||false)?`<tr class="empty-row">
+          <td class="nc">${sorted.length+1}</td>
+          <td class="nmc"><input class="ni" type="text" placeholder="Введите имя..." onblur="nameBlur('',${sorted.length},this)" onkeydown="nameKey(event,'',${sorted.length},this)"></td>
+          ${Array(cfg.gc+cfg.vc+cfg.ut+1+cfg.hw+3+1).fill('<td></td>').join('')}
+        </tr>`:''}
+      </tbody>
+    </table>
+    </div>`;
+}
+
+function renderWWRow(s,num,g,ed,archMode,cfg){
+  const sid=s?.id||'';
+  const empty=!s||!s.name;
+  const ov=empty?null:calcWW(s,g.level);
+  const ovc=ov===null?'on':ov>=75?'og':ov>=70?'oy':'or';
+  const atRisk=!empty&&s&&isAtRisk(s,g.level);
+  const namecell=(window._edFull||false)
+    ?`<input class="ni" type="text" value="${s?s.name:''}" placeholder="Введите имя..." onblur="nameBlur('${sid}',${num-1},this)" onkeydown="nameKey(event,'${sid}',${num-1},this)" onfocus="this.select()">`
+    :(s?.name?`<span class="name-link" onclick="clickStudent('${sid}')">${atRisk?'<span style="color:#ef4444;margin-right:4px">🔴</span>':''}${s.name}</span>`:'<span style="color:#ddd">—</span>');
+  
+  const gcell=(val,field,idx,maxVal=10,fld)=>{
+    const v=(val!=null&&val!=='')?val:'';
+    const isZero=v!==''&&parseFloat(v)===0;
+    if(ed) return `<input class="gi${isZero?' zero':''}" type="text" inputmode="decimal" value="${v!==''?fmt(v):''}" placeholder="" oninput="gchWW('${sid}','${fld||field}',${idx!=null?idx:'null'},this.value)" onkeydown="gradeKey(event,this)" style="${v!==''?`color:${Number(v)>=7?'#166534':Number(v)>=5?'#854d0e':'#b91c1c'};font-weight:700`:''}" onfocus="this.select()">`;
+    return `<span style="color:${v===''?'#ddd':Number(v)>=7?'#166534':Number(v)>=5?'#854d0e':'#b91c1c'};${v!==''?'font-weight:700':''}">${v!==''?fmt(v):'—'}</span>`;
+  };
+
+  const toArr=v=>{if(!v)return[];if(Array.isArray(v))return v;if(typeof v==='object'){const keys=Object.keys(v);const m=Math.max(...keys.map(Number));const a=Array(m+1).fill(null);keys.forEach(k=>a[parseInt(k)]=v[k]);return a;}return[];};
+
+  const gcVals=toArr(s?.gc);
+  const vcVals=toArr(s?.vc);
+  const utVals=toArr(s?.ut);
+  const hwVals=toArr(s?.ww_hw);
+
+  return `<tr class="${empty?'empty-row':''}${atRisk?' risk-row':''}">
+    <td class="nc">${num}</td>
+    <td class="nmc">${namecell}</td>
+    ${Array.from({length:cfg.gc},(_,i)=>
+      `<td style="background:#fef9c3">${gcell(gcVals[i]??'','gc',i,10,'gc')}</td>`
+    ).join('')}
+    ${Array.from({length:cfg.vc},(_,i)=>
+      `<td style="background:#dcfce7">${gcell(vcVals[i]??'','vc',i,10,'vc')}</td>`
+    ).join('')}
+    ${Array.from({length:cfg.ut},(_,i)=>
+      `<td style="background:#dbeafe">${gcell(utVals[i]??'','ut',i,20,'ut')}</td>`
+    ).join('')}
+    <td style="background:#ede9fe">${gcell(s?.st??'','st',null,20,'st')}</td>
+    ${Array.from({length:cfg.hw},(_,i)=>
+      `<td>${gcell(hwVals[i]??'','ww_hw',i,10,'ww_hw')}</td>`
+    ).join('')}
+    <td style="background:#fce7f3">${gcell(s?.ww_ppt??'','ww_ppt',null,20,'ww_ppt')}</td>
+    <td style="background:#fee2e2">${gcell(s?.ww_final??'','ww_final',null,100,'ww_final')}</td>
+    <td style="background:#e0e7ff">${gcell(s?.ww_speaking??'','ww_speaking',null,100,'ww_speaking')}</td>
+    <td class="${ovc}">${ov!==null?ov.toFixed(1):'—'}</td>
+    ${!archMode?`<td><div class="row-acts">
+      ${isAdmin()?`<button class="ra ra-arch" onclick="archiveStudent('${sid}')" title="В архив">📦</button>
+      <button class="ra ra-del" onclick="delStudent('${sid}')" title="Удалить">×</button>`:''}
+      ${ed?`<button class="ra" onclick="showHideStudent('${sid}')" title="${s&&s.hidden?'Показать':'Скрыть'}" style="${s&&s.hidden?'color:#e65100':''}">👁</button>`:''}
+    </div></td>`:''}
+  </tr>`;
+}
+
+// ── Wider World grade change ───────────────────────────────────────────────
+function gchWW(sid,field,idx,val){
+
+
   if(!sid) return;
   const t=D.teachers.find(x=>x.id===selT);
   const g=(t?.groups||[]).find(x=>x.id===selG);
@@ -1704,7 +1833,7 @@ function gchRus(sid,field,idx,val){
   } else {
     s[field]=n;
   }
-  const ov=calc(s,g.level);
+  const ov=calcWW(s,g.level);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=ov!==null?ov.toFixed(1):'—';badge.className='ob '+(ov===null?'on':ov>=75?'og':ov>=70?'oy':'or');}
   D._localAt=new Date().toISOString();
@@ -1787,6 +1916,7 @@ function renderGroup(el,archMode,archSnap){
   // Set edFull globally so srow/renderRusRow can access it
   window._edFull=isAdmin()&&!archMode;
   if(RUS_LEVELS.includes(g.level)){renderRusGroup(el,g,t,canEdit(t?.id)&&!archMode,archMode);return;}
+  if(WW_LEVELS.includes(g.level)){renderWWGroup(el,g,t,canEdit(t?.id)&&!archMode,archMode);return;}
   const sts=g.students||[];
   const isE=['beginner','elementary'].includes(g.level);
   const ed=canEdit(t?.id)&&!archMode;
@@ -2023,7 +2153,74 @@ function calc(s,level){
   // Pre-Int and above: U10+AT15+HW10+PPT20+Final15+Speaking30
   return avg(u)*.10+avg(hw)*.10+avg(at)*.15+(ppt||0)*.20+(isE?(spt||0)*.15+(fin||0)*.30:(spt||0)*.30+(fin||0)*.15);
 }
+function calcWW(s,level){
+  if(!s||!s.name) return null;
+  const cfg=WW_CFG[level]||WW_CFG['ww-1'];
+  const ok=v=>v!==null&&v!==undefined&&v!=='';
+  const avg=arr=>{const a=arr.filter(ok).map(Number).filter(v=>!isNaN(v));return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;};
+
+  const toArr=v=>{
+    if(!v) return [];
+    if(Array.isArray(v)) return v;
+    if(typeof v==='object'){
+      const keys=Object.keys(v);
+      if(keys.every(k=>!isNaN(parseInt(k)))){
+        const max=Math.max(...keys.map(Number));
+        const arr=Array(max+1).fill(null);
+        keys.forEach(k=>arr[parseInt(k)]=v[k]);
+        return arr;
+      }
+      return Object.values(v);
+    }
+    return [];
+  };
+
+  // Grammar Check avg (0-10 each) → 10%
+  const gcArr=toArr(s.gc).slice(0,cfg.gc).filter(ok).map(Number).filter(v=>!isNaN(v));
+  const gcAvg=gcArr.length?gcArr.reduce((a,b)=>a+b,0)/gcArr.length:null;
+
+  // Vocab Check avg (0-10 each) → 10%
+  const vcArr=toArr(s.vc).slice(0,cfg.vc).filter(ok).map(Number).filter(v=>!isNaN(v));
+  const vcAvg=vcArr.length?vcArr.reduce((a,b)=>a+b,0)/vcArr.length:null;
+
+  // Unit Tests (UT1-9) + Skills Test → 20%
+  const utAll=[...toArr(s.ut).slice(0,cfg.ut)];
+  if(ok(s.st)) utAll.push(Number(s.st));
+  const utArr=utAll.filter(ok).map(Number).filter(v=>!isNaN(v));
+  const utAvg=utArr.length?utArr.reduce((a,b)=>a+b,0)/utArr.length:null;
+
+  // Homework avg (0-10 each) → 10%
+  const hwArr=toArr(s.ww_hw).slice(0,cfg.hw).filter(ok).map(Number).filter(v=>!isNaN(v));
+  const hwAvg=hwArr.length?hwArr.reduce((a,b)=>a+b,0)/hwArr.length:null;
+
+  // Presentation (0-20) → 15%
+  const ppt=ok(s.ww_ppt)?Number(s.ww_ppt):null;
+
+  // Final Test (0-100) → 25% or 10% depending on level
+  const finalV=ok(s.ww_final)?Number(s.ww_final):null;
+
+  // Speaking (0-100) → 10% or 25% depending on level
+  const speakV=ok(s.ww_speaking)?Number(s.ww_speaking):null;
+
+  // Overall = GC*10% + VC*10% + UT*20% + HW*10% + PPT*15% + Final*% + Speaking*%
+  // Each component normalised to 100 then weighted
+  const parts=[];
+  if(gcAvg!==null) parts.push({val:gcAvg*10,   w:10}); // GC 0-10 → *10 → 0-100
+  if(vcAvg!==null) parts.push({val:vcAvg*10,   w:10}); // VC 0-10 → *10 → 0-100
+  if(utAvg!==null) parts.push({val:utAvg*5,    w:20}); // UT 0-20 → *5 → 0-100
+  if(hwAvg!==null) parts.push({val:hwAvg*10,   w:10}); // HW 0-10 → *10 → 0-100
+  if(ppt!==null)   parts.push({val:ppt*(100/20),w:15}); // PPT 0-20 → 0-100
+  if(finalV!==null)parts.push({val:finalV,      w:cfg.finalTest});
+  if(speakV!==null)parts.push({val:speakV,      w:cfg.speaking});
+
+  if(!parts.length) return null;
+  const totalW=parts.reduce((a,p)=>a+p.w,0);
+  const score=parts.reduce((a,p)=>a+p.val*p.w/100,0);
+  return Math.min(100,score*(100/totalW));
+}
+
 function calcFinal(s,level){
+  if(WW_LEVELS.includes(level)) return calcWW(s,level);
   const ov=calc(s,level);
   const r=s?.retake!=null&&s?.retake!==''?Number(s.retake):null;
   return ov!==null?(ov+(r||0)):(r!==null?r:null);
@@ -3175,7 +3372,7 @@ async function addTeacher(){
   const course=COURSES.find(c=>c.id===courseId)||COURSES[0];
   // Determine lang from course
   const langRadio=document.querySelector('input[name="nt-lang"]:checked')?.value||'ru';
-  const lang=courseId==='poekhali'?'rus':langRadio;
+  const lang=courseId==='poekhali'?'rus':courseId==='widerworld'?'ww':langRadio;
   if(!name){toast('Введите имя','error');return;}
   if(!login){toast('Введите логин','error');return;}
   if(!pass||pass.length<4){toast('Пароль минимум 4 символа','error');return;}
