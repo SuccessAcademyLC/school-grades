@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1789385182';
+  const APP_VERSION='1789385384';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1965,7 +1965,7 @@ function gchWW(sid,field,idx,val){
   const ov=calcWW(s,g.level);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=ov!==null?ov.toFixed(1):'—';badge.className='ob '+(ov===null?'on':ov>=75?'og':ov>=70?'oy':'or');}
-  const arrow2=document.querySelector(`[data-trend="${sid}"]`);if(arrow2)arrow2.outerHTML=trendArrow(sid,s,ov)||arrow2.outerHTML;
+  const arrow2=document.querySelector(`[data-trend="${sid}"]`);if(arrow2){const ta=trendArrow(sid,s,ov);if(ta)arrow2.outerHTML=ta;}
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
@@ -2392,8 +2392,8 @@ function gchRus(sid,field,idx,val){
   const ov=calcFinal(s,g.level);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=ov!==null?ov.toFixed(1):'—';badge.className='ob '+(ov===null?'on':ov>=75?'og':ov>=70?'oy':'or');}
-  const arrow=document.querySelector(`[data-trend="${sid}"]`);
-  if(arrow) arrow.outerHTML=trendArrow(sid,s,ov)||arrow.outerHTML;
+  const arrowR=document.querySelector(`[data-trend="${sid}"]`);
+  if(arrowR){const ta=trendArrow(sid,s,ov);if(ta)arrowR.outerHTML=ta;}
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
@@ -2463,8 +2463,9 @@ function gch(sid,field,idx,val){
   const fv=ov!==null?(ov+(r||0)):(r!==null?r:null);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=fv!==null?fv.toFixed(1):'—';badge.className='ob '+(fv===null?'on':fv>=75?'og':fv>=70?'oy':'or');}
-  // Update trend arrow
-  const arrow=document.querySelector(`[data-trend="${sid}"]`);if(arrow)arrow.outerHTML=trendArrow(sid,s,fv)||arrow.outerHTML;
+  // Update trend arrow safely
+  const arrow=document.querySelector(`[data-trend="${sid}"]`);
+  if(arrow){const ta=trendArrow(sid,s,fv);if(ta)arrow.outerHTML=ta;}
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
