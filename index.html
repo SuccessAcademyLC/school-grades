@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1789385384';
+  const APP_VERSION='1789539128';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1428,6 +1428,8 @@ function canEdit(tid){
 }
 
 function renderAll(){
+  // Clear student row highlights when navigating
+  if(view!=='group') document.querySelectorAll('tr.stu-selected').forEach(r=>r.classList.remove('stu-selected'));
   renderSidebar();
   renderMain();
   if(curUser?.role==='admin') updateNotifBadge();
@@ -1965,7 +1967,7 @@ function gchWW(sid,field,idx,val){
   const ov=calcWW(s,g.level);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=ov!==null?ov.toFixed(1):'—';badge.className='ob '+(ov===null?'on':ov>=75?'og':ov>=70?'oy':'or');}
-  const arrow2=document.querySelector(`[data-trend="${sid}"]`);if(arrow2){const ta=trendArrow(sid,s,ov);if(ta)arrow2.outerHTML=ta;}
+  updateTrendArrow(sid,s,ov);
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
@@ -2392,8 +2394,7 @@ function gchRus(sid,field,idx,val){
   const ov=calcFinal(s,g.level);
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=ov!==null?ov.toFixed(1):'—';badge.className='ob '+(ov===null?'on':ov>=75?'og':ov>=70?'oy':'or');}
-  const arrowR=document.querySelector(`[data-trend="${sid}"]`);
-  if(arrowR){const ta=trendArrow(sid,s,ov);if(ta)arrowR.outerHTML=ta;}
+  updateTrendArrow(sid,s,ov);
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
@@ -2430,8 +2431,19 @@ function gchX2(sid,field,idx,val){
   const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 
+function updateTrendArrow(sid,s,ov){
+  const el=document.querySelector(`[data-trend="${sid}"]`);
+  if(!el) return;
+  if(!s||s.prevOverall==null||ov===null){el.innerHTML='';el.style.color='';return;}
+  const d=ov-s.prevOverall;
+  if(d>0.05){el.innerHTML=`↑ +${d.toFixed(1)}`;el.style.color='#16a34a';el.style.fontWeight='700';}
+  else if(d<-0.05){el.innerHTML=`↓ ${d.toFixed(1)}`;el.style.color='#dc2626';el.style.fontWeight='700';}
+  else{el.innerHTML='→';el.style.color='#aaa';el.style.fontWeight='';}
+}
+
 function trendArrow(sid,s,ov){
-  if(!s||s.prevOverall==null||ov===null) return '';
+  if(!s||ov===null) return `<span data-trend="${sid}" style="display:block;font-size:10px;line-height:1.2"></span>`;
+  if(s.prevOverall==null) return `<span data-trend="${sid}" style="display:block;font-size:10px;line-height:1.2"></span>`;
   const d=ov-s.prevOverall;
   if(d>0.05) return `<span data-trend="${sid}" style="display:block;font-size:10px;color:#16a34a;font-weight:700;line-height:1.2">↑ +${d.toFixed(1)}</span>`;
   if(d<-0.05) return `<span data-trend="${sid}" style="display:block;font-size:10px;color:#dc2626;font-weight:700;line-height:1.2">↓ ${d.toFixed(1)}</span>`;
@@ -2464,8 +2476,7 @@ function gch(sid,field,idx,val){
   const badge=document.querySelector(`[data-ov="${sid}"]`);
   if(badge){badge.textContent=fv!==null?fv.toFixed(1):'—';badge.className='ob '+(fv===null?'on':fv>=75?'og':fv>=70?'oy':'or');}
   // Update trend arrow safely
-  const arrow=document.querySelector(`[data-trend="${sid}"]`);
-  if(arrow){const ta=trendArrow(sid,s,fv);if(ta)arrow.outerHTML=ta;}
+  updateTrendArrow(sid,s,fv);
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
