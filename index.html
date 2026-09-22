@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1790070789';
+  const APP_VERSION='1790071511';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2601,9 +2601,11 @@ function clearUnitScore(sid,idx){
 
 // Google Sheets sync
 let _sheetsTimer=null;
+let _sheetsSent={};  // cache of already sent records: key -> score
+
 function scheduleSheets(){
   clearTimeout(_sheetsTimer);
-  _sheetsTimer=setTimeout(syncToSheets, 3000); // 3 sec after last change
+  _sheetsTimer=setTimeout(syncToSheets, 3000);
   const pill=document.getElementById('sheets-pill');
   if(pill){pill.style.display='flex';pill.textContent='📊 Синхронизация...';}
 }
@@ -2611,38 +2613,40 @@ function scheduleSheets(){
 async function syncToSheets(){
   const rows=[];
   D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
-    // Skip russian language groups entirely
     if(RUS_LEVELS.includes(g.level)) return;
     const tName=tc.name;
     const gName=`${lvl(g.level)} ${g.day} ${g.time}`;
-    // Unit Tests (beginner/elementary only)
     if(['beginner','elementary'].includes(g.level)){
       (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
         (s.units||[]).forEach((v,i)=>{
           const score=Number(v);
           if(v!=null&&v!==''&&score>0&&score<=59.999){
-            rows.push({
+            const key=`${tc.id}_${g.id}_${s.id}_unit_${i}`;
+            // Only send if not sent before or score changed
+            if(_sheetsSent[key]===score.toFixed(1)) return;
+            rows.push({key, row:{
               student:s.name, group:gName, teacher:tName,
               test:`Unit Test ${i+1}`,
               grammar:s.units_grammar?.[i]??'',
               vocabulary:s.units_vocab?.[i]??'',
               score:score.toFixed(1)
-            });
+            }});
           }
         });
       });
     }
-    // Achievement Tests (english groups only)
     (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
       (s.achievements||[]).forEach((v,i)=>{
         const score=Number(v);
         if(v!=null&&v!==''&&score>0&&score<=59.999){
-          rows.push({
+          const key=`${tc.id}_${g.id}_${s.id}_at_${i}`;
+          if(_sheetsSent[key]===score.toFixed(1)) return;
+          rows.push({key, row:{
             student:s.name, group:gName, teacher:tName,
             test:`Achievement Test ${i+1}`,
             grammar:'', vocabulary:'',
             score:score.toFixed(1)
-          });
+          }});
         }
       });
     });
@@ -2653,16 +2657,16 @@ async function syncToSheets(){
     return;
   }
   try{
-    // Silent fetch - data confirmed working
-    for(const row of rows){
+    for(const {key,row} of rows){
       const params=new URLSearchParams({data:JSON.stringify(row)});
       const url=SHEETS_WEBHOOK+'?'+params.toString();
       fetch(url,{mode:'no-cors'}).catch(()=>{});
+      _sheetsSent[key]=row.score;  // mark as sent
       await new Promise(r=>setTimeout(r,300));
     }
     const pill=document.getElementById('sheets-pill');
     if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
-    toast(`📊 ${rows.length} записей отправлено в Google Sheets`,'success');
+    toast(`📊 ${rows.length} новых записей отправлено в Google Sheets`,'success');
   }catch(e){
     toast('Ошибка отправки в Google Sheets','error');
   }
