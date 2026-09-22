@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1790076611';
+  const APP_VERSION='1790076894';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -440,6 +440,7 @@ body.dark .replace-card{border-color:#2d74da}
     <button class="btn-ab" onclick="gotoPage('accounts')" data-i18n="accounts">Аккаунты</button>
     <button class="btn-ab" onclick="gotoPage('students')" data-i18n="stuBase">База студентов</button>
     <button class="btn-ab" onclick="showArchivesList()">🗃 Архивы</button>
+    <button class="btn-ab" onclick="localStorage.removeItem('sa_sheets_sent');syncToSheets()" title="Сбросить кеш и отправить в Sheets">📊 Sheets</button>
     <button class="btn-ab" onclick="showFinalsUpload()">📅 Финалы</button>
     <button class="btn-ab" onclick="gotoPage('debts')">⚠️ Долги</button>
     <button class="btn-ab" onclick="gotoPage('rating')">🏆 Рейтинг</button>
@@ -2666,24 +2667,26 @@ async function syncToSheets(){
   const pill=document.getElementById('sheets-pill');
   if(!rows.length){
     if(pill) pill.style.display='none';
-    // Кеш заполнен — все записи уже отправлены
+    toast('📊 Sheets: нет новых записей для отправки (кеш актуален)','info');
     return;
   }
 
-  toast(`📊 Отправляю ${rows.length} записей в Sheets...`,'info');
+  toast(`📊 Найдено ${rows.length} записей — отправляю...`,'info');
   try{
+    let sent_count=0;
     for(const {key,row} of rows){
       const params=new URLSearchParams({data:JSON.stringify(row)});
       const url=SHEETS_WEBHOOK+'?'+params.toString();
       await fetch(url,{mode:'no-cors'}).catch(()=>{});
       sent[key]=row.score;
+      sent_count++;
       await new Promise(r=>setTimeout(r,300));
     }
     saveSheetsCache(sent);
     if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
-    toast(`📊 ${rows.length} записей → Google Sheets`,'success');
+    toast(`📊 Готово! ${sent_count} записей отправлено в Google Sheets`,'success');
   }catch(e){
-    toast('Ошибка отправки в Google Sheets','error');
+    toast('Ошибка отправки: '+e.message,'error');
     if(pill) pill.style.display='none';
   }
 }
