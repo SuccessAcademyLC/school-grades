@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1790071511';
+  const APP_VERSION='1790074204';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2601,7 +2601,14 @@ function clearUnitScore(sid,idx){
 
 // Google Sheets sync
 let _sheetsTimer=null;
-let _sheetsSent={};  // cache of already sent records: key -> score
+const SHEETS_CACHE_KEY='sa_sheets_sent';
+
+function getSheetsCache(){
+  try{return JSON.parse(localStorage.getItem(SHEETS_CACHE_KEY)||'{}');}catch(e){return {};}
+}
+function saveSheetsCache(cache){
+  try{localStorage.setItem(SHEETS_CACHE_KEY,JSON.stringify(cache));}catch(e){}
+}
 
 function scheduleSheets(){
   clearTimeout(_sheetsTimer);
@@ -2611,6 +2618,7 @@ function scheduleSheets(){
 }
 
 async function syncToSheets(){
+  const sent=getSheetsCache();
   const rows=[];
   D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
     if(RUS_LEVELS.includes(g.level)) return;
@@ -2622,8 +2630,7 @@ async function syncToSheets(){
           const score=Number(v);
           if(v!=null&&v!==''&&score>0&&score<=59.999){
             const key=`${tc.id}_${g.id}_${s.id}_unit_${i}`;
-            // Only send if not sent before or score changed
-            if(_sheetsSent[key]===score.toFixed(1)) return;
+            if(sent[key]===score.toFixed(1)) return;
             rows.push({key, row:{
               student:s.name, group:gName, teacher:tName,
               test:`Unit Test ${i+1}`,
@@ -2640,7 +2647,7 @@ async function syncToSheets(){
         const score=Number(v);
         if(v!=null&&v!==''&&score>0&&score<=59.999){
           const key=`${tc.id}_${g.id}_${s.id}_at_${i}`;
-          if(_sheetsSent[key]===score.toFixed(1)) return;
+          if(sent[key]===score.toFixed(1)) return;
           rows.push({key, row:{
             student:s.name, group:gName, teacher:tName,
             test:`Achievement Test ${i+1}`,
@@ -2651,24 +2658,27 @@ async function syncToSheets(){
       });
     });
   }));
+
+  const pill=document.getElementById('sheets-pill');
   if(!rows.length){
-    const pill=document.getElementById('sheets-pill');
     if(pill) pill.style.display='none';
     return;
   }
+
   try{
-    for(const {key,row} of rows){
-      const params=new URLSearchParams({data:JSON.stringify(row)});
-      const url=SHEETS_WEBHOOK+'?'+params.toString();
-      fetch(url,{mode:'no-cors'}).catch(()=>{});
-      _sheetsSent[key]=row.score;  // mark as sent
-      await new Promise(r=>setTimeout(r,300));
-    }
-    const pill=document.getElementById('sheets-pill');
+    // Send all rows in one batch request instead of one by one
+    const batchData=rows.map(r=>r.row);
+    const params=new URLSearchParams({batch:JSON.stringify(batchData)});
+    const url=SHEETS_WEBHOOK+'?'+params.toString();
+    fetch(url,{mode:'no-cors'}).catch(()=>{});
+    // Mark all as sent in localStorage
+    rows.forEach(({key,row})=>sent[key]=row.score);
+    saveSheetsCache(sent);
     if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
-    toast(`📊 ${rows.length} новых записей отправлено в Google Sheets`,'success');
+    toast(`📊 ${rows.length} новых записей → Google Sheets`,'success');
   }catch(e){
     toast('Ошибка отправки в Google Sheets','error');
+    if(pill) pill.style.display='none';
   }
 }
 
