@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1790077093';
+  const APP_VERSION='1790077251';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -418,6 +418,7 @@ body.dark .replace-card{border-color:#2d74da}
     <div id="saving-pill" style="display:none" class="saving-pill"><div class="spin"></div> Сохранение...</div>
     <div id="sheets-pill" style="display:none;background:rgba(66,133,244,.15);border:1px solid #4285f4;color:#4285f4;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600"></div>
     <div id="unsaved-pill" style="display:none;background:rgba(233,69,96,.2);border:1px solid #e94560;color:#e94560;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600">● Не сохранено</div>
+    <button id="sheets-btn" onclick="localStorage.removeItem('sa_sheets_sent');syncToSheets()" style="display:none;padding:4px 10px;border-radius:12px;border:1px solid #4285f4;background:rgba(66,133,244,.1);color:#4285f4;font-size:11px;font-weight:600;cursor:pointer" title="Отправить в Google Sheets">📊 Sheets</button>
     <div class="who-pill" id="who-pill" onclick="showProfile()" style="cursor:pointer" title="Мой профиль"></div>
     <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" title="Тема" style="border-color:rgba(255,255,255,.25);color:white">🌙</button>
     <div style="position:relative" id="lang-wrap">
@@ -440,7 +441,6 @@ body.dark .replace-card{border-color:#2d74da}
     <button class="btn-ab" onclick="gotoPage('accounts')" data-i18n="accounts">Аккаунты</button>
     <button class="btn-ab" onclick="gotoPage('students')" data-i18n="stuBase">База студентов</button>
     <button class="btn-ab" onclick="showArchivesList()">🗃 Архивы</button>
-    <button class="btn-ab" onclick="localStorage.removeItem('sa_sheets_sent');syncToSheets()" title="Сбросить кеш и отправить в Sheets">📊 Sheets</button>
     <button class="btn-ab" onclick="showFinalsUpload()">📅 Финалы</button>
     <button class="btn-ab" onclick="gotoPage('debts')">⚠️ Долги</button>
     <button class="btn-ab" onclick="gotoPage('rating')">🏆 Рейтинг</button>
@@ -1433,8 +1433,10 @@ function canEdit(tid){
 }
 
 function renderAll(){
-  // Clear student row highlights when navigating
   if(view!=='group') document.querySelectorAll('tr.stu-selected').forEach(r=>r.classList.remove('stu-selected'));
+  // Show Sheets button for admin/academic
+  const sheetsBtn=document.getElementById('sheets-btn');
+  if(sheetsBtn) sheetsBtn.style.display=(isAdmin()&&curUser)?'flex':'none';
   renderSidebar();
   renderMain();
   if(curUser?.role==='admin') updateNotifBadge();
