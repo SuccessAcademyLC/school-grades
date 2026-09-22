@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1789539128';
+  const APP_VERSION='1790070789';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -1971,6 +1971,7 @@ function gchWW(sid,field,idx,val){
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
+  scheduleSheets();
   const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 
@@ -2398,6 +2399,7 @@ function gchRus(sid,field,idx,val){
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
+  scheduleSheets();
   const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 
@@ -2480,6 +2482,7 @@ function gch(sid,field,idx,val){
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
+  scheduleSheets();
   const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 function showUnitPopup(sid,idx,level){
