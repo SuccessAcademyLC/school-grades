@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1790074862';
+  const APP_VERSION='1790076611';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2666,17 +2666,18 @@ async function syncToSheets(){
   const pill=document.getElementById('sheets-pill');
   if(!rows.length){
     if(pill) pill.style.display='none';
+    // Кеш заполнен — все записи уже отправлены
     return;
   }
 
+  toast(`📊 Отправляю ${rows.length} записей в Sheets...`,'info');
   try{
-    // Send one by one (original format that works with Apps Script)
     for(const {key,row} of rows){
       const params=new URLSearchParams({data:JSON.stringify(row)});
       const url=SHEETS_WEBHOOK+'?'+params.toString();
-      fetch(url,{mode:'no-cors'}).catch(()=>{});
+      await fetch(url,{mode:'no-cors'}).catch(()=>{});
       sent[key]=row.score;
-      await new Promise(r=>setTimeout(r,200));
+      await new Promise(r=>setTimeout(r,300));
     }
     saveSheetsCache(sent);
     if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
