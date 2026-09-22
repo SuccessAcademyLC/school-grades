@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1790077392';
+  const APP_VERSION='1790077762';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2690,7 +2690,7 @@ async function syncToSheets(){
       await fetch(url,{mode:'no-cors'}).catch(()=>{});
       sent[key]=row.score;
       sent_count++;
-      await new Promise(r=>setTimeout(r,300));
+      await new Promise(r=>setTimeout(r,100));
     }
     saveSheetsCache(sent);
     if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
