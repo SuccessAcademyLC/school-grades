@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1790145982';
+  const APP_VERSION='1790157189';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2609,7 +2609,8 @@ function clearUnitScore(sid,idx){
 
 // ── Google Sheets sync ───────────────────────────────────────────────────
 let _sheetsTimer=null;
-const SHEETS_CACHE_PATH='sheets_sent'; // Firebase path for sent records cache
+let _sheetsQueue=[]; // queue of records to send
+const SHEETS_CACHE_PATH='sheets_sent';
 
 async function getSheetsCache(){
   try{
@@ -2628,42 +2629,56 @@ async function markSheetsSent(key){
   }catch(e){}
 }
 
-async function sendToSheets(row, key){
+async function sendToSheets(row,key){
   try{
     const params=new URLSearchParams({data:JSON.stringify(row)});
     const url=SHEETS_WEBHOOK+'?'+params.toString();
     await fetch(url,{mode:'no-cors'}).catch(()=>{});
     await markSheetsSent(key);
-    toast(`📊 Sheets: ${row.student} — ${row.test} (${row.score})`,'info');
   }catch(e){}
+}
+
+async function flushSheetsQueue(){
+  if(!_sheetsQueue.length) return;
+  // Take all items from queue
+  const items=[..._sheetsQueue];
+  _sheetsQueue=[];
+  // Check Firebase cache
+  const sent=await getSheetsCache();
+  const toSend=items.filter(({key})=>!sent[key]);
+  if(!toSend.length) return;
+  // Send all with small delay between each
+  for(const {row,key} of toSend){
+    await sendToSheets(row,key);
+    await new Promise(r=>setTimeout(r,200));
+  }
+  toast(`📊 Sheets: отправлено ${toSend.length} записей`,'info');
 }
 
 function scheduleSheets(sid,field,idx,val,g,tc){
   if(!sid||!g||!tc||val===null||val==='') return;
-  // Only units and achievements go to Sheets
   if(field!=='units'&&field!=='achievements') return;
   const score=Number(val);
   if(isNaN(score)||score<=0||score>59.999) return;
   const testName=field==='units'?`Unit Test ${idx+1}`:`Achievement Test ${idx+1}`;
   const key=`${tc.id}_${g.id}_${sid}_${field}_${idx}`;
+  const s=(g.students||[]).find(x=>x.id===sid);
+  if(!s) return;
+  const row={
+    student:s.name,
+    group:`${lvl(g.level)} ${g.day} ${g.time}`,
+    teacher:tc.name,
+    test:testName,
+    grammar:s.units_grammar?.[idx]??'',
+    vocabulary:s.units_vocab?.[idx]??'',
+    score:score.toFixed(1)
+  };
+  // Add to queue (replace if same key already queued)
+  _sheetsQueue=_sheetsQueue.filter(x=>x.key!==key);
+  _sheetsQueue.push({key,row});
+  // Reset timer — send all queued items after 4 seconds of inactivity
   clearTimeout(_sheetsTimer);
-  _sheetsTimer=setTimeout(async()=>{
-    // Check Firebase cache — was this exact record already sent?
-    const sent=await getSheetsCache();
-    if(sent[key]) return; // already sent, skip
-    const s=(g.students||[]).find(x=>x.id===sid);
-    if(!s) return;
-    const row={
-      student:s.name,
-      group:`${lvl(g.level)} ${g.day} ${g.time}`,
-      teacher:tc.name,
-      test:testName,
-      grammar:s.units_grammar?.[idx]??'',
-      vocabulary:s.units_vocab?.[idx]??'',
-      score:score.toFixed(1)
-    };
-    await sendToSheets(row,key);
-  },3000);
+  _sheetsTimer=setTimeout(flushSheetsQueue, 4000);
 }
 
 
