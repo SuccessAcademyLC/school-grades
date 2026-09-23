@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1790157189';
+  const APP_VERSION='1790157500';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2676,9 +2676,13 @@ function scheduleSheets(sid,field,idx,val,g,tc){
   // Add to queue (replace if same key already queued)
   _sheetsQueue=_sheetsQueue.filter(x=>x.key!==key);
   _sheetsQueue.push({key,row});
-  // Reset timer — send all queued items after 4 seconds of inactivity
-  clearTimeout(_sheetsTimer);
-  _sheetsTimer=setTimeout(flushSheetsQueue, 4000);
+  // Start timer only if not already running
+  if(!_sheetsTimer){
+    _sheetsTimer=setTimeout(()=>{
+      _sheetsTimer=null;
+      flushSheetsQueue();
+    }, 4000);
+  }
 }
 
 
