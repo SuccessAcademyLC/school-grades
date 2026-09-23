@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1790144431';
+  const APP_VERSION='1790145982';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -2435,6 +2435,8 @@ function gchX2(sid,field,idx,val){
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
+  // n is already x2, send actual score to Sheets
+  scheduleSheets(sid,field,idx,n,g,t);
   const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 
@@ -2586,6 +2588,8 @@ function saveUnitScore(sid,idx){
   closeModal();
   renderGroup(document.getElementById('main'));
   sched();
+  // Send to Sheets if below 60
+  scheduleSheets(sid,'units',idx,score,g,t);
   // Save to Firebase immediately
   saveData();
 }
@@ -6165,6 +6169,13 @@ function saveBulkEntry(field,idx){
     try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
     clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
     const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
+    // Send below-60 scores to Sheets
+    (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
+      const v=s[field]?.[idx];
+      if(v!=null&&Number(v)>0&&Number(v)<=59.999){
+        scheduleSheets(s.id,field,idx,Number(v),g,t);
+      }
+    });
     toast(`Сохранено ${changed} результатов ✓`,'success');
   } else {
     closeModal();
