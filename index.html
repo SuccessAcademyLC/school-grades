@@ -11,7 +11,7 @@
 <script>
 // Auto cache management
 (function(){
-  const APP_VERSION='1790077762';
+  const APP_VERSION='1790143618';
   const STORED_VERSION=localStorage.getItem('sa_app_version');
   // If version changed - clear all caches and reload once
   if(STORED_VERSION && STORED_VERSION!==APP_VERSION){
@@ -418,7 +418,6 @@ body.dark .replace-card{border-color:#2d74da}
     <div id="saving-pill" style="display:none" class="saving-pill"><div class="spin"></div> Сохранение...</div>
     <div id="sheets-pill" style="display:none;background:rgba(66,133,244,.15);border:1px solid #4285f4;color:#4285f4;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600"></div>
     <div id="unsaved-pill" style="display:none;background:rgba(233,69,96,.2);border:1px solid #e94560;color:#e94560;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600">● Не сохранено</div>
-    <button id="sheets-btn" onclick="localStorage.removeItem('sa_sheets_sent');syncToSheets()" style="padding:4px 10px;border-radius:12px;border:1px solid #4285f4;background:rgba(66,133,244,.1);color:#4285f4;font-size:11px;font-weight:600;cursor:pointer" title="Отправить в Google Sheets">📊 Sheets</button>
     <div class="who-pill" id="who-pill" onclick="showProfile()" style="cursor:pointer" title="Мой профиль"></div>
     <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" title="Тема" style="border-color:rgba(255,255,255,.25);color:white">🌙</button>
     <div style="position:relative" id="lang-wrap">
@@ -1978,7 +1977,6 @@ function gchWW(sid,field,idx,val){
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
-  scheduleSheets();
   const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 
@@ -2406,7 +2404,6 @@ function gchRus(sid,field,idx,val){
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
-  scheduleSheets();
   const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 
@@ -2489,7 +2486,6 @@ function gch(sid,field,idx,val){
   D._localAt=new Date().toISOString();
   try{localStorage.setItem(LOCAL_KEY,JSON.stringify(D));}catch(e){}
   clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,2000);
-  scheduleSheets();
   const up=document.getElementById('unsaved-pill');if(up)up.style.display='flex';
 }
 function showUnitPopup(sid,idx,level){
@@ -2590,7 +2586,6 @@ function saveUnitScore(sid,idx){
   sched();
   // Save to Firebase immediately
   saveData();
-  scheduleSheets();
 }
 
 function clearUnitScore(sid,idx){
@@ -2606,100 +2601,65 @@ function clearUnitScore(sid,idx){
   sched();
 }
 
-// Google Sheets sync
+// ── Google Sheets sync ───────────────────────────────────────────────────
 let _sheetsTimer=null;
-const SHEETS_CACHE_KEY='sa_sheets_sent';
+const SHEETS_CACHE_PATH='sheets_sent'; // Firebase path for sent records cache
 
-function getSheetsCache(){
-  try{return JSON.parse(localStorage.getItem(SHEETS_CACHE_KEY)||'{}');}catch(e){return {};}
-}
-function saveSheetsCache(cache){
-  try{localStorage.setItem(SHEETS_CACHE_KEY,JSON.stringify(cache));}catch(e){}
-}
-
-function scheduleSheets(){
-  clearTimeout(_sheetsTimer);
-  _sheetsTimer=setTimeout(syncToSheets, 3000);
-  const pill=document.getElementById('sheets-pill');
-  if(pill){pill.style.display='flex';pill.textContent='📊 Синхронизация...';}
-}
-
-async function syncToSheets(){
-  const sent=getSheetsCache();
-  const rows=[];
-  let totalStudents=0, totalBelow60=0, skippedCache=0;
-
-  D.teachers.forEach(tc=>(tc.groups||[]).forEach(g=>{
-    if(RUS_LEVELS.includes(g.level)) return;
-    const tName=tc.name;
-    const gName=`${lvl(g.level)} ${g.day} ${g.time}`;
-    if(['beginner','elementary'].includes(g.level)){
-      (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
-        totalStudents++;
-        (s.units||[]).forEach((v,i)=>{
-          const score=Number(v);
-          if(v!=null&&v!==''&&score>0&&score<=59.999){
-            totalBelow60++;
-            const key=`${tc.id}_${g.id}_${s.id}_unit_${i}`;
-            if(sent[key]===score.toFixed(1)){skippedCache++;return;}
-            rows.push({key, row:{
-              student:s.name, group:gName, teacher:tName,
-              test:`Unit Test ${i+1}`,
-              grammar:s.units_grammar?.[i]??'',
-              vocabulary:s.units_vocab?.[i]??'',
-              score:score.toFixed(1)
-            }});
-          }
-        });
-      });
-    }
-    (g.students||[]).filter(s=>s&&s.name).forEach(s=>{
-      (s.achievements||[]).forEach((v,i)=>{
-        const score=Number(v);
-        if(v!=null&&v!==''&&score>0&&score<=59.999){
-          totalBelow60++;
-          const key=`${tc.id}_${g.id}_${s.id}_at_${i}`;
-          if(sent[key]===score.toFixed(1)){skippedCache++;return;}
-          rows.push({key, row:{
-            student:s.name, group:gName, teacher:tName,
-            test:`Achievement Test ${i+1}`,
-            grammar:'', vocabulary:'',
-            score:score.toFixed(1)
-          }});
-        }
-      });
-    });
-  }));
-
-  // Debug info
-  toast(`📊 Проверка: студентов=${totalStudents}, ниже60=${totalBelow60}, кеш=${skippedCache}, новых=${rows.length}`,'info');
-
-  const pill=document.getElementById('sheets-pill');
-  if(!rows.length){
-    if(pill) pill.style.display='none';
-    toast('📊 Sheets: нет новых записей для отправки (кеш актуален)','info');
-    return;
-  }
-
-  toast(`📊 Найдено ${rows.length} записей — отправляю...`,'info');
+async function getSheetsCache(){
   try{
-    let sent_count=0;
-    for(const {key,row} of rows){
-      const params=new URLSearchParams({data:JSON.stringify(row)});
-      const url=SHEETS_WEBHOOK+'?'+params.toString();
-      await fetch(url,{mode:'no-cors'}).catch(()=>{});
-      sent[key]=row.score;
-      sent_count++;
-      await new Promise(r=>setTimeout(r,100));
-    }
-    saveSheetsCache(sent);
-    if(pill){pill.textContent='📊 Отправлено ✓';setTimeout(()=>{pill.style.display='none';},3000);}
-    toast(`📊 Готово! ${sent_count} записей отправлено в Google Sheets`,'success');
-  }catch(e){
-    toast('Ошибка отправки: '+e.message,'error');
-    if(pill) pill.style.display='none';
-  }
+    const r=await fetch(`${FIREBASE_URL}/${SHEETS_CACHE_PATH}.json`);
+    if(r.ok){const d=await r.json();return d||{};}
+  }catch(e){}
+  return {};
 }
+
+async function markSheetsSent(key){
+  try{
+    await fetch(`${FIREBASE_URL}/${SHEETS_CACHE_PATH}/${encodeURIComponent(key)}.json`,{
+      method:'PUT',
+      body:JSON.stringify(true)
+    });
+  }catch(e){}
+}
+
+async function sendToSheets(row, key){
+  try{
+    const params=new URLSearchParams({data:JSON.stringify(row)});
+    const url=SHEETS_WEBHOOK+'?'+params.toString();
+    await fetch(url,{mode:'no-cors'}).catch(()=>{});
+    await markSheetsSent(key);
+    toast(`📊 Sheets: ${row.student} — ${row.test} (${row.score})`,'info');
+  }catch(e){}
+}
+
+function scheduleSheets(sid,field,idx,val,g,tc){
+  if(!sid||!g||!tc||val===null||val==='') return;
+  // Only units and achievements go to Sheets
+  if(field!=='units'&&field!=='achievements') return;
+  const score=Number(val);
+  if(isNaN(score)||score<=0||score>59.999) return;
+  const testName=field==='units'?`Unit Test ${idx+1}`:`Achievement Test ${idx+1}`;
+  const key=`${tc.id}_${g.id}_${sid}_${field}_${idx}`;
+  clearTimeout(_sheetsTimer);
+  _sheetsTimer=setTimeout(async()=>{
+    // Check Firebase cache — was this exact record already sent?
+    const sent=await getSheetsCache();
+    if(sent[key]) return; // already sent, skip
+    const s=(g.students||[]).find(x=>x.id===sid);
+    if(!s) return;
+    const row={
+      student:s.name,
+      group:`${lvl(g.level)} ${g.day} ${g.time}`,
+      teacher:tc.name,
+      test:testName,
+      grammar:s.units_grammar?.[idx]??'',
+      vocabulary:s.units_vocab?.[idx]??'',
+      score:score.toFixed(1)
+    };
+    await sendToSheets(row,key);
+  },3000);
+}
+
 
 function nameBlur(sid,rowIdx,inp){
   if(inp._processing) return; // prevent double trigger
